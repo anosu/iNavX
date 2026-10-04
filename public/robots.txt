@@ -1,9 +1,5 @@
-# robots.txt for iNav
-# https://www.robotstxt.org/robotstxt.html
-
 User-agent: *
 Allow: /
-
-# Sitemap URL must be absolute (RFC requirement).
-# Replace the domain below with your actual deployment URL before publishing.
-Sitemap: https://nav.dogxi.me/sitemap.xml
+Disallow: /admin
+Disallow: /api/
+Disallow: /submit

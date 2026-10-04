@@ -209,9 +209,13 @@
 		*,
 		*::before,
 		*::after {
+			/* biome-ignore lint/complexity/noImportantStyles: Reduced-motion preferences must override animation utilities. */
 			animation-duration: 0.01ms !important;
+			/* biome-ignore lint/complexity/noImportantStyles: Prevent repeating utility animations in reduced-motion mode. */
 			animation-iteration-count: 1 !important;
+			/* biome-ignore lint/complexity/noImportantStyles: Reduced-motion preferences must override transition utilities. */
 			transition-duration: 0.01ms !important;
+			/* biome-ignore lint/complexity/noImportantStyles: Reduced-motion preferences must override smooth-scroll utilities. */
 			scroll-behavior: auto !important;
 		}
 	}
@@ -222,6 +226,129 @@
    ============================================================ */
 
 @layer components {
+	/* ---------- 后台表单控件 ---------- */
+	.admin-dialog-body {
+		scrollbar-width: thin;
+		scrollbar-color: var(--color-border) transparent;
+		scrollbar-gutter: stable;
+	}
+
+	.admin-dialog-body::-webkit-scrollbar {
+		width: 8px;
+	}
+
+	.admin-dialog-body::-webkit-scrollbar-thumb {
+		border: 2px solid var(--color-surface);
+		border-radius: var(--radius-full);
+		background-color: var(--color-border);
+	}
+
+	.admin-dialog-body::-webkit-scrollbar-track {
+		background-color: transparent;
+	}
+
+	.admin-checkbox-option {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.625rem;
+		min-height: 2.75rem;
+		padding: 0.75rem 0;
+		cursor: pointer;
+	}
+
+	.admin-checkbox {
+		appearance: none;
+		width: 1.25rem;
+		height: 1.25rem;
+		margin: 0;
+		border: 1px solid
+			color-mix(in srgb, var(--color-border) 70%, var(--color-muted-foreground));
+		border-radius: var(--radius-sm);
+		background-color: var(--color-surface);
+		cursor: inherit;
+		transition:
+			background-color var(--duration-fast) ease,
+			border-color var(--duration-fast) ease;
+	}
+
+	.admin-checkbox:checked {
+		border-color: var(--color-primary);
+		background-color: var(--color-primary);
+	}
+
+	.admin-checkbox:focus-visible {
+		outline: 2px solid var(--color-primary);
+		outline-offset: 3px;
+		border-radius: var(--radius-sm);
+	}
+
+	.admin-checkbox-card {
+		padding: 0.875rem 1rem;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		background-color: var(--color-surface-raised);
+		transition:
+			background-color var(--duration-fast) ease,
+			border-color var(--duration-fast) ease;
+	}
+
+	.admin-checkbox-card:has(:checked) {
+		border-color: color-mix(
+			in srgb,
+			var(--color-primary) 30%,
+			var(--color-border)
+		);
+		background-color: color-mix(
+			in srgb,
+			var(--color-primary-subtle) 50%,
+			var(--color-surface)
+		);
+	}
+
+	.admin-checkbox-option:hover:has(input:not(:disabled)) .admin-checkbox,
+	.admin-checkbox-card:hover:has(input:not(:disabled)) {
+		border-color: var(--color-primary);
+	}
+
+	.admin-checkbox-option:has(:disabled) {
+		cursor: not-allowed;
+		opacity: 0.5;
+	}
+
+	select.admin-input {
+		appearance: none;
+		padding-right: 2.5rem;
+		background-image:
+			linear-gradient(45deg, transparent 50%, var(--color-muted-foreground) 50%),
+			linear-gradient(
+				135deg,
+				var(--color-muted-foreground) 50%,
+				transparent 50%
+			);
+		background-position:
+			calc(100% - 19px) center,
+			calc(100% - 14px) center;
+		background-size: 5px 5px;
+		background-repeat: no-repeat;
+	}
+
+	[data-theme="dark"] .admin-input {
+		color-scheme: dark;
+	}
+
+	@media (forced-colors: active) {
+		.admin-checkbox {
+			appearance: auto;
+		}
+		.admin-checkbox + svg {
+			display: none;
+		}
+		select.admin-input {
+			appearance: auto;
+			background-image: none;
+		}
+	}
+
 	/* ---------- 卡片 ---------- */
 	.card {
 		background-color: var(--color-surface);

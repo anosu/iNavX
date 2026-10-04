@@ -1,15 +1,19 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { z } from 'zod'
 import type { BookmarkImportResult, Site } from '@/types'
-import { getFaviconUrl } from '@/utils/favicon'
+import { extractDomain, getFaviconUrl } from '@/utils/favicon'
+import {
+	localSiteSchema,
+	readStoredSites,
+	restorePersonalData,
+} from '@/utils/personalData'
+import { normalizeUrl } from '../../shared/catalog'
 
 const STORAGE_KEY = 'inav-imported-sites'
 
 function loadFromStorage(): Site[] {
 	try {
-		const raw = localStorage.getItem(STORAGE_KEY)
-		if (!raw) return []
-		const parsed = JSON.parse(raw)
-		return Array.isArray(parsed) ? parsed : []
+		return readStoredSites(localStorage.getItem(STORAGE_KEY), 'imported')
 	} catch {
 		return []
 	}
@@ -18,7 +22,9 @@ function loadFromStorage(): Site[] {
 function saveToStorage(sites: Site[]): void {
 	try {
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(sites))
-	} catch {}
+	} catch {
+		/* Imported bookmarks remain usable for this visit if storage is unavailable. */
+	}
 }
 
 function slugify(text: string): string {
@@ -27,14 +33,6 @@ function slugify(text: string): string {
 		.replace(/\s+/g, '-')
 		.replace(/[^\w\u4e00-\u9fa5-]/g, '')
 		.slice(0, 40)
-}
-
-function extractDomain(url: string): string {
-	try {
-		return new URL(url).hostname
-	} catch {
-		return ''
-	}
 }
 
 function parseBookmarkHtml(
@@ -103,6 +101,8 @@ function parseBookmarkHtml(
 export interface UseBookmarksReturn {
 	importedSites: Site[]
 	importFromHtml: (html: string) => BookmarkImportResult
+	importFromJson: (json: string) => BookmarkImportResult
+	updateImported: (id: string, value: Partial<Site>) => void
 	removeImported: (id: string) => void
 	clearImported: () => void
 	exportToJson: (visibleSites: Site[]) => void
@@ -113,8 +113,11 @@ export function useBookmarks(): UseBookmarksReturn {
 	const [importedSites, setImportedSites] = useState<Site[]>(() =>
 		loadFromStorage(),
 	)
+	const previousSites = useRef(importedSites)
 
 	useEffect(() => {
+		if (previousSites.current === importedSites) return
+		previousSites.current = importedSites
 		saveToStorage(importedSites)
 	}, [importedSites])
 
@@ -131,6 +134,48 @@ export function useBookmarks(): UseBookmarksReturn {
 	const removeImported = useCallback((id: string) => {
 		setImportedSites((prev) => prev.filter((s) => s.id !== id))
 	}, [])
+	const updateImported = useCallback((id: string, value: Partial<Site>) => {
+		setImportedSites((previous) =>
+			previous.map((site) =>
+				site.id === id ? { ...site, ...value, id, source: 'imported' } : site,
+			),
+		)
+	}, [])
+	const importFromJson = useCallback(
+		(json: string): BookmarkImportResult => {
+			const raw: unknown = JSON.parse(json)
+			if (
+				raw &&
+				typeof raw === 'object' &&
+				'format' in raw &&
+				raw.format === 'inav-personal'
+			) {
+				restorePersonalData(raw)
+				return { imported: 0, skipped: 0, sites: [], handled: true }
+			}
+			const parsed = z.array(localSiteSchema).max(10000).parse(raw)
+			const urls = new Set(importedSites.map((site) => normalizeUrl(site.url)))
+			const sites: Site[] = []
+			for (const item of parsed) {
+				const url = normalizeUrl(item.url)
+				if (!urls.has(url)) {
+					sites.push({
+						...item,
+						id: `imported-${crypto.randomUUID()}`,
+						source: 'imported',
+					})
+					urls.add(url)
+				}
+			}
+			setImportedSites((previous) => [...previous, ...sites])
+			return {
+				imported: sites.length,
+				skipped: parsed.length - sites.length,
+				sites,
+			}
+		},
+		[importedSites],
+	)
 
 	const clearImported = useCallback(() => {
 		setImportedSites([])
@@ -179,6 +224,8 @@ ${folderHtml}
 	return {
 		importedSites,
 		importFromHtml,
+		importFromJson,
+		updateImported,
 		removeImported,
 		clearImported,
 		exportToJson,

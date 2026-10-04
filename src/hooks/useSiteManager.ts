@@ -1,16 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Site, SiteCategory } from '@/types'
-import { getFaviconUrl } from '@/utils/favicon'
+import { extractDomain, getFaviconUrl } from '@/utils/favicon'
+import { readStoredSites } from '@/utils/personalData'
+import { httpUrl, normalizeUrl } from '../../shared/catalog'
 
 const STORAGE_KEY = 'inav-custom-sites'
 const HIDDEN_BUILTIN_KEY = 'inav-hidden-builtin'
 
 function loadCustomSites(): Site[] {
 	try {
-		const raw = localStorage.getItem(STORAGE_KEY)
-		if (!raw) return []
-		const parsed = JSON.parse(raw)
-		return Array.isArray(parsed) ? (parsed as Site[]) : []
+		return readStoredSites(localStorage.getItem(STORAGE_KEY), 'custom')
 	} catch {
 		return []
 	}
@@ -19,15 +18,21 @@ function loadCustomSites(): Site[] {
 function saveCustomSites(sites: Site[]): void {
 	try {
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(sites))
-	} catch {}
+	} catch {
+		/* Personal storage may be disabled or full; keep the in-memory edits. */
+	}
 }
 
 function loadHiddenBuiltin(): Set<string> {
 	try {
 		const raw = localStorage.getItem(HIDDEN_BUILTIN_KEY)
 		if (!raw) return new Set()
-		const parsed = JSON.parse(raw)
-		return Array.isArray(parsed) ? new Set(parsed as string[]) : new Set()
+		const parsed: unknown = JSON.parse(raw)
+		return Array.isArray(parsed)
+			? new Set(
+					parsed.filter((id: unknown): id is string => typeof id === 'string'),
+				)
+			: new Set()
 	} catch {
 		return new Set()
 	}
@@ -36,7 +41,9 @@ function loadHiddenBuiltin(): Set<string> {
 function saveHiddenBuiltin(ids: Set<string>): void {
 	try {
 		localStorage.setItem(HIDDEN_BUILTIN_KEY, JSON.stringify(Array.from(ids)))
-	} catch {}
+	} catch {
+		/* Hiding remains usable for this visit when personal storage is unavailable. */
+	}
 }
 
 function slugify(text: string): string {
@@ -47,15 +54,11 @@ function slugify(text: string): string {
 		.slice(0, 40)
 }
 
-function extractDomain(url: string): string {
-	try {
-		return new URL(url).hostname
-	} catch {
-		return ''
-	}
-}
-
-function generateId(name: string, url: string, existingIds: Set<string>): string {
+function generateId(
+	name: string,
+	url: string,
+	existingIds: Set<string>,
+): string {
 	const base = slugify(name) || slugify(extractDomain(url)) || 'site'
 	let id = `custom-${base}`
 	let suffix = 1
@@ -81,7 +84,9 @@ export interface ValidationError {
 	message: string
 }
 
-export function validateSitePayload(payload: Partial<SitePayload>): ValidationError[] {
+export function validateSitePayload(
+	payload: Partial<SitePayload>,
+): ValidationError[] {
 	const errors: ValidationError[] = []
 
 	if (!payload.name?.trim()) {
@@ -92,16 +97,11 @@ export function validateSitePayload(payload: Partial<SitePayload>): ValidationEr
 
 	if (!payload.url?.trim()) {
 		errors.push({ field: 'url', message: 'URL 不能为空' })
-	} else {
-		try {
-			const u = new URL(payload.url.trim())
-			if (u.protocol !== 'http:' && u.protocol !== 'https:') {
-				errors.push({ field: 'url', message: '仅支持 http / https 链接' })
-			}
-		} catch {
-			errors.push({ field: 'url', message: 'URL 格式不正确' })
-		}
-	}
+	} else if (!httpUrl.safeParse(payload.url).success)
+		errors.push({
+			field: 'url',
+			message: '请输入不含账号密码的 HTTP / HTTPS 地址',
+		})
 
 	if (!payload.description?.trim()) {
 		errors.push({ field: 'description', message: '描述不能为空' })
@@ -133,22 +133,33 @@ export interface UseSiteManagerReturn {
 }
 
 export function useSiteManager(): UseSiteManagerReturn {
-	const [customSites, setCustomSites] = useState<Site[]>(() => loadCustomSites())
-	const [hiddenBuiltinIds, setHiddenBuiltinIds] = useState<Set<string>>(() => loadHiddenBuiltin())
+	const [customSites, setCustomSites] = useState<Site[]>(() =>
+		loadCustomSites(),
+	)
+	const [hiddenBuiltinIds, setHiddenBuiltinIds] = useState<Set<string>>(() =>
+		loadHiddenBuiltin(),
+	)
 	const [siteRevision, setSiteRevision] = useState(0)
+	const previousSites = useRef(customSites)
+	const previousHidden = useRef(hiddenBuiltinIds)
 
 	useEffect(() => {
+		if (previousSites.current === customSites) return
+		previousSites.current = customSites
 		saveCustomSites(customSites)
 	}, [customSites])
 
 	useEffect(() => {
+		if (previousHidden.current === hiddenBuiltinIds) return
+		previousHidden.current = hiddenBuiltinIds
 		saveHiddenBuiltin(hiddenBuiltinIds)
 	}, [hiddenBuiltinIds])
 
 	const addSite = useCallback(
 		(payload: SitePayload): Site => {
 			const existingIds = new Set(customSites.map((s) => s.id))
-			const iconUrl = payload.iconUrl?.trim() || getFaviconUrl(payload.url) || undefined
+			const iconUrl =
+				payload.iconUrl?.trim() || getFaviconUrl(payload.url) || undefined
 
 			const site: Site = {
 				id: generateId(payload.name, payload.url, existingIds),
@@ -212,10 +223,10 @@ export function useSiteManager(): UseSiteManagerReturn {
 
 	const isUrlDuplicate = useCallback(
 		(url: string, excludeId?: string): boolean => {
-			const normalized = url.trim().toLowerCase().replace(/\/$/, '')
+			const normalized = normalizeUrl(url)
 			return customSites.some((s) => {
 				if (s.id === excludeId) return false
-				return s.url.trim().toLowerCase().replace(/\/$/, '') === normalized
+				return normalizeUrl(s.url) === normalized
 			})
 		},
 		[customSites],

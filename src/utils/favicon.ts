@@ -1,4 +1,5 @@
-const PROXY_BASE = 'https://ico.dogxi.me/icon'
+import type { Settings } from '../../shared/catalog'
+import { resolveImageUrl } from '../../shared/resources'
 
 export function extractDomain(url: string): string {
 	try {
@@ -8,13 +9,26 @@ export function extractDomain(url: string): string {
 	}
 }
 
-/** 生成 favicon URL，经由 ico.dogxi.me 代理获取 Google 图标 */
-export function getFaviconUrl(urlOrDomain: string): string | undefined {
+/** Only generate an icon from an explicitly configured source. */
+export function getFaviconUrl(
+	urlOrDomain: string,
+	settings:
+		| Pick<Settings, 'faviconTemplate' | 'remoteImagesEnabled'>
+		| undefined = typeof window !== 'undefined'
+		? window.__INAV_SETTINGS__
+		: undefined,
+): string | undefined {
 	const domain = urlOrDomain.includes('://')
 		? extractDomain(urlOrDomain)
 		: urlOrDomain.trim()
 
 	if (!domain) return undefined
 
-	return `${PROXY_BASE}?domain=${domain}`
+	const template = settings?.faviconTemplate
+	if (!template) return undefined
+	return resolveImageUrl(
+		template.replaceAll('{domain}', encodeURIComponent(domain)),
+		window.location.origin,
+		settings.remoteImagesEnabled,
+	)
 }

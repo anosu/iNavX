@@ -23,8 +23,8 @@ const iconSizeClasses: Record<NonNullable<ButtonProps['size']>, string> = {
 	lg: 'h-11 w-11',
 }
 
-/** 计算按钮 className，供需要按钮样式的非 button 元素（如 <a>）复用 */
-export function buttonVariants({
+/** 根据变体与尺寸计算按钮样式。 */
+function buttonVariants({
 	variant = 'primary',
 	size = 'md',
 	className = '',

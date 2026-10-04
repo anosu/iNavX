@@ -85,23 +85,6 @@ export function MoonIcon(props: IconProps) {
 	)
 }
 
-/* ---- GitHub ---- */
-export function GitHubIcon(props: Omit<IconProps, 'strokeWidth'>) {
-	return (
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			width={props.size ?? 16}
-			height={props.size ?? 16}
-			viewBox="0 0 24 24"
-			fill="currentColor"
-			className={props.className}
-			aria-hidden="true"
-		>
-			<path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
-		</svg>
-	)
-}
-
 /* ---- 外链 ---- */
 export function ExternalLinkIcon(props: IconProps) {
 	return (
@@ -228,66 +211,6 @@ export function CommandIcon(props: IconProps) {
 	)
 }
 
-/* ---- 箭头向右 ---- */
-export function ArrowRightIcon(props: IconProps) {
-	return (
-		<Icon {...props}>
-			<path d="M5 12h14" />
-			<path d="m12 5 7 7-7 7" />
-		</Icon>
-	)
-}
-
-/* ---- 箭头向上 ---- */
-export function ArrowUpIcon(props: IconProps) {
-	return (
-		<Icon {...props}>
-			<path d="m5 12 7-7 7 7" />
-			<path d="M12 19V5" />
-		</Icon>
-	)
-}
-
-/* ---- 更多 (三点) ---- */
-export function MoreHorizontalIcon(props: IconProps) {
-	return (
-		<Icon {...props}>
-			<circle cx="12" cy="12" r="1" />
-			<circle cx="19" cy="12" r="1" />
-			<circle cx="5" cy="12" r="1" />
-		</Icon>
-	)
-}
-
-/* ---- 全局搜索 / 过滤 ---- */
-export function FilterIcon(props: IconProps) {
-	return (
-		<Icon {...props}>
-			<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-		</Icon>
-	)
-}
-
-/* ---- 星形收藏 ---- */
-export function StarIcon(props: IconProps & { filled?: boolean }) {
-	const { filled, ...rest } = props
-	return (
-		<Icon {...rest} fill={filled ? 'currentColor' : 'none'}>
-			<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-		</Icon>
-	)
-}
-
-/* ---- 链接 ---- */
-export function LinkIcon(props: IconProps) {
-	return (
-		<Icon {...props}>
-			<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-			<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-		</Icon>
-	)
-}
-
 /* ---- 刷新 ---- */
 export function RefreshIcon(props: IconProps) {
 	return (
@@ -306,15 +229,6 @@ export function CopyIcon(props: IconProps) {
 		<Icon {...props}>
 			<rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
 			<path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-		</Icon>
-	)
-}
-
-/* ---- 闪电（性能/快速） ---- */
-export function ZapIcon(props: IconProps) {
-	return (
-		<Icon {...props}>
-			<polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
 		</Icon>
 	)
 }
@@ -372,42 +286,6 @@ export function NavLogoIcon({
 				opacity="0.2"
 			/>
 		</svg>
-	)
-}
-
-/* ---- 书签 ---- */
-export function BookmarkIcon(props: IconProps & { filled?: boolean }) {
-	const { filled, ...rest } = props
-	return (
-		<Icon {...rest} fill={filled ? 'currentColor' : 'none'}>
-			<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
-		</Icon>
-	)
-}
-
-/* ---- 键盘 ---- */
-export function KeyboardIcon(props: IconProps) {
-	return (
-		<Icon {...props}>
-			<rect width="20" height="16" x="2" y="4" rx="2" ry="2" />
-			<path d="M6 8h.001" />
-			<path d="M10 8h.001" />
-			<path d="M14 8h.001" />
-			<path d="M18 8h.001" />
-			<path d="M8 12h.001" />
-			<path d="M12 12h.001" />
-			<path d="M16 12h.001" />
-			<path d="M7 16h10" />
-		</Icon>
-	)
-}
-
-/* ---- 文件夹 ---- */
-export function FolderIcon(props: IconProps) {
-	return (
-		<Icon {...props}>
-			<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-		</Icon>
 	)
 }
 

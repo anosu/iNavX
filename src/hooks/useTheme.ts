@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ThemeMode, UseThemeReturn } from '@/types'
+import { usePublicCatalog } from './usePublicCatalog'
 
 const STORAGE_KEY = 'inav-theme'
 
 function getSystemTheme(): 'light' | 'dark' {
 	if (typeof window === 'undefined') return 'light'
-	return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+	return window.matchMedia('(prefers-color-scheme: dark)').matches
+		? 'dark'
+		: 'light'
 }
 
 function resolveTheme(mode: ThemeMode): 'light' | 'dark' {
@@ -22,54 +25,62 @@ function applyThemeToDom(resolved: 'light' | 'dark'): void {
 function getStoredMode(): ThemeMode | null {
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY)
-		if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
+		if (stored === 'light' || stored === 'dark' || stored === 'system')
+			return stored
 		return null
 	} catch {
 		return null
 	}
 }
 
-// system 模式清除存储，让 index.html 内联脚本 fallback 到 OS 偏好
+// 显式选择也保存 system，以覆盖站点的默认主题。
 function saveMode(mode: ThemeMode): void {
 	try {
-		if (mode === 'system') {
-			localStorage.removeItem(STORAGE_KEY)
-		} else {
-			localStorage.setItem(STORAGE_KEY, mode)
-		}
-	} catch {}
+		localStorage.setItem(STORAGE_KEY, mode)
+	} catch {
+		/* The selected theme still applies for this visit when storage is unavailable. */
+	}
 }
 
 export function useTheme(): UseThemeReturn {
-	const [mode, setModeState] = useState<ThemeMode>(() => getStoredMode() ?? 'system')
+	const { settings } = usePublicCatalog()
+	const [mode, setModeState] = useState<ThemeMode>(
+		() => getStoredMode() ?? settings.defaultTheme,
+	)
+	const [systemTheme, setSystemTheme] = useState(getSystemTheme)
+	useEffect(() => {
+		if (!getStoredMode()) setModeState(settings.defaultTheme)
+	}, [settings.defaultTheme])
 
-	const resolvedTheme = resolveTheme(mode)
+	const resolvedTheme = mode === 'system' ? systemTheme : mode
 
 	// system 模式下监听 OS 深色模式变化
 	useEffect(() => {
 		if (mode !== 'system') return
 		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
 		const handleChange = () => {
-			applyThemeToDom(getSystemTheme())
-			setModeState('system')
+			setSystemTheme(getSystemTheme())
 		}
+		handleChange()
 		mediaQuery.addEventListener('change', handleChange)
 		return () => mediaQuery.removeEventListener('change', handleChange)
 	}, [mode])
 
 	useEffect(() => {
-		applyThemeToDom(resolveTheme(mode))
-		saveMode(mode)
-	}, [mode])
+		applyThemeToDom(resolvedTheme)
+	}, [resolvedTheme])
 
 	const setTheme = useCallback((newMode: ThemeMode) => {
+		saveMode(newMode)
 		setModeState(newMode)
 	}, [])
 
 	const toggleTheme = useCallback(() => {
 		setModeState((prevMode) => {
 			const prevResolved = resolveTheme(prevMode)
-			return prevResolved === 'dark' ? 'light' : 'dark'
+			const next = prevResolved === 'dark' ? 'light' : 'dark'
+			saveMode(next)
+			return next
 		})
 	}, [])
 

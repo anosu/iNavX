@@ -3,7 +3,6 @@ import { NavLink } from 'react-router'
 import { Button } from '@/components/atoms/Button'
 import {
 	CommandIcon,
-	GitHubIcon,
 	InfoIcon,
 	MoonIcon,
 	NavLogoIcon,
@@ -11,6 +10,8 @@ import {
 	SunIcon,
 } from '@/components/atoms/Icons'
 import { SearchBar } from '@/components/molecules/SearchBar'
+import { useImageUrl } from '@/hooks/useImageUrl'
+import { usePublicCatalog } from '@/hooks/usePublicCatalog'
 import { useTheme } from '@/hooks/useTheme'
 
 /* ============================================================
@@ -70,6 +71,7 @@ interface InfoPopoverProps {
 }
 
 function InfoPopover({ siteCount }: InfoPopoverProps) {
+	const { settings } = usePublicCatalog()
 	const [open, setOpen] = useState(false)
 	const [time, setTime] = useState(() => new Date())
 	const ref = useRef<HTMLDivElement>(null)
@@ -134,18 +136,9 @@ function InfoPopover({ siteCount }: InfoPopoverProps) {
 						</div>
 					</div>
 
-					{/* 版本信息及站点数量 */}
+					{/* 当前可见站点数量 */}
 					<div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
-						<span className="text-xs text-muted-foreground">版本</span>
-						<a
-							className="text-xs font-medium text-muted-foreground tabular-nums"
-							href="https://github.com/dogxii/inav"
-							target="_blank"
-							rel="noopener noreferrer"
-						>
-							v{import.meta.env.APP_VERSION}
-						</a>
-						<span className="text-xs text-muted-foreground">收录站点</span>
+						<span className="text-xs text-muted-foreground">可见站点</span>
 						<span className="text-sm font-semibold text-foreground tabular-nums">
 							{siteCount}
 						</span>
@@ -170,40 +163,27 @@ function InfoPopover({ siteCount }: InfoPopoverProps) {
 						</div>
 					</div>
 
-					{/* GitHub 链接 */}
-					<a
-						href="https://github.com/dogxii/inav"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="
-							flex items-center gap-2
-							px-4 py-2.5
-							text-xs text-muted-foreground
-							hover:bg-muted hover:text-foreground
-							transition-colors duration-100
-							no-underline
-						"
-					>
-						<GitHubIcon size={13} />
-						<span>查看源码</span>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="10"
-							height="10"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="2"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							className="ml-auto opacity-40"
-							aria-hidden="true"
+					{/* 使用说明 */}
+					<div className="px-4 py-3 space-y-2 text-[11px] text-muted-foreground">
+						<p>个人收藏保存在当前浏览器。公共目录由管理员维护。</p>
+						{import.meta.env.VITE_STATIC_MODE !== 'true' &&
+							settings.applicationsEnabled && (
+								<NavLink
+									to="/submit"
+									className="block text-primary"
+									onClick={() => setOpen(false)}
+								>
+									推荐网站 · 申请收录 →
+								</NavLink>
+							)}
+						<NavLink
+							to="/about"
+							className="block hover:text-foreground"
+							onClick={() => setOpen(false)}
 						>
-							<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-							<polyline points="15 3 21 3 21 9" />
-							<line x1="10" y1="14" x2="21" y2="3" />
-						</svg>
-					</a>
+							使用说明与数据备份 →
+						</NavLink>
+					</div>
 				</div>
 			)}
 		</div>
@@ -213,15 +193,30 @@ function InfoPopover({ siteCount }: InfoPopoverProps) {
 // ---- Logo ----
 
 function Logo() {
+	const { settings } = usePublicCatalog()
+	const logoUrl = useImageUrl(settings.logoUrl)
+	const [failedUrl, setFailedUrl] = useState<string>()
 	return (
 		<div className="flex items-center gap-2 shrink-0">
-			<NavLogoIcon size={26} />
+			{logoUrl && logoUrl !== failedUrl ? (
+				<img
+					key={logoUrl}
+					src={logoUrl}
+					onError={() => setFailedUrl(logoUrl)}
+					alt=""
+					width={26}
+					height={26}
+					className="rounded object-contain"
+				/>
+			) : (
+				<NavLogoIcon size={26} />
+			)}
 			<div>
-				<p className="text-sm font-bold text-foreground leading-none tracking-tight">
-					iNav
+				<p className="text-sm font-bold text-foreground leading-none tracking-tight truncate max-w-44">
+					{settings.name}
 				</p>
-				<p className="text-[10px] text-muted-foreground leading-none mt-0.5 hidden sm:block">
-					快速导航站
+				<p className="text-[10px] text-muted-foreground leading-none mt-0.5 hidden sm:block truncate max-w-44">
+					{settings.description}
 				</p>
 			</div>
 		</div>
@@ -285,6 +280,7 @@ export function Header({
 	onAddSite,
 	onReset,
 }: HeaderProps) {
+	const { settings } = usePublicCatalog()
 	return (
 		<header className="sticky top-0 z-50 glass border-b border-border">
 			<div className="w-full flex items-center gap-2 h-12 px-4 sm:px-6">
@@ -293,7 +289,7 @@ export function Header({
 					to="/"
 					onClick={onReset}
 					className="text-foreground no-underline shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-					aria-label="iNav 首页，点击清除搜索"
+					aria-label={`${settings.name} 首页，点击清除搜索`}
 				>
 					<Logo />
 				</NavLink>

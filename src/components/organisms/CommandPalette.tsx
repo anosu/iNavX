@@ -6,6 +6,7 @@ import {
 	XIcon,
 } from '@/components/atoms/Icons'
 import { getCategoryColor } from '@/data/categories'
+import { useSiteIconUrl } from '@/hooks/useImageUrl'
 import type { Site, SiteCategory } from '@/types'
 
 /* ============================================================
@@ -85,10 +86,11 @@ function CategoryDot({ category }: { category: SiteCategory }) {
 // ---- 站点 favicon ----
 
 function SiteAvatar({ site }: { site: Site }) {
-	const [err, setErr] = useState(false)
+	const iconUrl = useSiteIconUrl(site.iconUrl, site.url)
+	const [failedUrl, setFailedUrl] = useState<string>()
 	const initial = [...site.name][0]?.toUpperCase() ?? '?'
 
-	if (!site.iconUrl || err) {
+	if (!iconUrl || failedUrl === iconUrl) {
 		return (
 			<div className="h-6 w-6 shrink-0 rounded-md bg-muted flex items-center justify-center text-[11px] font-semibold text-muted-foreground">
 				{initial}
@@ -98,12 +100,12 @@ function SiteAvatar({ site }: { site: Site }) {
 
 	return (
 		<img
-			src={site.iconUrl}
+			src={iconUrl}
 			alt=""
 			width={24}
 			height={24}
 			className="h-6 w-6 shrink-0 rounded-md object-contain"
-			onError={() => setErr(true)}
+			onError={() => setFailedUrl(iconUrl)}
 			loading="eager"
 			decoding="async"
 		/>
@@ -410,7 +412,7 @@ export function CommandPalette({ open, onClose, sites }: CommandPaletteProps) {
 						{results.length > 0 ? (
 							results.map((site, index) => (
 								<ResultItem
-									key={site.id}
+									key={`${site.source}:${site.id}`}
 									site={site}
 									query={query}
 									selected={index === selectedIndex}

@@ -13,7 +13,7 @@ export const SITE_CATEGORIES = [
 	'其他',
 ] as const
 
-export type SiteCategory = (typeof SITE_CATEGORIES)[number]
+export type SiteCategory = string
 
 /** 命令面板中分类匹配颜色 */
 const CATEGORY_PALETTE = [
@@ -33,7 +33,7 @@ const CATEGORY_PALETTE = [
 
 /** 根据分类数组下标取颜色 */
 export function getCategoryColor(category: string): string {
-	const idx = SITE_CATEGORIES.indexOf(category as SiteCategory)
+	const idx = (SITE_CATEGORIES as readonly string[]).indexOf(category)
 	if (idx === -1) return 'text-gray-400'
 	return CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length] ?? 'text-gray-400'
 }

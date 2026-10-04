@@ -1,9 +1,11 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Outlet, ScrollRestoration } from 'react-router'
-
+import { PublicCatalogProvider } from '@/hooks/usePublicCatalog'
 import Home from '@/pages/Home'
 
 const About = lazy(() => import('@/pages/About'))
+const Admin = lazy(() => import('@/pages/Admin'))
+const Submit = lazy(() => import('@/pages/Submit'))
 
 function PageLoader() {
 	return (
@@ -108,12 +110,14 @@ function ErrorPage() {
 
 function RootLayout() {
 	return (
-		<div className="bg-background">
-			<Suspense fallback={<PageLoader />}>
-				<Outlet />
-			</Suspense>
-			<ScrollRestoration />
-		</div>
+		<PublicCatalogProvider>
+			<div className="bg-background">
+				<Suspense fallback={<PageLoader />}>
+					<Outlet />
+				</Suspense>
+				<ScrollRestoration />
+			</div>
+		</PublicCatalogProvider>
 	)
 }
 
@@ -131,6 +135,8 @@ export const router = createBrowserRouter([
 				path: 'about',
 				element: <About />,
 			},
+			{ path: 'admin', element: <Admin /> },
+			{ path: 'submit', element: <Submit /> },
 		],
 	},
 ])

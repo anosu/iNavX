@@ -7,19 +7,21 @@ import {
 	XIcon,
 } from '@/components/atoms/Icons'
 import { SITE_CATEGORIES } from '@/data/categories'
+import { useDialogLifecycle } from '@/hooks/useDialogLifecycle'
+import { useImageUrl, useSiteIconUrl } from '@/hooks/useImageUrl'
+import { usePublicCatalog } from '@/hooks/usePublicCatalog'
 import {
 	type SitePayload,
 	type ValidationError,
 	validateSitePayload,
 } from '@/hooks/useSiteManager'
 import type { Site } from '@/types'
-import { getFaviconUrl } from '@/utils/favicon'
 
 /* ============================================================
    useFetchMeta
-   通过 allorigins 代理抓取目标页面的 title / description。
+   通过站点配置的元数据代理抓取目标页面的 title / description。
    - 仅在添加模式下、URL 合法时触发
-   - 500ms 防抖，避免频繁请求
+   - 600ms 防抖，避免频繁请求
    - 静默失败：网络错误或解析异常均不影响表单使用
    ============================================================ */
 
@@ -28,11 +30,17 @@ interface PageMeta {
 	description: string
 }
 
-async function fetchPageMeta(url: string): Promise<PageMeta | null> {
+async function fetchPageMeta(
+	url: string,
+	template: string,
+	signal: AbortSignal,
+): Promise<PageMeta | null> {
 	try {
-		// codetabs 代理：稳定、免费、无需 API Key
-		const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`
-		const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) })
+		if (!template) return null
+		const proxyUrl = template.replaceAll('{url}', encodeURIComponent(url))
+		const res = await fetch(proxyUrl, {
+			signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]),
+		})
 		if (!res.ok) return null
 		const html = await res.text()
 		if (!html) return null
@@ -99,18 +107,11 @@ function FaviconPreview({
 	const [inputVal, setInputVal] = useState(customIconUrl)
 	const [previewErr, setPreviewErr] = useState(false)
 	const inputRef = useRef<HTMLInputElement>(null)
+	const triggerRef = useRef<HTMLButtonElement>(null)
 	const popoverRef = useRef<HTMLDivElement>(null)
 
-	// 派生实际显示的 icon URL：有自定义值用自定义，否则从 siteUrl 推断
-	const autoIconUrl = (() => {
-		try {
-			const domain = new URL(siteUrl.trim()).hostname
-			return domain ? (getFaviconUrl(domain) ?? '') : ''
-		} catch {
-			return ''
-		}
-	})()
-	const displayUrl = customIconUrl || autoIconUrl
+	const displayUrl = useSiteIconUrl(customIconUrl, siteUrl)
+	const previewUrl = useImageUrl(inputVal.trim())
 
 	// 打开 popover 时同步最新值并聚焦
 	const openPopover = (e: React.MouseEvent) => {
@@ -136,35 +137,34 @@ function FaviconPreview({
 		return () => document.removeEventListener('mousedown', handler)
 	}, [popoverOpen])
 
+	const closePopover = () => {
+		setPopoverOpen(false)
+		triggerRef.current?.focus({ preventScroll: true })
+	}
 	const handleConfirm = () => {
 		onIconUrlChange(inputVal.trim())
-		setPopoverOpen(false)
+		closePopover()
 	}
 
 	const handleClear = () => {
 		onIconUrlChange('')
 		setInputVal('')
-		setPopoverOpen(false)
+		closePopover()
 	}
 
 	// 图标内容（头像 or 图片）
-	const [imgErr, setImgErr] = useState(false)
-	// 当图标来源变化时重置错误状态；用稳定的 key 字符串触发，避免 lint 误报
-	const iconSourceKey = `${customIconUrl}||${siteUrl}`
-	// biome-ignore lint/correctness/useExhaustiveDependencies: iconSourceKey is intentionally used as a trigger
-	useEffect(() => {
-		setImgErr(false)
-	}, [iconSourceKey])
+	const [failedUrl, setFailedUrl] = useState<string>()
 
 	const iconContent =
-		displayUrl && !imgErr ? (
+		displayUrl && displayUrl !== failedUrl ? (
 			<img
+				key={displayUrl}
 				src={displayUrl}
 				alt=""
 				width={36}
 				height={36}
 				className="w-full h-full rounded-lg object-contain"
-				onError={() => setImgErr(true)}
+				onError={() => setFailedUrl(displayUrl)}
 				loading="eager"
 				decoding="async"
 			/>
@@ -178,6 +178,7 @@ function FaviconPreview({
 		<div className="relative shrink-0" ref={popoverRef}>
 			{/* 可点击的图标按钮 */}
 			<button
+				ref={triggerRef}
 				type="button"
 				onClick={openPopover}
 				aria-label="自定义图标"
@@ -230,11 +231,18 @@ function FaviconPreview({
 					"
 					role="dialog"
 					aria-label="自定义图标 URL"
+					onKeyDown={(e) => {
+						if (e.key === 'Escape') {
+							e.preventDefault()
+							e.stopPropagation()
+							closePopover()
+						}
+					}}
 				>
 					<div className="px-3 py-2.5 border-b border-border">
 						<p className="text-xs font-medium text-foreground">自定义图标</p>
 						<p className="text-[11px] text-muted-foreground mt-0.5">
-							填入图片 URL，留空则自动获取
+							填入站内路径或图片地址，留空使用本站默认图标
 						</p>
 					</div>
 					<div className="px-3 py-2.5 space-y-2">
@@ -242,9 +250,9 @@ function FaviconPreview({
 						<div className="flex items-center gap-2">
 							{/* 实时预览 */}
 							<div className="h-8 w-8 shrink-0 rounded-md bg-muted border border-border flex items-center justify-center overflow-hidden">
-								{inputVal.trim() && !previewErr ? (
+								{previewUrl && !previewErr ? (
 									<img
-										src={inputVal.trim()}
+										src={previewUrl}
 										alt=""
 										width={32}
 										height={32}
@@ -259,7 +267,7 @@ function FaviconPreview({
 							</div>
 							<input
 								ref={inputRef}
-								type="url"
+								type="text"
 								value={inputVal}
 								onChange={(e) => {
 									setPreviewErr(false)
@@ -270,12 +278,8 @@ function FaviconPreview({
 										e.preventDefault()
 										handleConfirm()
 									}
-									if (e.key === 'Escape') {
-										e.preventDefault()
-										setPopoverOpen(false)
-									}
 								}}
-								placeholder="https://example.com/icon.png"
+								placeholder="/icons/example.svg"
 								className="input-base px-2.5 py-1.5 text-xs flex-1 min-w-0"
 								autoComplete="off"
 								spellCheck={false}
@@ -288,12 +292,12 @@ function FaviconPreview({
 								onClick={handleClear}
 								className="text-[11px] text-muted-foreground hover:text-error transition-colors"
 							>
-								恢复自动获取
+								使用默认图标
 							</button>
 							<div className="flex gap-1.5">
 								<button
 									type="button"
-									onClick={() => setPopoverOpen(false)}
+									onClick={closePopover}
 									className="
 										h-7 px-2.5 rounded-md text-xs
 										text-muted-foreground hover:bg-muted
@@ -403,6 +407,7 @@ function siteToPayload(site: Site): SitePayload {
 // ---- 主组件 ----
 
 export interface SiteFormModalProps {
+	categories?: readonly string[]
 	/** 传入则为编辑模式，否则为添加模式 */
 	editSite?: Site
 	/** 是否打开 */
@@ -425,7 +430,13 @@ export function SiteFormModal({
 	onSubmit,
 	isUrlDuplicate,
 	onDelete,
+	categories = SITE_CATEGORIES,
 }: SiteFormModalProps) {
+	const { settings } = usePublicCatalog()
+	const metadataTemplate = settings.metadataFetchEnabled
+		? settings.metadataProxyTemplate
+		: ''
+	const metadataEnabled = Boolean(metadataTemplate)
 	const isEdit = Boolean(editSite)
 	const [form, setForm] = useState<SitePayload>(
 		editSite ? siteToPayload(editSite) : EMPTY_FORM,
@@ -439,38 +450,42 @@ export function SiteFormModal({
 	const [fetchStatus, setFetchStatus] = useState<
 		'idle' | 'loading' | 'done' | 'error'
 	>('idle')
-	// 记录已抓取过的 URL，避免重复请求
-	const fetchedUrlRef = useRef<string>('')
 	// 防抖 timer
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+	const metadataRequestRef = useRef<AbortController | null>(null)
+	const formRef = useRef(form)
+	formRef.current = form
+	const categoriesRef = useRef(categories)
+	categoriesRef.current = categories
+	const dialogRef = useDialogLifecycle(open)
+	const cancelMetadata = useCallback(() => {
+		if (debounceRef.current) clearTimeout(debounceRef.current)
+		debounceRef.current = null
+		metadataRequestRef.current?.abort()
+		metadataRequestRef.current = null
+	}, [])
 
 	// 打开时初始化 / 重置
 	useEffect(() => {
 		if (open) {
-			const initial = editSite ? siteToPayload(editSite) : EMPTY_FORM
+			const currentCategories = categoriesRef.current
+			const initial = editSite
+				? siteToPayload(editSite)
+				: {
+						...EMPTY_FORM,
+						category: currentCategories.includes(EMPTY_FORM.category)
+							? EMPTY_FORM.category
+							: currentCategories[0] || '其他',
+					}
 			setForm(initial)
 			setErrors([])
 			setSubmitted(false)
 			setTagInput('')
 			setFetchStatus('idle')
-			fetchedUrlRef.current = ''
-			if (debounceRef.current) clearTimeout(debounceRef.current)
+			cancelMetadata()
 			requestAnimationFrame(() => firstInputRef.current?.focus())
 		}
-	}, [open, editSite])
-
-	// Esc 关闭
-	useEffect(() => {
-		if (!open) return
-		const handler = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') {
-				e.preventDefault()
-				onClose()
-			}
-		}
-		window.addEventListener('keydown', handler)
-		return () => window.removeEventListener('keydown', handler)
-	}, [open, onClose])
+	}, [open, editSite, cancelMetadata])
 
 	// 表单变更
 	const setField = useCallback(
@@ -486,61 +501,76 @@ export function SiteFormModal({
 
 	/**
 	 * 核心抓取逻辑，添加模式和编辑模式的刷新按钮共用。
-	 * overwrite=true 时强制覆盖已有名称/描述（手动点刷新时使用）。
+	 * 手动刷新替换原内容，但保留请求期间的人工修改。
 	 */
-	const doFetchMeta = useCallback(async (url: string, overwrite = false) => {
-		const trimmed = url.trim()
-		if (!isValidUrl(trimmed)) return
-		setFetchStatus('loading')
-		fetchedUrlRef.current = trimmed
-		const meta = await fetchPageMeta(trimmed)
-		if (!meta) {
-			setFetchStatus('error')
-			return
-		}
-		setFetchStatus('done')
-		setForm((prev) => ({
-			...prev,
-			name:
-				overwrite || !prev.name.trim()
-					? meta.title.slice(0, 50) || prev.name
-					: prev.name,
-			description:
-				overwrite || !prev.description.trim()
-					? meta.description.slice(0, 100) || prev.description
-					: prev.description,
-		}))
-	}, [])
+	const doFetchMeta = useCallback(
+		async (url: string, overwrite = false) => {
+			const trimmed = url.trim()
+			if (!metadataTemplate || !isValidUrl(trimmed)) return
+			cancelMetadata()
+			const controller = new AbortController()
+			metadataRequestRef.current = controller
+			const before = formRef.current
+			setFetchStatus('loading')
+			const meta = await fetchPageMeta(
+				trimmed,
+				metadataTemplate,
+				controller.signal,
+			)
+			if (
+				controller.signal.aborted ||
+				metadataRequestRef.current !== controller
+			)
+				return
+			if (!meta) {
+				setFetchStatus('error')
+				return
+			}
+			setFetchStatus('done')
+			setForm((prev) =>
+				prev.url.trim() !== trimmed
+					? prev
+					: {
+							...prev,
+							name:
+								(overwrite && prev.name === before.name) || !prev.name.trim()
+									? meta.title.slice(0, 50) || prev.name
+									: prev.name,
+							description:
+								(overwrite && prev.description === before.description) ||
+								!prev.description.trim()
+									? meta.description.slice(0, 100) || prev.description
+									: prev.description,
+						},
+			)
+		},
+		[metadataTemplate, cancelMetadata],
+	)
 
 	/** 编辑模式下手动点击刷新按钮 */
 	const handleRefreshMeta = useCallback(() => {
-		if (debounceRef.current) clearTimeout(debounceRef.current)
-		doFetchMeta(form.url, true)
+		void doFetchMeta(form.url, true)
 	}, [form.url, doFetchMeta])
 
-	/**
-	 * URL 变更时触发自动获取（仅添加模式）。
-	 * 防抖 600ms，只填入用户尚未输入的字段，不覆盖已有内容。
-	 */
+	// 请求属于当前打开状态、网址与代理配置；任何一项改变都取消旧请求。
+	useEffect(() => {
+		cancelMetadata()
+		setFetchStatus('idle')
+		if (open && !isEdit && metadataTemplate && isValidUrl(form.url)) {
+			debounceRef.current = setTimeout(() => {
+				void doFetchMeta(form.url)
+			}, 600)
+		}
+		return cancelMetadata
+	}, [open, isEdit, form.url, metadataTemplate, doFetchMeta, cancelMetadata])
+
 	const handleUrlChange = useCallback(
 		(url: string) => {
+			cancelMetadata()
+			setFetchStatus('idle')
 			setField('url', url)
-			if (isEdit) return
-
-			if (debounceRef.current) clearTimeout(debounceRef.current)
-
-			const trimmed = url.trim()
-			if (!isValidUrl(trimmed)) {
-				setFetchStatus('idle')
-				return
-			}
-			if (trimmed === fetchedUrlRef.current) return
-
-			debounceRef.current = setTimeout(() => {
-				doFetchMeta(trimmed, false)
-			}, 600)
 		},
-		[setField, isEdit, doFetchMeta],
+		[setField, cancelMetadata],
 	)
 
 	// 获取某字段的错误信息
@@ -607,131 +637,129 @@ export function SiteFormModal({
 	if (!open) return null
 
 	return (
-		<>
-			{/* 遮罩 */}
-			<div
-				className="modal-overlay animate-fade-in"
-				onClick={onClose}
-				aria-hidden="true"
-			/>
-
-			{/* 面板 */}
-			<div
-				role="dialog"
-				aria-modal="true"
-				aria-label={isEdit ? '编辑站点' : '添加站点'}
-				className="
-					fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
-					w-full max-w-lg
-					animate-scale-up
-				"
-				style={{ zIndex: 300 }}
-				onClick={(e) => e.stopPropagation()}
-				onKeyDown={(e) => {
-					// Mirror the click behavior for keyboard users
-					e.stopPropagation()
-				}}
-				tabIndex={-1}
-			>
-				<div className="popover mx-4 max-h-[90vh] flex flex-col">
-					{/* Header */}
-					<div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-						<div className="flex items-center gap-3">
-							{/* 预览图标（可点击自定义） */}
-							<FaviconPreview
-								siteUrl={form.url}
-								name={form.name}
-								customIconUrl={form.iconUrl ?? ''}
-								onIconUrlChange={(url) => setField('iconUrl', url)}
-							/>
-							<div>
-								<h2 className="text-sm font-semibold text-foreground">
-									{isEdit ? '编辑站点' : '添加站点'}
-								</h2>
-								<p className="text-[11px] text-muted-foreground mt-0.5">
-									{form.name.trim() || (isEdit ? editSite?.name : '新站点')}
-								</p>
-							</div>
+		<dialog
+			ref={dialogRef}
+			aria-modal="true"
+			aria-label={isEdit ? '编辑站点' : '添加站点'}
+			className="m-auto w-[calc(100%_-_2rem)] max-w-lg max-h-[90dvh] overflow-hidden rounded-2xl border border-border bg-surface p-0 text-foreground shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-sm animate-scale-up"
+			onCancel={(e) => {
+				e.preventDefault()
+				onClose()
+			}}
+			onClick={(e) => {
+				if (e.target === e.currentTarget) onClose()
+				e.stopPropagation()
+			}}
+			onKeyDown={(e) => {
+				if (e.key === 'Escape') {
+					e.preventDefault()
+					onClose()
+				}
+				e.stopPropagation()
+			}}
+			tabIndex={-1}
+		>
+			<div className="max-h-[90dvh] flex flex-col">
+				{/* Header */}
+				<div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+					<div className="flex items-center gap-3">
+						{/* 预览图标（可点击自定义） */}
+						<FaviconPreview
+							siteUrl={form.url}
+							name={form.name}
+							customIconUrl={form.iconUrl ?? ''}
+							onIconUrlChange={(url) => setField('iconUrl', url)}
+						/>
+						<div>
+							<h2 className="text-sm font-semibold text-foreground">
+								{isEdit ? '编辑站点' : '添加站点'}
+							</h2>
+							<p className="text-[11px] text-muted-foreground mt-0.5">
+								{form.name.trim() || (isEdit ? editSite?.name : '新站点')}
+							</p>
 						</div>
-						<button
-							type="button"
-							onClick={onClose}
-							className="text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
-							aria-label="关闭"
-						>
-							<XIcon size={16} />
-						</button>
 					</div>
-
-					{/* 表单体 */}
-					<form
-						onSubmit={handleSubmit}
-						noValidate
-						className="flex-1 overflow-y-auto scrollbar-thin px-5 py-4 space-y-4"
+					<button
+						type="button"
+						onClick={onClose}
+						className="text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+						aria-label="关闭"
 					>
-						{/* 站点名称 */}
-						<Field
-							label="站点名称"
-							htmlFor="sf-name"
-							required
-							error={fieldError('name')}
-						>
-							<input
-								ref={firstInputRef}
-								id="sf-name"
-								type="text"
-								value={form.name}
-								onChange={(e) => setField('name', e.target.value)}
-								placeholder="如：GitHub"
-								maxLength={50}
-								className={inputCls(Boolean(fieldError('name')))}
-								autoComplete="off"
-							/>
-						</Field>
+						<XIcon size={16} />
+					</button>
+				</div>
 
-						{/* URL */}
-						<Field
-							label="URL"
-							htmlFor="sf-url"
-							required
-							error={fieldError('url')}
-							hint={
-								isEdit
+				{/* 表单体 */}
+				<form
+					onSubmit={handleSubmit}
+					noValidate
+					className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-thin px-5 py-4 space-y-4"
+				>
+					{/* 站点名称 */}
+					<Field
+						label="站点名称"
+						htmlFor="sf-name"
+						required
+						error={fieldError('name')}
+					>
+						<input
+							ref={firstInputRef}
+							id="sf-name"
+							type="text"
+							value={form.name}
+							onChange={(e) => setField('name', e.target.value)}
+							placeholder="如：GitHub"
+							maxLength={50}
+							className={inputCls(Boolean(fieldError('name')))}
+							autoComplete="off"
+						/>
+					</Field>
+
+					{/* URL */}
+					<Field
+						label="URL"
+						htmlFor="sf-url"
+						required
+						error={fieldError('url')}
+						hint={
+							!metadataEnabled
+								? '填写网址后，手动输入名称与描述'
+								: isEdit
 									? '点击刷新按钮可重新获取标题与描述'
 									: '输入链接后自动获取标题与描述'
-							}
-						>
-							<div className="relative">
-								<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-muted-foreground">
-									<GlobeIcon size={14} />
-								</div>
-								<input
-									id="sf-url"
-									type="url"
-									value={form.url}
-									onChange={(e) => handleUrlChange(e.target.value)}
-									placeholder="https://example.com"
-									className={[
-										inputCls(Boolean(fieldError('url'))),
-										'pl-8 pr-8',
-									].join(' ')}
-									autoComplete="url"
-									autoCapitalize="none"
-									spellCheck={false}
-								/>
-								{/* 右侧操作区：编辑模式显示刷新按钮，添加模式显示抓取状态 */}
-								<div className="absolute inset-y-0 right-0 flex items-center pr-2">
-									{isEdit ? (
-										/* 编辑模式：刷新按钮 */
-										<button
-											type="button"
-											onClick={handleRefreshMeta}
-											disabled={
-												fetchStatus === 'loading' || !isValidUrl(form.url)
-											}
-											aria-label="重新获取标题与描述"
-											title="重新获取标题与描述"
-											className="
+						}
+					>
+						<div className="relative">
+							<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-muted-foreground">
+								<GlobeIcon size={14} />
+							</div>
+							<input
+								id="sf-url"
+								type="url"
+								value={form.url}
+								onChange={(e) => handleUrlChange(e.target.value)}
+								placeholder="https://example.com"
+								className={[
+									inputCls(Boolean(fieldError('url'))),
+									'pl-8 pr-8',
+								].join(' ')}
+								autoComplete="url"
+								autoCapitalize="none"
+								spellCheck={false}
+							/>
+							{/* 右侧操作区：编辑模式显示刷新按钮，添加模式显示抓取状态 */}
+							<div className="absolute inset-y-0 right-0 flex items-center pr-2">
+								{isEdit && metadataEnabled ? (
+									/* 编辑模式：刷新按钮 */
+									<button
+										type="button"
+										onClick={handleRefreshMeta}
+										disabled={
+											fetchStatus === 'loading' || !isValidUrl(form.url)
+										}
+										aria-label="重新获取标题与描述"
+										title="重新获取标题与描述"
+										className="
 												flex items-center justify-center
 												h-5 w-5 rounded
 												text-muted-foreground
@@ -740,280 +768,269 @@ export function SiteFormModal({
 												transition-colors duration-100
 												focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary
 											"
-										>
-											{fetchStatus === 'loading' ? (
-												<span className="h-3 w-3 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-											) : (
-												<RefreshIcon size={12} />
-											)}
-										</button>
-									) : (
-										/* 添加模式：抓取状态图标 */
-										fetchStatus !== 'idle' && (
-											<div className="pointer-events-none flex items-center">
-												{fetchStatus === 'loading' && (
-													<span className="h-3.5 w-3.5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-												)}
-												{fetchStatus === 'done' && (
-													<svg
-														width="14"
-														height="14"
-														viewBox="0 0 24 24"
-														fill="none"
-														stroke="currentColor"
-														strokeWidth="2.5"
-														strokeLinecap="round"
-														strokeLinejoin="round"
-														className="text-success"
-														aria-label="已自动填入标题与描述"
-													>
-														<polyline points="20 6 9 17 4 12" />
-													</svg>
-												)}
-												{fetchStatus === 'error' && (
-													<svg
-														width="13"
-														height="13"
-														viewBox="0 0 24 24"
-														fill="none"
-														stroke="currentColor"
-														strokeWidth="2"
-														strokeLinecap="round"
-														strokeLinejoin="round"
-														className="text-muted-foreground"
-														aria-label="无法自动获取，请手动填写"
-													>
-														<circle cx="12" cy="12" r="10" />
-														<line x1="12" y1="8" x2="12" y2="12" />
-														<line x1="12" y1="16" x2="12.01" y2="16" />
-													</svg>
-												)}
-											</div>
-										)
-									)}
-								</div>
-							</div>
-							{/* 抓取成功提示 */}
-							{!isEdit && fetchStatus === 'done' && (
-								<p className="text-[11px] text-success leading-tight flex items-center gap-1">
-									<svg
-										width="10"
-										height="10"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2.5"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										aria-hidden="true"
 									>
-										<polyline points="20 6 9 17 4 12" />
-									</svg>
-									已自动填入标题与描述，可手动修改
-								</p>
-							)}
-						</Field>
+										{fetchStatus === 'loading' ? (
+											<span className="h-3 w-3 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+										) : (
+											<RefreshIcon size={12} />
+										)}
+									</button>
+								) : (
+									/* 添加模式：抓取状态图标 */
+									fetchStatus !== 'idle' && (
+										<div className="pointer-events-none flex items-center">
+											{fetchStatus === 'loading' && (
+												<span className="h-3.5 w-3.5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+											)}
+											{fetchStatus === 'done' && (
+												<svg
+													width="14"
+													height="14"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2.5"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													className="text-success"
+													aria-label="已自动填入标题与描述"
+												>
+													<polyline points="20 6 9 17 4 12" />
+												</svg>
+											)}
+											{fetchStatus === 'error' && (
+												<svg
+													width="13"
+													height="13"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													className="text-muted-foreground"
+													aria-label="无法自动获取，请手动填写"
+												>
+													<circle cx="12" cy="12" r="10" />
+													<line x1="12" y1="8" x2="12" y2="12" />
+													<line x1="12" y1="16" x2="12.01" y2="16" />
+												</svg>
+											)}
+										</div>
+									)
+								)}
+							</div>
+						</div>
+						{/* 抓取成功提示 */}
+						{!isEdit && fetchStatus === 'done' && (
+							<p className="text-[11px] text-success leading-tight flex items-center gap-1">
+								<svg
+									width="10"
+									height="10"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2.5"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									aria-hidden="true"
+								>
+									<polyline points="20 6 9 17 4 12" />
+								</svg>
+								已自动填入标题与描述，可手动修改
+							</p>
+						)}
+					</Field>
 
-						{/* 描述 */}
-						<Field
-							label="描述"
-							htmlFor="sf-desc"
-							required
-							error={fieldError('description')}
+					{/* 描述 */}
+					<Field
+						label="描述"
+						htmlFor="sf-desc"
+						required
+						error={fieldError('description')}
+					>
+						<textarea
+							id="sf-desc"
+							value={form.description}
+							onChange={(e) => setField('description', e.target.value)}
+							placeholder="简短描述这个站点的用途..."
+							maxLength={100}
+							rows={2}
+							className={[
+								inputCls(Boolean(fieldError('description'))),
+								'resize-none leading-relaxed',
+							].join(' ')}
+						/>
+						<span className="text-[11px] text-muted-foreground self-end">
+							{form.description.length}/100
+						</span>
+					</Field>
+
+					{/* 分类 */}
+					<Field
+						label="分类"
+						htmlFor="sf-category"
+						required
+						error={fieldError('category')}
+					>
+						<fieldset className="flex flex-wrap gap-1.5" aria-label="选择分类">
+							{categories.map((cat) => (
+								<button
+									key={cat}
+									type="button"
+									onClick={() => setField('category', cat)}
+									className={[
+										'badge cursor-pointer transition-all duration-100',
+										'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
+										form.category === cat
+											? 'badge-active'
+											: 'badge-default hover:badge-primary',
+									].join(' ')}
+									aria-pressed={form.category === cat}
+								>
+									{cat}
+								</button>
+							))}
+						</fieldset>
+					</Field>
+
+					{/* 标签（可选） */}
+					<Field
+						label="标签"
+						htmlFor="sf-tags"
+						hint="按 Enter 或逗号添加，用于搜索过滤"
+					>
+						<div className="space-y-2">
+							{/* 已有标签 */}
+							{(form.tags?.length ?? 0) > 0 && (
+								<div className="flex flex-wrap gap-1.5">
+									{(form.tags ?? []).map((tag) => (
+										<span
+											key={tag}
+											className="badge badge-primary flex items-center gap-1"
+										>
+											{tag}
+											<button
+												type="button"
+												onClick={() => removeTag(tag)}
+												className="hover:text-error transition-colors"
+												aria-label={`删除标签 ${tag}`}
+											>
+												<XIcon size={10} />
+											</button>
+										</span>
+									))}
+								</div>
+							)}
+							{/* 输入框 */}
+							<input
+								id="sf-tags"
+								type="text"
+								value={tagInput}
+								onChange={(e) => setTagInput(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === 'Enter' || e.key === ',') {
+										e.preventDefault()
+										addTag()
+									}
+								}}
+								placeholder="输入标签后按 Enter"
+								className="input-base px-3 py-2 text-base sm:text-sm"
+								autoComplete="off"
+							/>
+						</div>
+					</Field>
+
+					{/* 置顶开关 */}
+					<div className="flex items-center justify-between py-1">
+						<div>
+							<p className="text-xs font-medium text-foreground">置顶此站点</p>
+							<p className="text-[11px] text-muted-foreground mt-0.5">
+								置顶站点将始终排在网格首位
+							</p>
+						</div>
+						<button
+							type="button"
+							role="switch"
+							aria-checked={form.pinned}
+							onClick={() => setField('pinned', !form.pinned)}
+							className={[
+								'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full',
+								'transition-colors duration-200',
+								'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+								form.pinned ? 'bg-primary' : 'bg-muted-foreground/30',
+							].join(' ')}
 						>
-							<textarea
-								id="sf-desc"
-								value={form.description}
-								onChange={(e) => setField('description', e.target.value)}
-								placeholder="简短描述这个站点的用途..."
-								maxLength={100}
-								rows={2}
+							<span
 								className={[
-									inputCls(Boolean(fieldError('description'))),
-									'resize-none leading-relaxed',
+									'inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm',
+									'transition-transform duration-200',
+									form.pinned ? 'translate-x-4.5' : 'translate-x-0.5',
 								].join(' ')}
 							/>
-							<span className="text-[11px] text-muted-foreground self-end">
-								{form.description.length}/100
-							</span>
-						</Field>
+						</button>
+					</div>
+				</form>
 
-						{/* 分类 */}
-						<Field
-							label="分类"
-							htmlFor="sf-category"
-							required
-							error={fieldError('category')}
-						>
-							<fieldset
-								className="flex flex-wrap gap-1.5"
-								aria-label="选择分类"
-							>
-								{SITE_CATEGORIES.map((cat) => (
-									<button
-										key={cat}
-										type="button"
-										onClick={() => setField('category', cat)}
-										className={[
-											'badge cursor-pointer transition-all duration-100',
-											'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
-											form.category === cat
-												? 'badge-active'
-												: 'badge-default hover:badge-primary',
-										].join(' ')}
-										aria-pressed={form.category === cat}
-									>
-										{cat}
-									</button>
-								))}
-							</fieldset>
-						</Field>
-
-						{/* 标签（可选） */}
-						<Field
-							label="标签"
-							htmlFor="sf-tags"
-							hint="按 Enter 或逗号添加，用于搜索过滤"
-						>
-							<div className="space-y-2">
-								{/* 已有标签 */}
-								{(form.tags?.length ?? 0) > 0 && (
-									<div className="flex flex-wrap gap-1.5">
-										{(form.tags ?? []).map((tag) => (
-											<span
-												key={tag}
-												className="badge badge-primary flex items-center gap-1"
-											>
-												{tag}
-												<button
-													type="button"
-													onClick={() => removeTag(tag)}
-													className="hover:text-error transition-colors"
-													aria-label={`删除标签 ${tag}`}
-												>
-													<XIcon size={10} />
-												</button>
-											</span>
-										))}
-									</div>
-								)}
-								{/* 输入框 */}
-								<input
-									id="sf-tags"
-									type="text"
-									value={tagInput}
-									onChange={(e) => setTagInput(e.target.value)}
-									onKeyDown={(e) => {
-										if (e.key === 'Enter' || e.key === ',') {
-											e.preventDefault()
-											addTag()
-										}
-									}}
-									placeholder="输入标签后按 Enter"
-									className="input-base px-3 py-2 text-base sm:text-sm"
-									autoComplete="off"
-								/>
-							</div>
-						</Field>
-
-						{/* 置顶开关 */}
-						<div className="flex items-center justify-between py-1">
-							<div>
-								<p className="text-xs font-medium text-foreground">
-									置顶此站点
-								</p>
-								<p className="text-[11px] text-muted-foreground mt-0.5">
-									置顶站点将始终排在网格首位
-								</p>
-							</div>
-							<button
-								type="button"
-								role="switch"
-								aria-checked={form.pinned}
-								onClick={() => setField('pinned', !form.pinned)}
-								className={[
-									'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full',
-									'transition-colors duration-200',
-									'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
-									form.pinned ? 'bg-primary' : 'bg-muted-foreground/30',
-								].join(' ')}
-							>
-								<span
-									className={[
-										'inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm',
-										'transition-transform duration-200',
-										form.pinned ? 'translate-x-4.5' : 'translate-x-0.5',
-									].join(' ')}
-								/>
-							</button>
-						</div>
-					</form>
-
-					{/* Footer */}
-					<div className="flex items-center justify-between gap-3 px-5 py-3.5 border-t border-border shrink-0">
-						{/* 左侧：删除按钮（仅编辑 custom/imported 时出现） */}
-						{canDelete ? (
-							<button
-								type="button"
-								onClick={handleDelete}
-								className="
+				{/* Footer */}
+				<div className="flex items-center justify-between gap-3 px-5 py-3.5 border-t border-border shrink-0">
+					{/* 左侧：删除按钮（仅编辑 custom/imported 时出现） */}
+					{canDelete ? (
+						<button
+							type="button"
+							onClick={handleDelete}
+							className="
 										flex items-center gap-1.5
 										h-8 px-3 text-xs font-medium rounded-lg
 										text-error hover:bg-error/10
 										transition-colors duration-100
 										focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error
 									"
-								aria-label="删除此站点"
+							aria-label="删除此站点"
+						>
+							<svg
+								width="13"
+								height="13"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
 							>
-								<svg
-									width="13"
-									height="13"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									aria-hidden="true"
-								>
-									<polyline points="3 6 5 6 21 6" />
-									<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-									<path d="M10 11v6M14 11v6" />
-									<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-								</svg>
-								删除
-							</button>
-						) : (
+								<polyline points="3 6 5 6 21 6" />
+								<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+								<path d="M10 11v6M14 11v6" />
+								<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+							</svg>
+							删除
+						</button>
+					) : (
+						<Button variant="ghost" size="sm" type="button" onClick={onClose}>
+							取消
+						</Button>
+					)}
+
+					{/* 右侧：取消（删除模式下）+ 保存/添加 */}
+					<div className="flex items-center gap-2">
+						{canDelete && (
 							<Button variant="ghost" size="sm" type="button" onClick={onClose}>
 								取消
 							</Button>
 						)}
-
-						{/* 右侧：取消（删除模式下）+ 保存/添加 */}
-						<div className="flex items-center gap-2">
-							{canDelete && (
-								<Button
-									variant="ghost"
-									size="sm"
-									type="button"
-									onClick={onClose}
-								>
-									取消
-								</Button>
-							)}
-							<Button
-								variant="primary"
-								size="sm"
-								type="submit"
-								onClick={handleSubmit}
-							>
-								<CheckIcon size={14} />
-								{isEdit ? '保存更改' : '添加站点'}
-							</Button>
-						</div>
+						<Button
+							variant="primary"
+							size="sm"
+							type="submit"
+							onClick={handleSubmit}
+						>
+							<CheckIcon size={14} />
+							{isEdit ? '保存更改' : '添加站点'}
+						</Button>
 					</div>
 				</div>
 			</div>
-		</>
+		</dialog>
 	)
 }

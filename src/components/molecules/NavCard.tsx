@@ -13,8 +13,9 @@ import {
 	ContextMenu,
 	useContextMenu,
 } from '@/components/molecules/ContextMenu'
-import { ALLOW_HIDE_BUILTIN } from '@/config/features'
+import { useSiteIconUrl } from '@/hooks/useImageUrl'
 import { useIsIOS } from '@/hooks/useIsIOS'
+import { usePublicCatalog } from '@/hooks/usePublicCatalog'
 import type { SiteCardProps } from '@/types'
 
 function hashString(str: string): number {
@@ -67,10 +68,17 @@ function highlightText(text: string, query: string): React.ReactNode {
 interface SiteIconProps {
 	name: string
 	iconUrl?: string
+	siteUrl: string
 	size?: 'sm' | 'md'
 }
 
-function SiteIcon({ name, iconUrl, size = 'md' }: SiteIconProps) {
+function SiteIcon({
+	name,
+	iconUrl: customIconUrl,
+	siteUrl,
+	size = 'md',
+}: SiteIconProps) {
+	const iconUrl = useSiteIconUrl(customIconUrl, siteUrl)
 	const [imgOk, setImgOk] = useState(false)
 
 	const initial = [...name][0]?.toUpperCase() ?? '?'
@@ -219,6 +227,8 @@ export function NavCard({
 	onDelete,
 	onTogglePin,
 }: SiteCardProps) {
+	const { features } = usePublicCatalog().settings
+	const ALLOW_HIDE_BUILTIN = features.hideBuiltin
 	const { name, url, description, iconUrl, category, pinned, source } = site
 
 	const [copied, setCopied] = useState(false)
@@ -311,7 +321,8 @@ export function NavCard({
 		[site, onTogglePin],
 	)
 
-	const canEdit = source === 'custom' || source === 'imported'
+	const canEdit =
+		features.customSites && (source === 'custom' || source === 'imported')
 	const isBuiltin = source === 'builtin'
 
 	const contextActions = buildSiteActions(
@@ -413,7 +424,7 @@ export function NavCard({
 					</button>
 				)}
 				<div className="flex items-center gap-2.5">
-					<SiteIcon name={name} iconUrl={iconUrl} />
+					<SiteIcon name={name} iconUrl={iconUrl} siteUrl={url} />
 
 					<div className="min-w-0 flex-1">
 						<div className="flex items-center gap-1.5 min-w-0">

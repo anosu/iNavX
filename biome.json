@@ -18,6 +18,10 @@
 			"recommended": true,
 			"complexity": {
 				"noImportantStyles": "info"
+			},
+			"style": {
+				"noNonNullAssertion": "error",
+				"useTemplate": "warn"
 			}
 		}
 	},

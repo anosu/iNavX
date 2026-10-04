@@ -24,10 +24,6 @@
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    <!-- favicon 代理预连接 -->
-    <link rel="dns-prefetch" href="https://ico.dogxi.me" />
-    <link rel="preconnect" href="https://ico.dogxi.me" crossorigin />
-
     <title>iNav - 个人导航站</title>
 
     <!-- 骨架屏内联样式，首帧即可绘制，避免白屏 -->
@@ -221,8 +217,8 @@
         try {
           const stored = localStorage.getItem('inav-theme');
           const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
-          document.documentElement.dataset.theme =
-            stored || (prefersDark ? 'dark' : 'light');
+	          const mode = stored || window.__INAV_SETTINGS__?.defaultTheme || 'system';
+	          document.documentElement.dataset.theme = mode === 'system' ? (prefersDark ? 'dark' : 'light') : mode;
         } catch (_e) {
           document.documentElement.dataset.theme = 'light';
         }

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { NavCard } from '@/components/molecules/NavCard'
-import type { SearchEngineConfig } from '@/components/molecules/SearchBar'
+import { useImageUrl } from '@/hooks/useImageUrl'
 import type { NavGridProps } from '@/types'
+import type { Engine } from '../../../shared/catalog'
 
 /* ============================================================
    NavGrid
@@ -125,8 +126,9 @@ function SkeletonCard() {
 
 // ---- 搜索引擎图标 ----
 
-function EngineIcon({ engine }: { engine: SearchEngineConfig }) {
-	const { iconUrl, name } = engine
+function EngineIcon({ engine }: { engine: Engine }) {
+	const { name } = engine
+	const iconUrl = useImageUrl(engine.iconUrl)
 	const [imgOk, setImgOk] = useState(false)
 
 	const fallback = (
@@ -167,7 +169,7 @@ function EngineIcon({ engine }: { engine: SearchEngineConfig }) {
 // ---- 搜索引擎卡片 ----
 
 interface EngineCardProps {
-	engine: SearchEngineConfig
+	engine: Engine
 	query: string
 	rank?: number
 }
@@ -285,7 +287,7 @@ export function NavGrid({
 	onDelete,
 	onTogglePin,
 }: NavGridProps & {
-	enabledEngines?: SearchEngineConfig[]
+	enabledEngines?: Engine[]
 	engineSettings?: React.ReactNode
 	isStale?: boolean
 	isLoading?: boolean
@@ -323,13 +325,6 @@ export function NavGrid({
 		)
 	}
 
-	// ---- 排序：置顶在前，其余保持原顺序 ----
-	const sortedSites = [...sites].sort((a, b) => {
-		if (a.pinned && !b.pinned) return -1
-		if (!a.pinned && b.pinned) return 1
-		return 0
-	})
-
 	// ---- 网格模式 ----
 	return (
 		<div
@@ -340,9 +335,9 @@ export function NavGrid({
 			].join(' ')}
 		>
 			{/* 站点卡片，搜索时前 9 个附加快捷键编号 */}
-			{sortedSites.map((site, i) => (
+			{sites.map((site, i) => (
 				<NavCard
-					key={site.id}
+					key={`${site.source}:${site.id}`}
 					site={site}
 					searchQuery={searchQuery}
 					rank={trimmedQuery && i < 9 ? i + 1 : undefined}

@@ -27,19 +27,16 @@ const SiteFormModal = lazy(() =>
 	})),
 )
 
-import {
-	ALLOW_BOOKMARK_EXPORT,
-	ALLOW_BOOKMARK_IMPORT,
-	ALLOW_CUSTOM_SITES,
-	ALLOW_HIDE_BUILTIN,
-} from '@/config/features'
-import sitesData from '@/data/sites.json'
 import { useBookmarks } from '@/hooks/useBookmarks'
 import { useEngineOrder } from '@/hooks/useEngineOrder'
+import {
+	useCatalogAvailability,
+	usePublicCatalog,
+} from '@/hooks/usePublicCatalog'
 import { type SitePayload, useSiteManager } from '@/hooks/useSiteManager'
 import type { Site, SiteCategory } from '@/types'
-
-const BUILTIN_SITES = sitesData as Site[]
+import { mergeSites } from '@/utils/mergeSites'
+import { exportPersonalData } from '@/utils/personalData'
 
 /* ============================================================
    filterSites
@@ -158,7 +155,7 @@ function DeleteConfirm({ site, onConfirm, onCancel }: DeleteConfirmProps) {
 				style={{ zIndex: 300 }}
 				onClick={(e) => e.stopPropagation()}
 				onKeyDown={(e) => {
-					// Mirror the click behavior for keyboard users
+					if (e.key === 'Escape') onCancel()
 					e.stopPropagation()
 				}}
 				tabIndex={-1}
@@ -233,6 +230,28 @@ function DeleteConfirm({ site, onConfirm, onCancel }: DeleteConfirmProps) {
    Home 页面主组件
    ============================================================ */
 export default function Home() {
+	const publicCatalog = usePublicCatalog()
+	const unavailable = useCatalogAvailability()
+	const {
+		bookmarkExport: ALLOW_BOOKMARK_EXPORT,
+		bookmarkImport: ALLOW_BOOKMARK_IMPORT,
+		customSites: ALLOW_CUSTOM_SITES,
+		hideBuiltin: ALLOW_HIDE_BUILTIN,
+		clearImported: ALLOW_CLEAR_IMPORTED,
+	} = publicCatalog.settings.features
+	const builtinSites = useMemo<Site[]>(
+		() =>
+			publicCatalog.sites.map((site) => ({
+				...site,
+				category:
+					publicCatalog.categories.find(
+						(category) => category.id === site.categoryId,
+					)?.name || '其他',
+				source: 'builtin',
+				addedAt: site.createdAt,
+			})),
+		[publicCatalog],
+	)
 	// ---- 搜索 & 分类状态 ----
 	const [query, setQuery] = useState('')
 	const [activeCategory, setActiveCategory] = useState<SiteCategory | null>(
@@ -264,6 +283,8 @@ export default function Home() {
 	const {
 		importedSites,
 		importFromHtml,
+		importFromJson,
+		updateImported,
 		removeImported,
 		clearImported,
 		exportToJson,
@@ -279,27 +300,15 @@ export default function Home() {
 
 	// ---- 删除确认 ----
 	const [deletingSite, setDeletingSite] = useState<Site | undefined>(undefined)
+	const overlayOpenRef = useRef(false)
+	overlayOpenRef.current = cmdOpen || formOpen || Boolean(deletingSite)
 
-	// ---- 合并三类站点：内置（过滤隐藏）> 自定义 > 导入 ----
-	const allSites = useMemo<Site[]>(() => {
-		const builtinIds = new Set(BUILTIN_SITES.map((s) => s.id))
-		const customIds = new Set(customSites.map((s) => s.id))
-
-		// 去重：内置优先，自定义次之，导入最后
-		const dedupedImported = importedSites.filter(
-			(s) => !builtinIds.has(s.id) && !customIds.has(s.id),
-		)
-
-		return [
-			// 内置站点：过滤掉本地隐藏的
-			...BUILTIN_SITES.filter((s) => !hiddenBuiltinIds.has(s.id)).map((s) => ({
-				...s,
-				source: 'builtin' as const,
-			})),
-			...customSites,
-			...dedupedImported,
-		]
-	}, [customSites, importedSites, hiddenBuiltinIds])
+	// ---- 个人同 URL 优先，过滤本地隐藏后统一置顶排序 ----
+	const allSites = useMemo<Site[]>(
+		() =>
+			mergeSites(builtinSites, customSites, importedSites, hiddenBuiltinIds),
+		[builtinSites, customSites, importedSites, hiddenBuiltinIds],
+	)
 
 	// ---- 「所有可见站点」用于导出（内置未隐藏 + 自定义 + 导入） ----
 	const visibleSitesForExport = useMemo<Site[]>(() => {
@@ -309,8 +318,25 @@ export default function Home() {
 	// ---- 分类列表 ----
 	const categories = useMemo<SiteCategory[]>(() => {
 		const set = new Set(allSites.map((s) => s.category))
-		return Array.from(set).sort()
-	}, [allSites])
+		return [
+			...publicCatalog.categories
+				.map((category) => category.name)
+				.filter((name) => set.has(name)),
+			...Array.from(set).filter(
+				(name) =>
+					!publicCatalog.categories.some((category) => category.name === name),
+			),
+		]
+	}, [allSites, publicCatalog.categories])
+	const formCategories = useMemo(
+		() => [
+			...new Set([
+				...publicCatalog.categories.map((category) => category.name),
+				...categories,
+			]),
+		],
+		[publicCatalog.categories, categories],
+	)
 
 	// ---- 过滤 ----
 	const filteredSites = useMemo(
@@ -375,6 +401,16 @@ export default function Home() {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: none
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
+			if (overlayOpenRef.current) return
+			const focused = e.target as HTMLElement
+			if (
+				focused !== searchInputRef.current &&
+				(focused.tagName === 'INPUT' ||
+					focused.tagName === 'TEXTAREA' ||
+					focused.tagName === 'SELECT' ||
+					focused.isContentEditable)
+			)
+				return
 			// ⌘K / Ctrl+K 打开命令面板
 			if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
 				e.preventDefault()
@@ -431,14 +467,15 @@ export default function Home() {
 	const handleFormSubmit = useCallback(
 		(payload: SitePayload, editId?: string) => {
 			if (editId) {
-				updateSite(editId, payload)
+				if (editingSite?.source === 'imported') updateImported(editId, payload)
+				else updateSite(editId, payload)
 				showToast(`「${payload.name}」已更新`, 'success')
 			} else {
 				addSite(payload)
 				showToast(`「${payload.name}」已添加`, 'success')
 			}
 		},
-		[addSite, updateSite, showToast],
+		[addSite, updateSite, updateImported, editingSite, showToast],
 	)
 
 	// ---- 编辑回调 ----
@@ -515,7 +552,12 @@ export default function Home() {
 				className="flex-1 page-enter mx-auto w-full max-w-7xl px-4 sm:px-6 py-3 space-y-3"
 			>
 				{/* 视觉隐藏的页面级标题，供屏幕阅读器识别（标题层级从 h1 开始） */}
-				<h1 className="sr-only">iNav — 个人导航站</h1>
+				<h1 className="sr-only">{publicCatalog.settings.name}</h1>
+				{unavailable && (
+					<output className="text-xs text-muted-foreground">
+						公共目录暂时不可用，正在显示最近的可用内容。
+					</output>
+				)}
 				{/* 工具栏：分类筛选 + 书签导入导出 */}
 				<div className="flex flex-col sm:flex-row sm:items-center gap-2">
 					<div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
@@ -535,7 +577,15 @@ export default function Home() {
 									importFromHtml: ALLOW_BOOKMARK_IMPORT
 										? importFromHtml
 										: undefined,
-									clearImported,
+									importFromJson: ALLOW_BOOKMARK_IMPORT
+										? importFromJson
+										: undefined,
+									exportPersonal: ALLOW_BOOKMARK_EXPORT
+										? exportPersonalData
+										: undefined,
+									clearImported: ALLOW_CLEAR_IMPORTED
+										? clearImported
+										: undefined,
 									exportToJson: ALLOW_BOOKMARK_EXPORT
 										? exportToJson
 										: undefined,
@@ -601,16 +651,20 @@ export default function Home() {
 						engineSettings={<EngineSettings engineOrder={engineOrder} />}
 						isStale={isStale}
 						hasFilter={hasFilter}
-						onEdit={handleEdit}
-						onDelete={handleDelete}
-						onTogglePin={handleTogglePin}
+						onEdit={ALLOW_CUSTOM_SITES ? handleEdit : undefined}
+						onDelete={
+							ALLOW_CUSTOM_SITES || ALLOW_HIDE_BUILTIN
+								? handleDelete
+								: undefined
+						}
+						onTogglePin={ALLOW_CUSTOM_SITES ? handleTogglePin : undefined}
 					/>
 				</section>
 			</main>
 
 			{/* ---- Footer ---- */}
 			<footer className="border-t border-border mt-auto">
-				<div className="mx-auto max-w-7xl px-4 sm:px-6 h-10 flex items-center justify-between">
+				<div className="mx-auto max-w-7xl px-4 sm:px-6 min-h-12 py-3 flex flex-wrap gap-3 items-center justify-between">
 					<span className="text-xs text-muted-foreground">
 						{allSites.length} 个站点
 						{customSites.length > 0 && (
@@ -632,6 +686,23 @@ export default function Home() {
 						{categories.length} 个分类
 					</span>
 					<nav aria-label="页脚导航" className="flex items-center gap-4">
+						{import.meta.env.VITE_STATIC_MODE !== 'true' &&
+							publicCatalog.settings.applicationsEnabled && (
+								<NavLink
+									to="/submit"
+									className="text-xs text-primary no-underline hover:underline"
+								>
+									申请收录
+								</NavLink>
+							)}
+						{(window.__INAV_BACKEND__ || import.meta.env.DEV) && (
+							<NavLink
+								to="/admin"
+								className="text-xs text-muted-foreground no-underline hover:text-foreground"
+							>
+								管理
+							</NavLink>
+						)}
 						<NavLink
 							to="/"
 							end
@@ -657,7 +728,7 @@ export default function Home() {
 								].join(' ')
 							}
 						>
-							关于
+							使用说明
 						</NavLink>
 					</nav>
 				</div>
@@ -676,6 +747,7 @@ export default function Home() {
 			{ALLOW_CUSTOM_SITES && (
 				<Suspense fallback={null}>
 					<SiteFormModal
+						categories={formCategories}
 						open={formOpen}
 						editSite={editingSite}
 						onClose={() => {

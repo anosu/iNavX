@@ -26,13 +26,13 @@ export function Input({
 				ref={ref}
 				id={id}
 				className={[
-						'input-base',
-						leftIcon ? 'pl-8' : 'pl-3',
-						rightIcon ? 'pr-8' : 'pr-3',
-						'py-1.5',
-						'text-base sm:text-sm',
-						error ? 'border-error focus:border-error focus:ring-error/20' : '',
-					]
+					'input-base',
+					leftIcon ? 'pl-8' : 'pl-3',
+					rightIcon ? 'pr-8' : 'pr-3',
+					'py-1.5',
+					'text-base sm:text-sm',
+					error ? 'border-error focus:border-error focus:ring-error/20' : '',
+				]
 					.filter(Boolean)
 					.join(' ')}
 				aria-describedby={error ? errorId : undefined}

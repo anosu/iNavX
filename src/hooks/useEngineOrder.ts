@@ -1,95 +1,95 @@
 import { useCallback, useMemo, useState } from 'react'
 import {
-	DEFAULT_SEARCH_ENGINES,
-	type SearchEngineConfig,
-} from '@/components/molecules/SearchBar'
+	type EnginePreference,
+	reconcileEngines,
+} from '@/utils/enginePreferences'
+import type { Engine } from '../../shared/catalog'
+import { usePublicCatalog } from './usePublicCatalog'
 
 const STORAGE_KEY = 'inav:engine-order'
-
-interface StoredItem {
-	id: string
-	enabled: boolean
-}
-
-function loadEngines(): SearchEngineConfig[] {
+function loadPreferences(): EnginePreference[] | null {
 	try {
-		const raw = localStorage.getItem(STORAGE_KEY)
-		if (!raw) return DEFAULT_SEARCH_ENGINES
-
-		const stored: StoredItem[] = JSON.parse(raw)
-
-		const ordered: SearchEngineConfig[] = []
-		for (const item of stored) {
-			const base = DEFAULT_SEARCH_ENGINES.find((e) => e.id === item.id)
-			if (base) ordered.push({ ...base, enabled: item.enabled })
-		}
-
-		// 新增引擎追加到末尾
-		for (const base of DEFAULT_SEARCH_ENGINES) {
-			if (!ordered.find((e) => e.id === base.id)) {
-				ordered.push({ ...base, enabled: true })
-			}
-		}
-
-		return ordered
+		const value: unknown = JSON.parse(
+			localStorage.getItem(STORAGE_KEY) || 'null',
+		)
+		return Array.isArray(value) &&
+			value.every(
+				(item: unknown) =>
+					item !== null &&
+					typeof item === 'object' &&
+					'id' in item &&
+					typeof item.id === 'string' &&
+					'enabled' in item &&
+					typeof item.enabled === 'boolean',
+			)
+			? value
+			: null
 	} catch {
-		return DEFAULT_SEARCH_ENGINES
+		return null
 	}
 }
-
-function saveEngines(engines: SearchEngineConfig[]) {
-	try {
-		const stored: StoredItem[] = engines.map((e) => ({ id: e.id, enabled: e.enabled }))
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
-	} catch {}
-}
-
 export interface UseEngineOrderReturn {
-	engines: SearchEngineConfig[]
-	enabledEngines: SearchEngineConfig[]
+	engines: Engine[]
+	enabledEngines: Engine[]
 	toggleEngine: (id: string) => void
 	moveEngine: (fromIndex: number, toIndex: number) => void
 	resetToDefault: () => void
 }
-
 export function useEngineOrder(): UseEngineOrderReturn {
-	const [engines, setEngines] = useState<SearchEngineConfig[]>(loadEngines)
-
-	const persist = useCallback((next: SearchEngineConfig[]) => {
-		setEngines(next)
-		saveEngines(next)
+	const { engines: defaults } = usePublicCatalog()
+	const [preferences, setPreferences] = useState(loadPreferences)
+	const engines = useMemo(
+		() => reconcileEngines(defaults, preferences),
+		[defaults, preferences],
+	)
+	const persist = useCallback((next: Engine[]) => {
+		const stored = next.map(({ id, enabled }) => ({ id, enabled }))
+		setPreferences(stored)
+		try {
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
+		} catch {
+			/* Storage is optional. */
+		}
 	}, [])
-
 	const toggleEngine = useCallback(
 		(id: string) => {
-			const next = engines.map((e) => (e.id === id ? { ...e, enabled: !e.enabled } : e))
-			// 至少保留 1 个启用
-			if (next.filter((e) => e.enabled).length === 0) return
-			persist(next)
+			const next = engines.map((engine) =>
+				engine.id === id ? { ...engine, enabled: !engine.enabled } : engine,
+			)
+			if (next.some((engine) => engine.enabled)) persist(next)
 		},
 		[engines, persist],
 	)
-
 	const moveEngine = useCallback(
-		(fromIndex: number, toIndex: number) => {
-			if (fromIndex === toIndex) return
-			if (fromIndex < 0 || toIndex < 0) return
-			if (fromIndex >= engines.length || toIndex >= engines.length) return
-
+		(from: number, to: number) => {
+			if (
+				from === to ||
+				from < 0 ||
+				to < 0 ||
+				from >= engines.length ||
+				to >= engines.length
+			)
+				return
 			const next = [...engines]
-			const [moved] = next.splice(fromIndex, 1)
-			if (moved) next.splice(toIndex, 0, moved)
+			const [moved] = next.splice(from, 1)
+			if (moved) next.splice(to, 0, moved)
 			persist(next)
 		},
 		[engines, persist],
 	)
-
 	const resetToDefault = useCallback(() => {
-		try { localStorage.removeItem(STORAGE_KEY) } catch {}
-		persist(DEFAULT_SEARCH_ENGINES.map((e) => ({ ...e, enabled: true })))
-	}, [persist])
-
-	const enabledEngines = useMemo(() => engines.filter((e) => e.enabled), [engines])
-
-	return { engines, enabledEngines, toggleEngine, moveEngine, resetToDefault }
+		setPreferences(null)
+		try {
+			localStorage.removeItem(STORAGE_KEY)
+		} catch {
+			/* Storage is optional. */
+		}
+	}, [])
+	return {
+		engines,
+		enabledEngines: engines.filter((engine) => engine.enabled),
+		toggleEngine,
+		moveEngine,
+		resetToDefault,
+	}
 }

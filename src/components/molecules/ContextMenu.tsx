@@ -8,7 +8,6 @@ import {
 	PinOffIcon,
 	TrashIcon,
 } from '@/components/atoms/Icons'
-import { ALLOW_HIDE_BUILTIN } from '@/config/features'
 
 export interface ContextMenuAction {
 	id: string
@@ -164,7 +163,7 @@ export function ContextMenu({ x, y, onClose, actions }: ContextMenuProps) {
 	return createPortal(menu, document.body)
 }
 
-export interface ContextMenuState {
+interface ContextMenuState {
 	open: boolean
 	x: number
 	y: number
@@ -307,7 +306,7 @@ export function buildSiteActions(
 		})
 	}
 
-	if (callbacks.onDelete && isBuiltin && ALLOW_HIDE_BUILTIN) {
+	if (callbacks.onDelete && isBuiltin) {
 		actions.push({
 			id: 'hide',
 			label: '本地隐藏',

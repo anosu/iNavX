@@ -1,8 +1,8 @@
 import type React from 'react'
 import type { SiteCategory } from '@/data/categories'
 
-// SiteCategory is defined in data/categories.ts alongside SITE_CATEGORIES array.
-// To add/rename/remove a category, only edit that file.
+// Personal categories keep display names, including legacy names.
+// Public records also carry a stable categoryId managed by the backend.
 export type { SiteCategory } from '@/data/categories'
 
 export interface Site {
@@ -12,59 +12,22 @@ export interface Site {
 	description: string
 	iconUrl?: string
 	category: SiteCategory
+	categoryId?: string
 	pinned?: boolean
 	tags?: string[]
-	/** builtin = 内置 | imported = 书签导入 | custom = 用户添加 */
+	/** builtin = 公共目录（含静态内置） | imported = 个人导入 | custom = 个人添加 */
 	source?: 'builtin' | 'imported' | 'custom'
 	addedAt?: string
 }
 
 export interface BookmarkImportResult {
+	handled?: boolean
 	imported: number
 	skipped: number
 	sites: Site[]
 }
 
-export interface SearchEngine {
-	id: string
-	name: string
-	/** 搜索 URL 模板，{q} 替换为关键词 */
-	searchUrl: string
-	iconUrl?: string
-}
-
 export type ThemeMode = 'light' | 'dark' | 'system'
-
-export type CommandItemType = 'site' | 'action' | 'category'
-
-export interface CommandItem {
-	id: string
-	type: CommandItemType
-	label: string
-	description?: string
-	url?: string
-	iconUrl?: string
-	category?: SiteCategory
-	onSelect?: () => void
-	shortcut?: string[]
-}
-
-export interface Toast {
-	id: string
-	message: string
-	type: 'success' | 'error' | 'info'
-	duration?: number
-}
-
-export interface SiteFormData {
-	name: string
-	url: string
-	description: string
-	category: SiteCategory
-	iconUrl?: string
-	pinned?: boolean
-	tags?: string[]
-}
 
 export interface UseThemeReturn {
 	mode: ThemeMode
@@ -75,17 +38,7 @@ export interface UseThemeReturn {
 	toggleTheme: () => void
 }
 
-export interface FilterState {
-	query: string
-	category: SiteCategory | null
-}
-
 /* ---- 组件 Props ---- */
-
-export interface NavCardProps {
-	site: Site
-	className?: string
-}
 
 export interface BadgeProps {
 	children: React.ReactNode
@@ -141,15 +94,3 @@ export interface SiteCardProps {
 	onDelete?: (site: Site) => void
 	onTogglePin?: (site: Site) => void
 }
-
-/* ---- 工具类型 ---- */
-
-export type RequiredFields<T, K extends keyof T> = Omit<T, K> &
-	Required<Pick<T, K>>
-
-export type DeepPartial<T> = T extends object
-	? { [K in keyof T]?: DeepPartial<T[K]> }
-	: T
-
-export type ArrayElement<T extends readonly unknown[]> =
-	T extends readonly (infer E)[] ? E : never

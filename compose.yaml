@@ -1,0 +1,22 @@
+services:
+  app:
+    build: .
+    image: inavx:local
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-}
+      TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+      TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-}
+    volumes:
+      - app_data:/app/data
+      - app_backups:/app/backups
+    stop_grace_period: 30s
+
+volumes:
+  app_data:
+  app_backups:

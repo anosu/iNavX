@@ -4,7 +4,7 @@
 		"name": "iNav",
 		"url": "https://nav.dogxi.me",
 		"description": "轻、快、优雅的个人导航站",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=nav.dogxi.me",
+		"iconUrl": "",
 		"category": "开源项目",
 		"pinned": true
 	},
@@ -13,7 +13,7 @@
 		"name": "Dogxi 的狗窝",
 		"url": "https://blog.dogxi.me",
 		"description": "Dogxi 的个人博客",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=dogxi.me",
+		"iconUrl": "",
 		"category": "博客"
 	},
 	{
@@ -21,7 +21,7 @@
 		"name": "Viki 写东西的地方",
 		"url": "https://blog.viki.moe",
 		"description": "Viki 的个人博客，记录前端开发与生活点滴。",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=blog.viki.moe",
+		"iconUrl": "",
 		"category": "博客"
 	},
 	{
@@ -29,7 +29,7 @@
 		"name": "阮一峰的网络日志",
 		"url": "https://www.ruanyifeng.com/blog/",
 		"description": "阮一峰的网络日志。",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=www.ruanyifeng.com",
+		"iconUrl": "",
 		"category": "博客"
 	},
 	{
@@ -37,7 +37,7 @@
 		"name": "ChatGPT",
 		"url": "https://chat.openai.com",
 		"description": "OpenAI 出品的 AI 对话助手，编程/写作/分析全能",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=chat.openai.com",
+		"iconUrl": "",
 		"category": "AI",
 		"pinned": true
 	},
@@ -46,7 +46,7 @@
 		"name": "Claude",
 		"url": "https://claude.ai",
 		"description": "Anthropic 出品，长文档分析和代码审查表现优秀",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=claude.ai",
+		"iconUrl": "",
 		"category": "AI",
 		"pinned": true
 	},
@@ -55,7 +55,7 @@
 		"name": "Gemini",
 		"url": "https://gemini.google.com",
 		"description": "Google 出品的多模态大模型，支持代码、图像、搜索 Deep Research 等",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=gemini.google.com",
+		"iconUrl": "",
 		"category": "AI",
 		"pinned": true
 	},
@@ -64,7 +64,7 @@
 		"name": "Grok",
 		"url": "https://grok.com",
 		"description": "xAI 出品，接入 X 实时数据，擅长聊天、推理和代码生成",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=grok.com",
+		"iconUrl": "",
 		"category": "AI",
 		"pinned": false
 	},
@@ -73,7 +73,7 @@
 		"name": "Kimi",
 		"url": "https://www.kimi.com",
 		"description": "月之暗面出品，长文档阅读和深度研究能力突出，支持多文件分析",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=www.kimi.com",
+		"iconUrl": "",
 		"category": "AI",
 		"pinned": false
 	},
@@ -82,7 +82,7 @@
 		"name": "DeepSeek",
 		"url": "https://chat.deepseek.com",
 		"description": "国产高性价比大模型，推理和编程能力强，适合日常问答和代码辅助",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=chat.deepseek.com",
+		"iconUrl": "",
 		"category": "AI",
 		"pinned": false
 	},
@@ -91,7 +91,7 @@
 		"name": "MiniMax Agent",
 		"url": "https://agent.minimaxi.com",
 		"description": "MiniMax 官方智能助手，基于 M2 系列模型，支持多轮对话和多模态",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=agent.minimaxi.com",
+		"iconUrl": "",
 		"category": "AI",
 		"pinned": false
 	},
@@ -100,7 +100,7 @@
 		"name": "智谱清言（GLM）",
 		"url": "https://chatglm.cn",
 		"description": "智谱 AI 出品的对话助手，基于 GLM 系列模型，支持中英双语与代码",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=chatglm.cn",
+		"iconUrl": "",
 		"category": "AI",
 		"pinned": false
 	},
@@ -109,7 +109,7 @@
 		"name": "通义千问（Qwen）",
 		"url": "https://chat.qwen.ai",
 		"description": "阿里通义千问官方聊天入口，支持长上下文、多模态和 Agent 能力",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=chat.qwen.ai",
+		"iconUrl": "",
 		"category": "AI",
 		"pinned": false
 	},
@@ -118,7 +118,7 @@
 		"name": "豆包",
 		"url": "https://www.doubao.com",
 		"description": "字节跳动旗下通用 AI 助手，支持聊天、写作、代码和多应用插件",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=www.doubao.com",
+		"iconUrl": "",
 		"category": "AI",
 		"pinned": false
 	},
@@ -127,7 +127,7 @@
 		"name": "文心一言",
 		"url": "https://yiyan.baidu.com",
 		"description": "百度出品的文心大模型应用，支持中文写作、搜索问答和多模态理解",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=yiyan.baidu.com",
+		"iconUrl": "",
 		"category": "AI",
 		"pinned": false
 	},
@@ -136,7 +136,7 @@
 		"name": "v0.dev",
 		"url": "https://v0.dev",
 		"description": "Vercel 出品的 AI UI 生成工具，直接输出 Tailwind + React 代码",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=v0.dev",
+		"iconUrl": "",
 		"category": "AI",
 		"tags": ["UI", "代码生成"]
 	},
@@ -145,7 +145,7 @@
 		"name": "Perplexity",
 		"url": "https://www.perplexity.ai",
 		"description": "带实时联网的 AI 搜索引擎，答案附带来源引用",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=www.perplexity.ai",
+		"iconUrl": "",
 		"category": "AI"
 	},
 	{
@@ -153,7 +153,7 @@
 		"name": "GitHub",
 		"url": "https://github.com",
 		"description": "全球最大代码托管平台，开源项目聚集地",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=github.com",
+		"iconUrl": "",
 		"category": "开发工具",
 		"pinned": true
 	},
@@ -162,7 +162,7 @@
 		"name": "VS Code Web",
 		"url": "https://vscode.dev",
 		"description": "浏览器版 VS Code，随时随地查看和编辑代码",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=vscode.dev",
+		"iconUrl": "",
 		"category": "开发工具"
 	},
 	{
@@ -170,7 +170,7 @@
 		"name": "StackBlitz",
 		"url": "https://stackblitz.com",
 		"description": "在线 Node.js 开发环境，秒速创建 React/Vue 项目",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=stackblitz.com",
+		"iconUrl": "",
 		"category": "开发工具"
 	},
 	{
@@ -178,7 +178,7 @@
 		"name": "CodePen",
 		"url": "https://codepen.io",
 		"description": "前端代码片段在线演示，灵感来源和学习素材库",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=codepen.io",
+		"iconUrl": "",
 		"category": "开发工具"
 	},
 	{
@@ -186,7 +186,7 @@
 		"name": "Vercel",
 		"url": "https://vercel.com",
 		"description": "前端部署首选平台，与 GitHub 一键集成，支持 Edge Functions",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=vercel.com",
+		"iconUrl": "",
 		"category": "开发工具",
 		"pinned": true
 	},
@@ -195,7 +195,7 @@
 		"name": "Figma",
 		"url": "https://figma.com",
 		"description": "协作式 UI 设计工具，前端与设计师对接的标准工具",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=figma.com",
+		"iconUrl": "",
 		"category": "设计",
 		"pinned": true
 	},
@@ -204,7 +204,7 @@
 		"name": "Excalidraw",
 		"url": "https://excalidraw.com",
 		"description": "手绘风格在线白板，画架构图和流程图的首选",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=excalidraw.com",
+		"iconUrl": "",
 		"category": "设计"
 	},
 	{
@@ -212,7 +212,7 @@
 		"name": "unDraw",
 		"url": "https://undraw.co/illustrations",
 		"description": "免费 SVG 插画库，颜色可定制，适合项目展示页",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=undraw.co",
+		"iconUrl": "",
 		"category": "设计"
 	},
 	{
@@ -220,7 +220,7 @@
 		"name": "Coolors",
 		"url": "https://coolors.co",
 		"description": "快速生成配色方案，支持导出 CSS Variables",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=coolors.co",
+		"iconUrl": "",
 		"category": "设计"
 	},
 	{
@@ -228,7 +228,7 @@
 		"name": "React 文档",
 		"url": "https://react.dev",
 		"description": "React 官方文档，新版以 Hooks 为核心，必读",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=react.dev",
+		"iconUrl": "",
 		"category": "文档参考",
 		"pinned": true
 	},
@@ -237,7 +237,7 @@
 		"name": "Tailwind CSS 文档",
 		"url": "https://tailwindcss.com/docs",
 		"description": "Tailwind 官方文档，类名查询和配置参考",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=tailwindcss.com",
+		"iconUrl": "",
 		"category": "文档参考"
 	},
 	{
@@ -245,7 +245,7 @@
 		"name": "iCover",
 		"url": "https://cover.dogxi.me",
 		"description": "快速生成炫酷亮/暗色的 README 封面拼接图",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=cover.dogxi.me",
+		"iconUrl": "",
 		"category": "开源项目"
 	},
 	{
@@ -253,7 +253,7 @@
 		"name": "iSticker",
 		"url": "https://sticker.dogxi.me",
 		"description": "贴纸拼板生成，打印制作你的专属贴纸",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=sticker.dogxi.me",
+		"iconUrl": "",
 		"category": "开源项目"
 	},
 	{
@@ -261,7 +261,7 @@
 		"name": "60s API",
 		"url": "https://60s.viki.moe",
 		"description": "一系列 高质量、开源、可靠、全球 CDN 加速 的开放 API 集合",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=github.com/vikiboss/60s",
+		"iconUrl": "",
 		"category": "开源项目"
 	},
 	{
@@ -269,7 +269,7 @@
 		"name": "V2EX",
 		"url": "https://v2ex.com",
 		"description": "创意工作者的社区。讨论编程、设计、硬件、游戏等令人激动的话题。",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=v2ex.com",
+		"iconUrl": "",
 		"category": "社区"
 	},
 	{
@@ -277,7 +277,7 @@
 		"name": "LINUX DO - 新的理想型社区",
 		"url": "https://linux.do",
 		"description": "Where possible begins.",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=linux.do",
+		"iconUrl": "",
 		"category": "社区"
 	},
 	{
@@ -285,7 +285,7 @@
 		"name": "HelloGitHub - 有趣的开源社区",
 		"url": "https://hellogithub.com",
 		"description": "HelloGitHub 开源社区，专注于发现和分享有趣、入门级的开源项目。在这里，探索开源技术解决方案，体验开源的乐趣，自荐或推荐开源项目，开启你的开源之旅。",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=hellogithub.com",
+		"iconUrl": "",
 		"category": "社区"
 	},
 	{
@@ -293,7 +293,7 @@
 		"name": "TypeScript 手册",
 		"url": "https://www.typescriptlang.org/docs/",
 		"description": "TypeScript 官方手册，类型系统深入理解必备",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=www.typescriptlang.org",
+		"iconUrl": "",
 		"category": "文档参考"
 	},
 	{
@@ -301,7 +301,7 @@
 		"name": "MDN Web Docs",
 		"url": "https://developer.mozilla.org",
 		"description": "Web 标准权威参考，JS/CSS/HTML API 查询首选",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=developer.mozilla.org",
+		"iconUrl": "",
 		"category": "文档参考",
 		"pinned": true
 	},
@@ -310,7 +310,7 @@
 		"name": "Can I use",
 		"url": "https://caniuse.com",
 		"description": "查询 CSS/JS 特性的浏览器兼容性支持情况",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=caniuse.com",
+		"iconUrl": "",
 		"category": "文档参考"
 	},
 	{
@@ -318,7 +318,7 @@
 		"name": "roadmap.sh",
 		"url": "https://roadmap.sh/frontend",
 		"description": "前端工程师学习路线图，技能树和成长路径参考",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=roadmap.sh",
+		"iconUrl": "",
 		"category": "学习"
 	},
 	{
@@ -326,7 +326,7 @@
 		"name": "JavaScript.info",
 		"url": "https://javascript.info",
 		"description": "最好的 JS 学习教程，从基础到进阶系统讲解",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=javascript.info",
+		"iconUrl": "",
 		"category": "学习"
 	},
 	{
@@ -334,7 +334,7 @@
 		"name": "CSS Grid Garden",
 		"url": "https://cssgridgarden.com",
 		"description": "通过游戏学习 CSS Grid 布局，28 关卡由浅入深",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=cssgridgarden.com",
+		"iconUrl": "",
 		"category": "学习"
 	},
 	{
@@ -342,7 +342,7 @@
 		"name": "Notion",
 		"url": "https://notion.so",
 		"description": "知识管理和笔记工具，学习记录和项目规划",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=notion.so",
+		"iconUrl": "",
 		"category": "效率"
 	},
 	{
@@ -350,7 +350,7 @@
 		"name": "Ray.so",
 		"url": "https://ray.so",
 		"description": "生成精美的代码截图，技术分享必备工具",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=ray.so",
+		"iconUrl": "",
 		"category": "效率"
 	},
 	{
@@ -358,7 +358,7 @@
 		"name": "Bundlephobia",
 		"url": "https://bundlephobia.com",
 		"description": "查看 npm 包的体积和加载时间，选包时的性能参考",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=bundlephobia.com",
+		"iconUrl": "",
 		"category": "效率"
 	},
 	{
@@ -366,7 +366,7 @@
 		"name": "Regex101",
 		"url": "https://regex101.com",
 		"description": "在线正则表达式调试工具，支持实时匹配高亮和解释",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=regex101.com",
+		"iconUrl": "",
 		"category": "效率"
 	},
 	{
@@ -374,7 +374,7 @@
 		"name": "GitHub 每周飙升榜",
 		"url": "https://github.com/OpenGithubs/github-weekly-rank",
 		"description": "追踪 GitHub 每周 Star 飙升的热门开源项目，快速发现新玩具和新技术",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=github.com",
+		"iconUrl": "",
 		"category": "开源项目"
 	},
 	{
@@ -382,7 +382,7 @@
 		"name": "GitHub 每月飙升榜",
 		"url": "https://github.com/OpenGithubs/github-monthly-rank",
 		"description": "按月统计 GitHub 飙升项目 Top 30，适合每月扫一轮灵感和新框架",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=github.com",
+		"iconUrl": "",
 		"category": "开源项目"
 	},
 	{
@@ -390,7 +390,7 @@
 		"name": "Gemini CLI",
 		"url": "https://github.com/google-gemini/gemini-cli",
 		"description": "Google 开源的命令行智能代理，在终端里和 Gemini 聊天、改代码、跑命令",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=github.com",
+		"iconUrl": "",
 		"category": "开源项目"
 	},
 	{
@@ -398,7 +398,7 @@
 		"name": "AutoGPT",
 		"url": "https://github.com/Significant-Gravitas/AutoGPT",
 		"description": "早期爆火的多步骤 AI 代理框架，给一个目标就会自己拆解任务去完成",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=github.com",
+		"iconUrl": "",
 		"category": "开源项目"
 	},
 	{
@@ -406,7 +406,7 @@
 		"name": "Dify",
 		"url": "https://github.com/langgenius/dify",
 		"description": "开源 AI 应用平台，拖拖拽拽就能搭问答、Agent、工作流，也支持自部署",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=github.com",
+		"iconUrl": "",
 		"category": "开源项目"
 	},
 	{
@@ -414,7 +414,7 @@
 		"name": "Open WebUI",
 		"url": "https://github.com/open-webui/open-webui",
 		"description": "热门的本地/自建 AI Web 前端，对接各类大模型，做自己的 ChatGPT 网页版",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=github.com",
+		"iconUrl": "",
 		"category": "开源项目"
 	},
 	{
@@ -422,7 +422,7 @@
 		"name": "Tabby",
 		"url": "https://github.com/TabbyML/tabby",
 		"description": "开源的 AI 代码助手，类似 Copilot，可以自部署，支持多种编辑器",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=github.com",
+		"iconUrl": "",
 		"category": "开发工具"
 	},
 	{
@@ -430,7 +430,7 @@
 		"name": "Cursor",
 		"url": "https://www.cursor.com",
 		"description": "AI IDE，和 GPT / Claude 深度集成，写前端和全栈都很顺手",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=cursor.com",
+		"iconUrl": "",
 		"category": "开发工具"
 	},
 	{
@@ -438,7 +438,7 @@
 		"name": "GitHub Copilot",
 		"url": "https://github.com/features/copilot",
 		"description": "GitHub 官方 AI 编程助手，VS Code / JetBrains 都能用，补全和解释代码很好用",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=github.com",
+		"iconUrl": "",
 		"category": "开发工具"
 	},
 	{
@@ -446,7 +446,7 @@
 		"name": "DeepSeek 开源模型",
 		"url": "https://github.com/deepseek-ai",
 		"description": "DeepSeek 官方 GitHub，包含 V2/V3、R1 等系列开源模型与示例",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=github.com",
+		"iconUrl": "",
 		"category": "开源项目"
 	},
 	{
@@ -454,7 +454,7 @@
 		"name": "DeepSeek 文档",
 		"url": "https://chat.deepseek.com",
 		"description": "DeepSeek 官方站，文档、在线体验和 API 入口，高性价比大模型代表",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=chat.deepseek.com",
+		"iconUrl": "",
 		"category": "AI"
 	},
 	{
@@ -462,7 +462,7 @@
 		"name": "MiniMax 平台",
 		"url": "https://www.minimaxi.com",
 		"description": "MiniMax 官方开放平台，M2.5 / M2-her 模型、Agent、语音和视频一站打包",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=www.minimaxi.com",
+		"iconUrl": "",
 		"category": "AI"
 	},
 	{
@@ -470,7 +470,7 @@
 		"name": "Glama MCP 列表",
 		"url": "https://glama.ai/mcp/servers",
 		"description": "整理 MCP 生态里的各种工具服务（文件、浏览器、第三方 API），适合玩 Claude Code / Agent",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=glama.ai",
+		"iconUrl": "",
 		"category": "开源项目"
 	},
 	{
@@ -478,7 +478,7 @@
 		"name": "State of JS",
 		"url": "https://stateofjs.com/en-US",
 		"description": "每年一次的 JS 生态调查，选框架/工具前看看大家现在都在用什么",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=stateofjs.com",
+		"iconUrl": "",
 		"category": "学习"
 	},
 	{
@@ -486,7 +486,7 @@
 		"name": "State of CSS",
 		"url": "https://stateofcss.com/en-US",
 		"description": "CSS 生态年度调查，了解当前流行的 CSS 框架、工具和语法特性",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=stateofcss.com",
+		"iconUrl": "",
 		"category": "学习"
 	},
 	{
@@ -494,7 +494,7 @@
 		"name": "State of AI Dev",
 		"url": "https://stateofai.dev/en-US",
 		"description": "围绕 AI 开发工具、框架、云服务的年度问卷，适合看 AI 工具选型趋势",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=stateofai.dev",
+		"iconUrl": "",
 		"category": "学习"
 	},
 	{
@@ -502,7 +502,7 @@
 		"name": "Remotion",
 		"url": "https://www.remotion.dev",
 		"description": "用 React 写视频的开源框架，可以和各类 AI 模型结合自动出片",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=www.remotion.dev",
+		"iconUrl": "",
 		"category": "开源项目"
 	},
 	{
@@ -510,7 +510,7 @@
 		"name": "Manim",
 		"url": "https://github.com/ManimCommunity/manim",
 		"description": "数学动画引擎，很多科普视频用它做动画，用代码描述动画逻辑",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=github.com",
+		"iconUrl": "",
 		"category": "开源项目"
 	},
 	{
@@ -518,7 +518,7 @@
 		"name": "Docling",
 		"url": "https://github.com/DS4SD/docling",
 		"description": "文档解析与结构化工具，适合做 RAG 前的 PDF / Office 清洗和分段",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=github.com",
+		"iconUrl": "",
 		"category": "开源项目"
 	},
 	{
@@ -526,7 +526,7 @@
 		"name": "Coolify",
 		"url": "https://github.com/coollabsio/coolify",
 		"description": "自部署版 Heroku / Vercel 替代方案，一键部署前后端和数据库",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=github.com",
+		"iconUrl": "",
 		"category": "开源项目"
 	},
 	{
@@ -534,7 +534,7 @@
 		"name": "Cursor 文档",
 		"url": "https://docs.cursor.com",
 		"description": "Cursor 官方文档，记录各种 AI 编程功能和快捷用法",
-		"iconUrl": "https://ico.dogxi.me/icon?domain=docs.cursor.com",
+		"iconUrl": "",
 		"category": "文档参考"
 	}
 ]

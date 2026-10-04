@@ -44,48 +44,6 @@ function ClearIcon() {
 	)
 }
 
-/* ---- 默认搜索引擎（供外部 NavGrid / Home 使用） ---- */
-
-export interface SearchEngineConfig {
-	id: string
-	name: string
-	searchUrl: string
-	iconUrl: string
-	/** 是否在搜索卡片中显示，默认 true */
-	enabled: boolean
-}
-
-export const DEFAULT_SEARCH_ENGINES: SearchEngineConfig[] = [
-	{
-		id: 'bing',
-		name: 'Bing',
-		searchUrl: 'https://www.bing.com/search?q={q}',
-		iconUrl: 'https://ico.dogxi.me/icon?domain=bing.com',
-		enabled: true,
-	},
-	{
-		id: 'google',
-		name: 'Google',
-		searchUrl: 'https://www.google.com/search?q={q}',
-		iconUrl: 'https://ico.dogxi.me/icon?domain=google.com',
-		enabled: true,
-	},
-	{
-		id: 'duckduckgo',
-		name: 'DuckDuckGo',
-		searchUrl: 'https://duckduckgo.com/?q={q}',
-		iconUrl: 'https://ico.dogxi.me/icon?domain=duckduckgo.com',
-		enabled: true,
-	},
-	{
-		id: 'github-search',
-		name: 'GitHub',
-		searchUrl: 'https://github.com/search?q={q}',
-		iconUrl: 'https://ico.dogxi.me/icon?domain=github.com',
-		enabled: true,
-	},
-]
-
 /* ---- 主组件 ---- */
 
 export function SearchBar({
