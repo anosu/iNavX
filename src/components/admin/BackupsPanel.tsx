@@ -38,6 +38,7 @@ export function BackupsPanel({
 }) {
 	const [backups, setBackups] = useState<DatabaseBackup[]>([])
 	const [deleting, setDeleting] = useState<DatabaseBackup | null>(null)
+	const [deleteError, setDeleteError] = useState('')
 	const [error, setError] = useState('')
 	const [backupError, setBackupError] = useState('')
 	const [previewing, setPreviewing] = useState(false)
@@ -126,7 +127,10 @@ export function BackupsPanel({
 									type="button"
 									className={`${buttonClass} text-error`}
 									disabled={busy}
-									onClick={() => setDeleting(backup)}
+									onClick={() => {
+										setDeleteError('')
+										setDeleting(backup)
+									}}
 								>
 									删除
 								</button>
@@ -329,12 +333,20 @@ export function BackupsPanel({
 								disabled={busy}
 								onClick={() =>
 									void runAction(async () => {
-										await requestAdminApi(
-											`admin/backups/${encodeURIComponent(deleting.name)}`,
-											csrf,
-											{},
-											'DELETE',
-										)
+										setDeleteError('')
+										try {
+											await requestAdminApi(
+												`admin/backups/${encodeURIComponent(deleting.name)}`,
+												csrf,
+												{},
+												'DELETE',
+											)
+										} catch (error) {
+											setDeleteError(
+												error instanceof Error ? error.message : '备份删除失败',
+											)
+											throw error
+										}
 										load()
 									}, '备份已永久删除').then((ok) => {
 										if (ok) setDeleting(null)
@@ -347,6 +359,11 @@ export function BackupsPanel({
 					}
 				>
 					<p className="text-sm break-all">{deleting.name}</p>
+					{deleteError && (
+						<p role="alert" className="mt-3 text-sm text-error">
+							{deleteError}
+						</p>
+					)}
 				</Dialog>
 			)}
 		</div>

@@ -65,6 +65,8 @@ PORT 是 Compose 的宿主机映射端口，容器内监听端口固定为 3000�
 
 后台保存站点、分类、设置和引擎立即生效。已打开的公共页面重新加载后读取最新内容。主题和排序保留个人选择，后台停用的公共功能及引擎不再提供。
 
+Linux / amd64 的生产镜像实测：小目录进程 RSS 约 14 MiB；1000 条目录预热空闲约 19 MiB，200 次读取、并发 4 峰值约 23 MiB；单次密码登录约 45 MiB，10000 条导入/导出/合并/备份约 53 MiB，原生恢复约 33 MiB。约每 5 ms 采样，数值受字段长度和负载影响。Compose 的 128 MiB 是保护上限，GOMEMLIMIT=64MiB 是 Go 软限制，两者都不代表常驻占用；Docker stats 与 RSS 的缓存统计口径也不同。
+
 ## 图片、辅助服务与站点信息
 
 默认不依赖外部图标和元数据接口，核心搜索、浏览、管理、备份和申请可在不配置这些服务时运行。后台可启用远程图片、配置站点图标模板、启用并配置元数据代理；具体字段见[后台指南](admin-guide.md#图片与辅助服务)。验证码默认关闭，Turnstile 配置仍由部署端持有，不开放任意验证码端点替换。
@@ -123,12 +125,12 @@ docker compose cp app:/app/backups/实际备份文件名.sqlite ./inav-backup.sq
 
 ```bash
 docker compose stop app
-docker compose cp ./inav-backup.sqlite app:/app/backups/restore.sqlite
+docker compose run --rm -T --entrypoint sh app -c 'umask 077; cat > /app/backups/restore.sqlite' < ./inav-backup.sqlite
 docker compose run --rm app restore /app/backups/restore.sqlite
 docker compose up -d app
 ```
 
-新服务器可以先运行 `docker compose create app`，再复制文件和执行恢复命令。恢复后使用备份中的管理员账号登录。备份的数据库版本高于目标镜像时拒绝恢复，应使用匹配的镜像。
+该上传方式让恢复文件由容器用户创建，避免下载文件的宿主 UID 和权限导致无法读取。新服务器先创建数据卷，再上传文件和执行恢复命令。恢复后使用备份中的管理员账号登录。备份的数据库版本高于目标镜像时拒绝恢复，应使用匹配的镜像。
 
 本地二进制的对应命令：
 

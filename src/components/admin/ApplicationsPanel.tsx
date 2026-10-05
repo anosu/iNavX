@@ -396,6 +396,7 @@ export function ApplicationsPanel({
 	const [refresh, setRefresh] = useState(0)
 	const [selected, setSelected] = useState<Application | null>(null)
 	const [deleting, setDeleting] = useState<Application | null>(null)
+	const [deleteError, setDeleteError] = useState('')
 	useEffect(() => {
 		const timer = setTimeout(() => {
 			setSearch(query)
@@ -545,7 +546,10 @@ export function ApplicationsPanel({
 									type="button"
 									disabled={busy}
 									className={`${buttonClass} text-error`}
-									onClick={() => setDeleting(item)}
+									onClick={() => {
+										setDeleteError('')
+										setDeleting(item)
+									}}
 								>
 									永久删除
 								</button>
@@ -609,12 +613,20 @@ export function ApplicationsPanel({
 								disabled={busy}
 								onClick={() =>
 									void runAction(async () => {
-										await requestAdminApi(
-											`admin/applications/${deleting.id}`,
-											csrf,
-											{ expectedUpdatedAt: deleting.updatedAt },
-											'DELETE',
-										)
+										setDeleteError('')
+										try {
+											await requestAdminApi(
+												`admin/applications/${deleting.id}`,
+												csrf,
+												{ expectedUpdatedAt: deleting.updatedAt },
+												'DELETE',
+											)
+										} catch (error) {
+											setDeleteError(
+												error instanceof Error ? error.message : '申请删除失败',
+											)
+											throw error
+										}
 									}, '申请已永久删除').then((ok) => {
 										if (ok) {
 											setDeleting(null)
@@ -629,6 +641,11 @@ export function ApplicationsPanel({
 					}
 				>
 					<p className="text-sm break-words">{deleting.name}</p>
+					{deleteError && (
+						<p role="alert" className="mt-3 text-sm text-error">
+							{deleteError}
+						</p>
+					)}
 				</Dialog>
 			)}
 		</>
