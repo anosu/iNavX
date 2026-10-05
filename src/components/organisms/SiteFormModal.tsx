@@ -915,7 +915,7 @@ export function SiteFormModal({
 						</fieldset>
 						{creatingCategory ? (
 							<div className="mt-2 space-y-1.5">
-								<div className="flex flex-wrap gap-2">
+								<div className="flex flex-wrap items-center justify-end gap-2">
 									<input
 										id="sf-category"
 										aria-label="新分类名称"
@@ -923,7 +923,7 @@ export function SiteFormModal({
 										aria-describedby={
 											categoryError ? 'sf-category-error' : undefined
 										}
-										className="input-base min-w-0 flex-1 px-3 py-2 text-sm"
+										className="input-base h-9 min-w-0 flex-1 basis-full px-3 text-base sm:basis-0 sm:text-sm"
 										value={categoryInput}
 										maxLength={100}
 										placeholder="新分类名称"
@@ -938,11 +938,8 @@ export function SiteFormModal({
 											}
 										}}
 									/>
-									<Button size="sm" onClick={createCategory}>
-										使用分类
-									</Button>
+									<Button onClick={createCategory}>使用分类</Button>
 									<Button
-										size="sm"
 										variant="secondary"
 										onClick={() => {
 											setCreatingCategory(false)
