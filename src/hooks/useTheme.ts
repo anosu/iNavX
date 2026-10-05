@@ -25,9 +25,11 @@ function applyThemeToDom(resolved: 'light' | 'dark'): void {
 	) {
 		root.classList.add('theme-switching')
 		window.clearTimeout(themeTransitionTimer)
-		const duration = Number.parseFloat(
-			getComputedStyle(root).getPropertyValue('--duration-theme'),
-		)
+		const cssDuration = getComputedStyle(root)
+			.getPropertyValue('--duration-theme')
+			.trim()
+		const duration =
+			Number.parseFloat(cssDuration) * (cssDuration.endsWith('ms') ? 1 : 1000)
 		themeTransitionTimer = window.setTimeout(
 			() => root.classList.remove('theme-switching'),
 			duration,
