@@ -3,12 +3,12 @@ import { requestAdminApi } from '@/utils/adminApi'
 import type { Engine } from '../../../shared/catalog'
 import {
 	buttonClass,
-	Checkbox,
 	Field,
 	inputClass,
 	Panel,
 	type RunAdminAction,
 	SaveBar,
+	Switch,
 	useDirtyForm,
 } from './ui'
 
@@ -85,7 +85,7 @@ export function EnginesPanel({
 								</Field>
 							</div>
 							<div className="sm:col-span-2 flex flex-wrap items-center gap-2">
-								<Checkbox
+								<Switch
 									className="mr-auto"
 									label="启用"
 									checked={engine.enabled}

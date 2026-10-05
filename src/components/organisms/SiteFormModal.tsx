@@ -6,6 +6,7 @@ import {
 	RefreshIcon,
 	XIcon,
 } from '@/components/atoms/Icons'
+import { Switch } from '@/components/atoms/Switch'
 import { SITE_CATEGORIES } from '@/data/categories'
 import { useDialogLifecycle } from '@/hooks/useDialogLifecycle'
 import { useImageUrl, useSiteIconUrl } from '@/hooks/useImageUrl'
@@ -444,6 +445,9 @@ export function SiteFormModal({
 	const [errors, setErrors] = useState<ValidationError[]>([])
 	const [submitted, setSubmitted] = useState(false)
 	const [tagInput, setTagInput] = useState('')
+	const [creatingCategory, setCreatingCategory] = useState(false)
+	const [categoryInput, setCategoryInput] = useState('')
+	const [categoryError, setCategoryError] = useState('')
 	const firstInputRef = useRef<HTMLInputElement>(null)
 
 	// ---- 自动获取元数据状态 ----
@@ -481,6 +485,9 @@ export function SiteFormModal({
 			setErrors([])
 			setSubmitted(false)
 			setTagInput('')
+			setCreatingCategory(false)
+			setCategoryInput('')
+			setCategoryError('')
 			setFetchStatus('idle')
 			cancelMetadata()
 			requestAnimationFrame(() => firstInputRef.current?.focus())
@@ -578,6 +585,18 @@ export function SiteFormModal({
 		errors.find((e) => e.field === field)?.message
 
 	// 添加 tag
+	const createCategory = () => {
+		const name = categoryInput.trim()
+		if (!name || name.length > 100) {
+			setCategoryError('分类名称不能为空，且不超过 100 个字符')
+			return
+		}
+		setField('category', name)
+		setCreatingCategory(false)
+		setCategoryInput('')
+		setCategoryError('')
+	}
+
 	const addTag = useCallback(() => {
 		const tag = tagInput.trim()
 		if (!tag) return
@@ -874,24 +893,85 @@ export function SiteFormModal({
 						error={fieldError('category')}
 					>
 						<fieldset className="flex flex-wrap gap-1.5" aria-label="选择分类">
-							{categories.map((cat) => (
-								<button
-									key={cat}
-									type="button"
-									onClick={() => setField('category', cat)}
-									className={[
-										'badge cursor-pointer transition-all duration-100',
-										'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
-										form.category === cat
-											? 'badge-active'
-											: 'badge-default hover:badge-primary',
-									].join(' ')}
-									aria-pressed={form.category === cat}
-								>
-									{cat}
-								</button>
-							))}
+							{[...new Set([...categories, form.category].filter(Boolean))].map(
+								(cat) => (
+									<button
+										key={cat}
+										type="button"
+										onClick={() => setField('category', cat)}
+										className={[
+											'badge cursor-pointer transition-all duration-100',
+											'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
+											form.category === cat
+												? 'badge-active'
+												: 'badge-default hover:badge-primary',
+										].join(' ')}
+										aria-pressed={form.category === cat}
+									>
+										{cat}
+									</button>
+								),
+							)}
 						</fieldset>
+						{creatingCategory ? (
+							<div className="mt-2 space-y-1.5">
+								<div className="flex flex-wrap gap-2">
+									<input
+										id="sf-category"
+										aria-label="新分类名称"
+										aria-invalid={Boolean(categoryError)}
+										aria-describedby={
+											categoryError ? 'sf-category-error' : undefined
+										}
+										className="input-base min-w-0 flex-1 px-3 py-2 text-sm"
+										value={categoryInput}
+										maxLength={100}
+										placeholder="新分类名称"
+										onChange={(event) => {
+											setCategoryInput(event.target.value)
+											setCategoryError('')
+										}}
+										onKeyDown={(event) => {
+											if (event.key === 'Enter') {
+												event.preventDefault()
+												createCategory()
+											}
+										}}
+									/>
+									<Button size="sm" onClick={createCategory}>
+										使用分类
+									</Button>
+									<Button
+										size="sm"
+										variant="secondary"
+										onClick={() => {
+											setCreatingCategory(false)
+											setCategoryError('')
+										}}
+									>
+										取消
+									</Button>
+								</div>
+								{categoryError && (
+									<p
+										id="sf-category-error"
+										role="alert"
+										className="text-xs text-error"
+									>
+										{categoryError}
+									</p>
+								)}
+							</div>
+						) : (
+							<Button
+								className="mt-2"
+								size="sm"
+								variant="secondary"
+								onClick={() => setCreatingCategory(true)}
+							>
+								新建分类
+							</Button>
+						)}
 					</Field>
 
 					{/* 标签（可选） */}
@@ -942,34 +1022,12 @@ export function SiteFormModal({
 					</Field>
 
 					{/* 置顶开关 */}
-					<div className="flex items-center justify-between py-1">
-						<div>
-							<p className="text-xs font-medium text-foreground">置顶此站点</p>
-							<p className="text-[11px] text-muted-foreground mt-0.5">
-								置顶站点将始终排在网格首位
-							</p>
-						</div>
-						<button
-							type="button"
-							role="switch"
-							aria-checked={form.pinned}
-							onClick={() => setField('pinned', !form.pinned)}
-							className={[
-								'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full',
-								'transition-colors duration-200',
-								'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
-								form.pinned ? 'bg-primary' : 'bg-muted-foreground/30',
-							].join(' ')}
-						>
-							<span
-								className={[
-									'inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm',
-									'transition-transform duration-200',
-									form.pinned ? 'translate-x-4.5' : 'translate-x-0.5',
-								].join(' ')}
-							/>
-						</button>
-					</div>
+					<Switch
+						label="置顶此站点"
+						hint="置顶站点优先显示在列表中。"
+						checked={Boolean(form.pinned)}
+						onChange={(checked) => setField('pinned', checked)}
+					/>
 				</form>
 
 				{/* Footer */}

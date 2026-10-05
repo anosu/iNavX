@@ -5,72 +5,17 @@ import {
 	useEffect,
 	useId,
 } from 'react'
+import { buttonVariants } from '@/components/atoms/Button'
 import { useDialogLifecycle } from '@/hooks/useDialogLifecycle'
+
+export { Switch } from '@/components/atoms/Switch'
+
 import { ADMIN_PAGE_SIZE } from '../../../shared/limits'
 
 export const inputClass =
-	'admin-input w-full min-w-0 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm transition-shadow placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/60 focus:ring-3 focus:ring-primary/10 disabled:opacity-50 disabled:cursor-not-allowed'
-export const buttonClass =
-	'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3.5 py-2 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed'
-export const primaryClass =
-	'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
-export function Checkbox({
-	label,
-	hint,
-	checked,
-	onChange,
-	card = false,
-	className = '',
-}: {
-	label: string
-	hint?: string
-	checked: boolean
-	onChange: (checked: boolean) => void
-	card?: boolean
-	className?: string
-}) {
-	const hintId = useId()
-	return (
-		<label
-			className={`admin-checkbox-option ${card ? 'admin-checkbox-card' : ''} ${className}`}
-		>
-			<span className="relative flex size-5 shrink-0 items-center justify-center">
-				<input
-					type="checkbox"
-					className="admin-checkbox peer"
-					checked={checked}
-					onChange={(event) => onChange(event.target.checked)}
-					aria-describedby={hint ? hintId : undefined}
-				/>
-				<svg
-					aria-hidden="true"
-					viewBox="0 0 16 16"
-					fill="none"
-					className="pointer-events-none absolute size-3.5 text-primary-foreground opacity-0 peer-checked:opacity-100"
-				>
-					<path
-						d="m3.5 8 3 3 6-6"
-						stroke="currentColor"
-						strokeWidth="2"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-					/>
-				</svg>
-			</span>
-			<span className="min-w-0">
-				<span className="block text-sm font-medium leading-5">{label}</span>
-				{hint && (
-					<span
-						id={hintId}
-						className="mt-1 block text-xs leading-relaxed text-muted-foreground"
-					>
-						{hint}
-					</span>
-				)}
-			</span>
-		</label>
-	)
-}
+	'admin-input w-full min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm leading-5 transition-shadow placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/60 focus:ring-3 focus:ring-primary/10 disabled:opacity-50 disabled:cursor-not-allowed'
+export const buttonClass = buttonVariants({ variant: 'secondary' })
+export const primaryClass = buttonVariants({ variant: 'primary' })
 export function Field({
 	label,
 	children,
@@ -176,7 +121,7 @@ export function Dialog({
 					</div>
 					<button
 						type="button"
-						className={`${buttonClass} shrink-0`}
+						className={buttonVariants({ variant: 'icon' })}
 						disabled={busy}
 						aria-label="关闭对话框"
 						onClick={onClose}

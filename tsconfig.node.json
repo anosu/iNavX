@@ -26,5 +26,5 @@
 		"noFallthroughCasesInSwitch": true,
 		"noUncheckedSideEffectImports": true
 	},
-	"include": ["vite.config.ts", "drizzle.config.ts"]
+	"include": ["vite.config.ts", "scripts/export-runtime.ts"]
 }

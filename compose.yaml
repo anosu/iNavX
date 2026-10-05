@@ -4,6 +4,15 @@ services:
     image: inavx:local
     restart: unless-stopped
     init: true
+    mem_limit: 128m
+    pids_limit: 128
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "${PORT:-3000}:3000"
     environment:

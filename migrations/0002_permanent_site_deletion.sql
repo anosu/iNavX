@@ -1,0 +1,1 @@
+ALTER TABLE `applications` ADD `site_deleted_at` text;

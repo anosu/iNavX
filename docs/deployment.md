@@ -2,14 +2,15 @@
 
 当前交付包含单管理员核心后台与第二阶段匿名收录申请、审核。完整云平台后端部署尚未实现。操作流程见[后台使用指南](admin-guide.md)。
 
-后端以单实例 Node / SQLite 运行，公共前台支持静态或分离托管。部署时需在目标环境确认容器构建、数据卷权限、健康检查、备份恢复和升级后的数据保留；完整 Workers / D1 与 Vercel Functions 后端尚未适配。
+后端以单实例 Go / SQLite 运行，生产容器没有 Node、Bun 或 npm 运行时依赖。公共前台支持静态或分离托管；完整 Workers / D1 与 Vercel Functions 后端尚未适配。
 
 ## 本地开发
 
-使用 Bun 1.3.12 安装依赖，服务端使用 Node 22.18 或更新版本；生产镜像固定 Node 24。
+使用 Bun 1.3.12 安装前端依赖，后端需要 Go 1.27.1 与 C 编译器（SQLite 使用 CGO）。Linux 安装 gcc，macOS 安装命令行开发工具；Windows 建议在 WSL 中运行后端，或使用 Docker Compose。Node 22.18+ 仅用于前端测试工具。
 
 ```bash
 bun install --frozen-lockfile
+export APP_ORIGIN=http://localhost:5173
 bun run dev:server
 ```
 
@@ -19,17 +20,17 @@ bun run dev:server
 bun dev
 ```
 
-打开 `http://localhost:5173`，后台位于 `/admin`。Vite 将 `/api` 转发到端口 3000，开发入口默认信任 `http://localhost:5173`。如已有 `.env` 中的 APP_ORIGIN，请确保它与实际开发页面来源一致。
+打开 `http://localhost:5173`，后台位于 `/admin`。Vite 将 `/api` 转发到端口 3000。后端 APP_ORIGIN 必须与浏览器页面来源一致，CLI 与服务使用相同数据目录。
 
 获取一次性初始化凭据：
 
 ```bash
-node --import tsx server/entry.ts setup-token
+go run ./backend setup-token
 ```
 
 在后台输入凭据并设置唯一管理员账号，密码至少 12 个字符。凭据在初始化后失效。凭据文件和数据库位于 DATA_DIR，访客个人数据仍位于各浏览器。
 
-如果使用 `.env`，获取凭据时加上 `--env-file-if-exists=.env`，确保 CLI 与开发服务读取相同数据目录。开发前端默认端口 5173；若 `.env` 已配置生产 APP_ORIGIN，开发时改为 `http://localhost:5173`。
+`bun run` 会加载 `.env` 并将环境变量传给子进程；直接运行 Go 或二进制时需自行设置环境变量。WSL 中先运行 `bun run build:runtime`，再在仓库根目录执行 `APP_ORIGIN=http://localhost:5173 go run ./backend`；前端可在 Windows 终端执行 `bun dev`。
 
 构建、测试和本地生产运行：
 
@@ -37,24 +38,26 @@ node --import tsx server/entry.ts setup-token
 bun run build
 bun run test
 bun run lint
+bun run test:server
+bun run build:server
 bun start
 ```
 
 `bun run lint:fix` 自动修复安全的格式与 lint 问题；修复后仍需审查差异并运行上述检查。模块职责、命名和校验约定见[代码规范](code-quality.md)。
 
-生产运行默认地址 `http://localhost:3000`。`bun start` 读取 `.env`；直接调用 entry 命令时若需要读取此文件，使用 Node 的 `--env-file-if-exists=.env` 参数。CLI 与服务必须使用相同 DATA_DIR 和 BACKUP_DIR。
+生产运行默认地址 `http://localhost:3000`。直接运行 `./bin/inav serve` 即可，不需要 JavaScript 运行时；保留 `runtime/defaults.json`、`package.json`、`dist/`、`migrations/` 和种子文件。CLI 与服务使用相同工作目录、DATA_DIR 和 BACKUP_DIR。Windows 的 Go 构建和测试命令在 WSL 中执行。
 
 ## Docker Compose
 
 ```bash
 cp .env.example .env
 docker compose up -d --build
-docker compose exec app node dist-server/server/entry.js setup-token
+docker compose exec app inav setup-token
 ```
 
 在 `.env` 中设置 APP_ORIGIN 为实际后台访问来源，包含协议、域名和非默认端口。例如 HTTPS 反向代理下设置 `https://nav.example.com`。该值用于修改请求来源校验和 Secure Cookie，不能随意填成容器内部地址。
 
-PORT 是 Compose 的宿主机映射端口，容器内监听端口固定为 3000。公共前台与后台同域时 PUBLIC_ORIGIN 留空。容器使用 node 非 root 用户，数据库和备份分别保存在 `app_data` 与 `app_backups` 命名卷。
+PORT 是 Compose 的宿主机映射端口，容器内监听端口固定为 3000。公共前台与后台同域时 PUBLIC_ORIGIN 留空。容器以 UID/GID 1000 非 root 用户运行，数据库和备份分别保存在 `app_data` 与 `app_backups` 命名卷。绑定宿主目录时需要授予此用户写权限。
 
 首次启动会执行 SQL 迁移、导入内置站点并生成初始化凭据。种子内容只导入一次，升级不会覆盖后台编辑。
 
@@ -74,7 +77,7 @@ PORT 是 Compose 的宿主机映射端口，容器内监听端口固定为 3000�
 
 ## 备份
 
-后台“备份与迁移”提供迁移包导出、数据库备份生成与下载。
+后台“备份与迁移”提供迁移包导出、数据库备份生成、下载和永久删除。
 
 - 迁移包包含公共内容、分类、配置、引擎、回收站及申请审核记录，不含管理员凭据与会话。Turnstile 和受信代理环境配置由部署端维护，不写入迁移包。
 - 原生 SQLite 备份包含管理员配置，用于完整实例恢复。
@@ -84,7 +87,7 @@ PORT 是 Compose 的宿主机映射端口，容器内监听端口固定为 3000�
 也可以通过命令生成数据库备份：
 
 ```bash
-docker compose exec app node dist-server/server/entry.js backup
+docker compose exec app inav backup
 ```
 
 命令输出备份文件名，可复制到宿主机：
@@ -93,7 +96,7 @@ docker compose exec app node dist-server/server/entry.js backup
 docker compose cp app:/app/backups/实际备份文件名.sqlite ./inav-backup.sqlite
 ```
 
-自动备份的间隔和保留份数在后台设置。应用每分钟检查是否到期，重启时也会检查并补做一次到期备份；停机期间不会执行任务，也不会补齐每一个历史周期。备份使用 SQLite 一致性备份接口，不直接复制活跃主文件。
+自动备份的间隔和保留份数在后台设置，间隔为 0 时关闭自动备份。应用每分钟检查是否到期，重启时也会检查并补做一次到期备份；停机期间不会执行任务，也不会补齐每一个历史周期。备份使用 SQLite 一致性备份接口，不直接复制活跃主文件。删除数据不会修改旧备份，需要时可分别删除备份文件。
 
 命名卷内的备份可定期复制到其他存储位置。保留策略只清理应用生成的 `inav-*.sqlite` 备份。
 
@@ -104,7 +107,7 @@ docker compose cp app:/app/backups/实际备份文件名.sqlite ./inav-backup.sq
 - 合并导入：保留当前配置；匹配分类名称；相同活动 URL 跳过；冲突条目列在结果中。导入申请时映射关联站点，同 ID 的申请和重复待审核 URL 跳过，不覆盖当前审核结果。
 - 覆盖恢复：仅用于完整迁移包，需要输入 `REPLACE`；替换公共内容、配置与申请历史，保留当前实例的管理员账号。
 
-当前导出格式为版本 2。版本 1 迁移包仍可导入；它不含申请记录，覆盖恢复会清空当前申请历史，执行前自动备份。纯站点 JSON 和个人备份继续只用于合并公共条目。
+当前导出格式为版本 3，支持关联站点已永久删除的审核记录。版本 1、2 仍可导入；版本 1 不含申请记录，覆盖恢复会清空当前申请历史，执行前自动备份。纯站点 JSON 和个人备份继续只用于合并公共条目。空分类、空站点和空引擎列表均合法，重启不会重新播种。
 
 输入文件最大 8 MB，迁移模型最多 10000 个站点（含回收站）、1000 个分类和 100 个引擎。合并后也遵守这些上限。JSON 版本和关联分类校验失败时不会写入。预览后数据若变化，需要重新预览。
 
@@ -127,10 +130,10 @@ docker compose up -d app
 
 新服务器可以先运行 `docker compose create app`，再复制文件和执行恢复命令。恢复后使用备份中的管理员账号登录。备份的数据库版本高于目标镜像时拒绝恢复，应使用匹配的镜像。
 
-本地 Node 的对应命令：
+本地二进制的对应命令：
 
 ```bash
-node --env-file-if-exists=.env dist-server/server/entry.js restore /absolute/path/to/backup.sqlite
+./bin/inav restore /absolute/path/to/backup.sqlite
 ```
 
 ## 升级与回滚
@@ -145,7 +148,7 @@ docker compose run --rm app migrate
 docker compose up -d app
 ```
 
-启动及 migrate 命令会检查数据库版本，发现待执行迁移时先创建升级前备份。迁移失败以非零状态退出，服务不会继续启动。开发中使用 `bun run db:generate` 生成并审查 SQL；生产不运行 drizzle push。
+启动及 migrate 命令会检查数据库版本，发现待执行迁移时先创建升级前备份。迁移失败以非零状态退出，服务不会继续启动。保留原 Drizzle SQL 和日志以兼容旧数据库；新增迁移应添加 SQL、日志条目和回归验证，不修改已发布迁移的内容或哈希。Go 可直接升级原 Node 实例的数据卷，不重新创建管理员。
 
 回滚时，旧镜像不一定能读取新数据库。先使用匹配镜像和升级前数据库备份完成恢复，再启动服务；保留原镜像或版本标签与对应备份。
 
@@ -162,10 +165,12 @@ unset ADMIN_PASSWORD
 本地也可通过标准输入传入密码：
 
 ```bash
-node --env-file-if-exists=.env dist-server/server/entry.js reset-password
+./bin/inav reset-password
 ```
 
 输入密码并结束标准输入后执行。该命令不会在输出中打印密码。
+
+永久删除管理员账号与全部会话时，先停止服务，再运行 `docker compose run --rm app reset-admin DELETE`。公共目录与申请不受影响；重新启动后通过一次性凭据创建管理员。此命令不会自动删除旧备份中的账号数据，旧备份可在后台单独删除。
 
 ## 公共前台分离与静态模式
 
@@ -185,7 +190,7 @@ VITE_STATIC_MODE=true bun run build
 
 静态模式使用内置 JSON 和现有构建期功能开关，不请求后端，也不提供可用的管理接口。动态品牌元数据由 Docker 服务返回；静态托管改变初始 HTML 元数据仍需重新构建或平台侧处理。
 
-完整 Workers + D1 与 Vercel Functions 部署尚未实现，不能把 Node 数据库文件直接用于这些平台。
+完整 Workers + D1 与 Vercel Functions 部署尚未实现，不能把本地 SQLite 数据卷直接用于这些平台。
 
 ## 匿名申请与防滥用
 
@@ -193,7 +198,7 @@ VITE_STATIC_MODE=true bun run build
 
 每个连接地址在 15 分钟内最多尝试 5 次，申请请求最大 8 KB，待审核队列上限 500 条；同 URL 的待审核申请不会重复落库。隐藏诱捕字段命中时返回接收提示但不保存。限流存在进程内存中，重启后重置。
 
-登录/初始化每个连接地址在 15 分钟内最多尝试 10 次，成功后清除此地址的计数；同时最多处理 2 个密码验证请求。匿名申请为每个地址 5 次 / 15 分钟。两者共用受信代理地址解析，计数仍只保存在进程内存。
+登录/初始化每个连接地址在 15 分钟内最多尝试 10 次，成功后清除此地址的计数；同时处理 1 个密码验证请求，繁忙时返回 429，避免叠加 scrypt 内存。匿名申请为每个地址 5 次 / 15 分钟。两者共用受信代理地址解析，计数仍只保存在进程内存。
 
 反向代理下，默认会按代理连接地址合并限流。需要识别真实客户端地址时，设置 `TRUSTED_PROXY_IPS` 为实际代理的完整 IP 地址（逗号分隔，不支持 CIDR）；只有这些连接发来的合法单个 `X-Real-IP` 才生效。代理必须覆盖客户端传入的同名头，并通过网络限制确保应用只允许代理连接。不要随意信任宿主机网关或填写访客地址。未设置时忽略所有客户端 IP 头。
 

@@ -9,7 +9,6 @@ import {
 import { ADMIN_PAGE_SIZE } from '../../../shared/limits'
 import {
 	buttonClass,
-	Checkbox,
 	Dialog,
 	EmptyState,
 	Field,
@@ -18,6 +17,7 @@ import {
 	Panel,
 	primaryClass,
 	type RunAdminAction,
+	Switch,
 	useDirtyForm,
 } from './ui'
 
@@ -53,7 +53,7 @@ function SiteEditor({
 					name: '',
 					url: '',
 					description: '',
-					categoryId: data.categories[0].id,
+					categoryId: data.categories[0]?.id || '',
 					iconUrl: '',
 					tags: [],
 					pinned: false,
@@ -181,14 +181,25 @@ function SiteEditor({
 							onChange={(e) => setValue({ ...value, url: e.target.value })}
 						/>
 					</Field>
-					<Field label="分类">
+					<Field
+						label="分类"
+						hint={
+							data.categories.length
+								? undefined
+								: '暂无公共分类，请先在分类管理中新增。'
+						}
+					>
 						<select
 							className={inputClass}
+							required
 							value={value.categoryId}
 							onChange={(e) =>
 								setValue({ ...value, categoryId: e.target.value })
 							}
 						>
+							{!data.categories.length && (
+								<option value="">请先新增公共分类</option>
+							)}
 							{data.categories.map((category) => (
 								<option key={category.id} value={category.id}>
 									{category.name}
@@ -233,8 +244,10 @@ function SiteEditor({
 							}
 						/>
 					</Field>
-					<Checkbox
+					<Switch
+						className="sm:col-span-2 border-t border-border pt-3"
 						label="置顶"
+						hint="置顶站点优先显示在公共目录中。"
 						checked={value.pinned}
 						onChange={(checked) => setValue({ ...value, pinned: checked })}
 					/>
@@ -292,7 +305,7 @@ export function SitesPanel({
 			>
 				编辑
 			</button>
-			{trash ? (
+			{trash && (
 				<button
 					type="button"
 					disabled={busy}
@@ -306,19 +319,18 @@ export function SitesPanel({
 				>
 					恢复
 				</button>
-			) : (
-				<button
-					type="button"
-					disabled={busy}
-					className={`${buttonClass} text-error`}
-					onClick={() => {
-						setDeleteError('')
-						setDeleting(site)
-					}}
-				>
-					删除
-				</button>
 			)}
+			<button
+				type="button"
+				disabled={busy}
+				className={`${buttonClass} text-error`}
+				onClick={() => {
+					setDeleteError('')
+					setDeleting(site)
+				}}
+			>
+				{trash ? '永久删除' : '移入回收站'}
+			</button>
 		</div>
 	)
 	return (
@@ -357,7 +369,7 @@ export function SitesPanel({
 				title={trash ? '回收站' : '公共目录'}
 				description={
 					trash
-						? '删除的条目可以编辑或恢复。恢复时会检查地址冲突。'
+						? '条目可以编辑、恢复或永久删除。永久删除后只能通过备份恢复。'
 						: '搜索名称、地址、描述或标签，按分类快速定位。'
 				}
 			>
@@ -525,8 +537,12 @@ export function SitesPanel({
 			</Panel>
 			{deleting && (
 				<Dialog
-					title="移入回收站？"
-					description={`「${deleting.name}」将从公共目录中隐藏，可以在回收站恢复。`}
+					title={deleting.deletedAt ? '永久删除站点？' : '移入回收站？'}
+					description={
+						deleting.deletedAt
+							? `「${deleting.name}」将被永久删除，无法在回收站恢复；相关审核历史会保留。`
+							: `「${deleting.name}」将从公共目录中隐藏，可以在回收站恢复。`
+					}
 					busy={busy}
 					onClose={() => setDeleting(null)}
 				>
@@ -550,26 +566,35 @@ export function SitesPanel({
 							disabled={busy}
 							onClick={() => {
 								setDeleteError('')
-								void runAction(async () => {
-									try {
-										await requestAdminApi(
-											`admin/sites/${deleting.id}`,
-											csrf,
-											{},
-											'DELETE',
-										)
-									} catch (error) {
-										setDeleteError(
-											error instanceof Error ? error.message : '移入回收站失败',
-										)
-										throw error
-									}
-								}, '已移入回收站').then((ok) => {
+								void runAction(
+									async () => {
+										try {
+											await requestAdminApi(
+												`admin/sites/${deleting.id}${deleting.deletedAt ? '/permanent' : ''}`,
+												csrf,
+												deleting.deletedAt
+													? { expectedUpdatedAt: deleting.updatedAt }
+													: {},
+												'DELETE',
+											)
+										} catch (error) {
+											setDeleteError(
+												error instanceof Error ? error.message : '删除失败',
+											)
+											throw error
+										}
+									},
+									deleting.deletedAt ? '站点已永久删除' : '已移入回收站',
+								).then((ok) => {
 									if (ok) setDeleting(null)
 								})
 							}}
 						>
-							{busy ? '正在处理…' : '移入回收站'}
+							{busy
+								? '正在处理…'
+								: deleting.deletedAt
+									? '永久删除'
+									: '移入回收站'}
 						</button>
 					</div>
 				</Dialog>

@@ -4,15 +4,13 @@ import { Button } from '@/components/atoms/Button'
 import {
 	CommandIcon,
 	InfoIcon,
-	MoonIcon,
 	NavLogoIcon,
 	PlusIcon,
-	SunIcon,
 } from '@/components/atoms/Icons'
 import { SearchBar } from '@/components/molecules/SearchBar'
+import { ThemeToggle } from '@/components/molecules/ThemeToggle'
 import { useImageUrl } from '@/hooks/useImageUrl'
 import { usePublicCatalog } from '@/hooks/usePublicCatalog'
-import { useTheme } from '@/hooks/useTheme'
 
 /* ============================================================
    Header
@@ -20,49 +18,6 @@ import { useTheme } from '@/hooks/useTheme'
    - 中：搜索框（flex-1）
    - 右：⌘K 命令面板 | 布局切换 | 添加站点 | 主题 | 信息面板
    ============================================================ */
-
-// ---- 主题切换 ----
-
-function ThemeToggle() {
-	const { isDark, toggleTheme } = useTheme()
-	return (
-		<Button
-			variant="icon"
-			size="md"
-			onClick={toggleTheme}
-			aria-label={isDark ? '切换到亮色模式' : '切换到暗色模式'}
-			aria-pressed={isDark}
-		>
-			<span
-				className="relative flex items-center justify-center"
-				style={{ width: 16, height: 16 }}
-			>
-				<span
-					className="absolute inset-0 flex items-center justify-center transition-all duration-300"
-					style={{
-						opacity: isDark ? 0 : 1,
-						transform: isDark
-							? 'rotate(-90deg) scale(0.5)'
-							: 'rotate(0deg) scale(1)',
-					}}
-				>
-					<SunIcon size={16} />
-				</span>
-				<span
-					className="absolute inset-0 flex items-center justify-center transition-all duration-300"
-					style={{
-						opacity: isDark ? 1 : 0,
-						transform: isDark
-							? 'rotate(0deg) scale(1)'
-							: 'rotate(90deg) scale(0.5)',
-					}}
-				>
-					<MoonIcon size={16} />
-				</span>
-			</span>
-		</Button>
-	)
-}
 
 // ---- 信息气泡 ----
 

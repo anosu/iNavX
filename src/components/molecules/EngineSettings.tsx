@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { SettingsIcon } from '@/components/atoms/Icons'
+import { Switch } from '@/components/atoms/Switch'
 import type { UseEngineOrderReturn } from '@/hooks/useEngineOrder'
 import { useImageUrl } from '@/hooks/useImageUrl'
 import type { Engine } from '../../../shared/catalog'
@@ -79,44 +80,6 @@ function EngineIcon({ engine }: { engine: Engine }) {
 			loading="eager"
 			decoding="async"
 		/>
-	)
-}
-
-// ---- Toggle 开关 ----
-
-interface ToggleProps {
-	checked: boolean
-	onChange: () => void
-	disabled?: boolean
-	label: string
-}
-
-function Toggle({ checked, onChange, disabled, label }: ToggleProps) {
-	return (
-		<button
-			type="button"
-			role="switch"
-			aria-checked={checked}
-			aria-label={label}
-			disabled={disabled}
-			onClick={onChange}
-			title={disabled ? '至少保留一个搜索引擎' : undefined}
-			className={[
-				'relative inline-flex h-4.5 w-8 shrink-0 items-center rounded-full',
-				'transition-colors duration-200',
-				'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
-				disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer',
-				checked ? 'bg-primary' : 'bg-muted-foreground/30',
-			].join(' ')}
-		>
-			<span
-				className={[
-					'inline-block h-3 w-3 transform rounded-full bg-white shadow-sm',
-					'transition-transform duration-200',
-					checked ? 'translate-x-4' : 'translate-x-0.5',
-				].join(' ')}
-			/>
-		</button>
 	)
 }
 
@@ -204,7 +167,8 @@ function EngineRow({
 			</span>
 
 			{/* 启用开关 */}
-			<Toggle
+			<Switch
+				labelHidden
 				checked={engine.enabled}
 				onChange={onToggle}
 				disabled={isLastEnabled && engine.enabled}

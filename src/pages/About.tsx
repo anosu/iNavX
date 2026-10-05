@@ -2,13 +2,12 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { buttonClass, Panel, primaryClass } from '@/components/admin/ui'
 import { NavLogoIcon } from '@/components/atoms/Icons'
+import { ThemeToggle } from '@/components/molecules/ThemeToggle'
 import { useImageUrl } from '@/hooks/useImageUrl'
 import { usePublicCatalog } from '@/hooks/usePublicCatalog'
-import { useTheme } from '@/hooks/useTheme'
 
 export default function About() {
 	const { settings, sites, categories, engines } = usePublicCatalog()
-	const { isDark, toggleTheme } = useTheme()
 	const logoUrl = useImageUrl(settings.logoUrl)
 	const [failedUrl, setFailedUrl] = useState<string>()
 	const { features } = settings
@@ -30,7 +29,7 @@ export default function About() {
 	if (features.customSites)
 		guides.push([
 			'整理个人收藏',
-			'点击「添加」保存常用链接；在个人卡片上右键或长按，可以编辑、置顶或删除。',
+			'点击「添加」保存常用链接，可选择已有分类或新建个人分类；在个人卡片上右键或长按，可以编辑、置顶或删除。个人分类随站点保存，只影响你的浏览器。',
 		])
 	if (features.bookmarkImport)
 		guides.push([
@@ -63,9 +62,7 @@ export default function About() {
 						)}
 						<span className="truncate">{settings.name}</span>
 					</Link>
-					<button type="button" className={buttonClass} onClick={toggleTheme}>
-						{isDark ? '切换亮色' : '切换暗色'}
-					</button>
+					<ThemeToggle />
 				</div>
 			</header>
 			<main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-8">

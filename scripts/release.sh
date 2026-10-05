@@ -12,7 +12,7 @@ if [ "$BUMP" != "patch" ] && [ "$BUMP" != "minor" ] && [ "$BUMP" != "major" ]; t
 fi
 
 # 依赖检查
-for cmd in git gh bun node; do
+for cmd in git gh bun node go; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "缺少依赖: $cmd"
     exit 1
@@ -66,6 +66,10 @@ echo ""
 # 构建
 echo "构建中..."
 bun run build
+bun run lint
+bun run test
+bun run test:server
+bun run build:server
 echo "构建通过"
 echo ""
 

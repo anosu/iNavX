@@ -109,8 +109,10 @@ export function validateSitePayload(
 		errors.push({ field: 'description', message: '描述不超过 100 个字符' })
 	}
 
-	if (!payload.category) {
+	if (!payload.category?.trim()) {
 		errors.push({ field: 'category', message: '请选择分类' })
+	} else if (payload.category.trim().length > 100) {
+		errors.push({ field: 'category', message: '分类名称不超过 100 个字符' })
 	}
 
 	return errors

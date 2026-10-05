@@ -59,7 +59,8 @@ function ReviewDialog({
 		description: item.description,
 		categoryId:
 			data.categories.find((c) => c.name === item.suggestedCategory)?.id ||
-			data.categories[0].id,
+			data.categories[0]?.id ||
+			'',
 		iconUrl: '',
 		tags: [],
 		pinned: false,
@@ -137,7 +138,9 @@ function ReviewDialog({
 									className={primaryClass}
 									type="submit"
 									form={formId}
-									disabled={busy}
+									disabled={
+										busy || (action === 'approved' && !data.categories.length)
+									}
 								>
 									{busy
 										? '正在处理…'
@@ -193,6 +196,7 @@ function ReviewDialog({
 							{linked.deletedAt ? '（已移入回收站）' : ''}
 						</p>
 					)}
+					{item.siteDeletedAt && <p>关联站点已永久删除</p>}
 				</div>
 			) : (
 				<form
@@ -273,7 +277,14 @@ function ReviewDialog({
 										onChange={(e) => setSite({ ...site, url: e.target.value })}
 									/>
 								</Field>
-								<Field label="收录分类">
+								<Field
+									label="收录分类"
+									hint={
+										data.categories.length
+											? undefined
+											: '暂无公共分类，请先在分类管理中新增后批准。'
+									}
+								>
 									<select
 										className={inputClass}
 										value={site.categoryId}
@@ -281,6 +292,9 @@ function ReviewDialog({
 											setSite({ ...site, categoryId: e.target.value })
 										}
 									>
+										{!data.categories.length && (
+											<option value="">请先新增公共分类</option>
+										)}
 										{data.categories.map((c) => (
 											<option key={c.id} value={c.id}>
 												{c.name}
@@ -381,6 +395,7 @@ export function ApplicationsPanel({
 	const [loading, setLoading] = useState(true)
 	const [refresh, setRefresh] = useState(0)
 	const [selected, setSelected] = useState<Application | null>(null)
+	const [deleting, setDeleting] = useState<Application | null>(null)
 	useEffect(() => {
 		const timer = setTimeout(() => {
 			setSearch(query)
@@ -422,7 +437,7 @@ export function ApplicationsPanel({
 		<>
 			<Panel
 				title="访客申请"
-				description="申请不会自动发布，原始提交与审核结果分别保留。无需访客账号或邮箱。"
+				description="申请审核后才会公开。所有状态的申请记录均可永久删除。"
 			>
 				<div className="flex flex-wrap gap-2">
 					{(['pending', 'approved', 'rejected', 'duplicate'] as const).map(
@@ -526,6 +541,14 @@ export function ApplicationsPanel({
 								>
 									{item.status === 'pending' ? '审核申请' : '查看详情'}
 								</button>
+								<button
+									type="button"
+									disabled={busy}
+									className={`${buttonClass} text-error`}
+									onClick={() => setDeleting(item)}
+								>
+									永久删除
+								</button>
 							</article>
 						))}
 					</div>
@@ -563,6 +586,50 @@ export function ApplicationsPanel({
 					onClose={() => setSelected(null)}
 					saved={() => setRefresh((n) => n + 1)}
 				/>
+			)}
+			{deleting && (
+				<Dialog
+					title="永久删除申请"
+					description="申请内容与审核结果会一起删除，已收录站点不受影响。此操作无法撤销。"
+					busy={busy}
+					onClose={() => setDeleting(null)}
+					footer={
+						<div className="flex justify-end gap-2">
+							<button
+								type="button"
+								className={buttonClass}
+								disabled={busy}
+								onClick={() => setDeleting(null)}
+							>
+								取消
+							</button>
+							<button
+								type="button"
+								className={`${buttonClass} text-error`}
+								disabled={busy}
+								onClick={() =>
+									void runAction(async () => {
+										await requestAdminApi(
+											`admin/applications/${deleting.id}`,
+											csrf,
+											{ expectedUpdatedAt: deleting.updatedAt },
+											'DELETE',
+										)
+									}, '申请已永久删除').then((ok) => {
+										if (ok) {
+											setDeleting(null)
+											setRefresh((n) => n + 1)
+										}
+									})
+								}
+							>
+								{busy ? '正在删除…' : '永久删除'}
+							</button>
+						</div>
+					}
+				>
+					<p className="text-sm break-words">{deleting.name}</p>
+				</Dialog>
 			)}
 		</>
 	)

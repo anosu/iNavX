@@ -74,12 +74,13 @@ test('only validated full catalog packages allow replacement; malformed and unsa
 			canReplace: true,
 		},
 	)
-	assert.throws(() =>
+	assert.equal(
 		parseCatalogImport(
 			JSON.stringify({ ...complete, data: { ...catalog, categories: [] } }),
-			'invalid.json',
+			'empty.json',
 			catalog,
-		),
+		).canReplace,
+		true,
 	)
 	assert.throws(() =>
 		parseCatalogImport(

@@ -5,6 +5,7 @@ import type { Catalog, MigrationPackage } from '../../../shared/catalog'
 import { MAX_API_BODY_BYTES } from '../../../shared/limits'
 import {
 	buttonClass,
+	Dialog,
 	inputClass,
 	Panel,
 	primaryClass,
@@ -36,6 +37,7 @@ export function BackupsPanel({
 	busy: boolean
 }) {
 	const [backups, setBackups] = useState<DatabaseBackup[]>([])
+	const [deleting, setDeleting] = useState<DatabaseBackup | null>(null)
 	const [error, setError] = useState('')
 	const [backupError, setBackupError] = useState('')
 	const [previewing, setPreviewing] = useState(false)
@@ -112,13 +114,23 @@ export function BackupsPanel({
 									{(backup.size / 1024).toFixed(1)} KB
 								</p>
 							</div>
-							<a
-								className={buttonClass}
-								href={`/api/admin/backups/${encodeURIComponent(backup.name)}`}
-								download
-							>
-								下载
-							</a>
+							<div className="flex gap-2">
+								<a
+									className={buttonClass}
+									href={`/api/admin/backups/${encodeURIComponent(backup.name)}`}
+									download
+								>
+									下载
+								</a>
+								<button
+									type="button"
+									className={`${buttonClass} text-error`}
+									disabled={busy}
+									onClick={() => setDeleting(backup)}
+								>
+									删除
+								</button>
+							</div>
 						</li>
 					))}
 				</ul>
@@ -295,6 +307,48 @@ export function BackupsPanel({
 					</div>
 				)}
 			</Panel>
+			{deleting && (
+				<Dialog
+					title="永久删除备份"
+					description="只删除此备份文件，当前站点数据不受影响。删除后无法恢复。"
+					busy={busy}
+					onClose={() => setDeleting(null)}
+					footer={
+						<div className="flex justify-end gap-2">
+							<button
+								type="button"
+								className={buttonClass}
+								disabled={busy}
+								onClick={() => setDeleting(null)}
+							>
+								取消
+							</button>
+							<button
+								type="button"
+								className={`${buttonClass} text-error`}
+								disabled={busy}
+								onClick={() =>
+									void runAction(async () => {
+										await requestAdminApi(
+											`admin/backups/${encodeURIComponent(deleting.name)}`,
+											csrf,
+											{},
+											'DELETE',
+										)
+										load()
+									}, '备份已永久删除').then((ok) => {
+										if (ok) setDeleting(null)
+									})
+								}
+							>
+								{busy ? '正在删除…' : '永久删除'}
+							</button>
+						</div>
+					}
+				>
+					<p className="text-sm break-all">{deleting.name}</p>
+				</Dialog>
+			)}
 		</div>
 	)
 }

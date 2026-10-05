@@ -8,7 +8,59 @@ import {
 	readStoredSites,
 	restorePersonalData,
 } from '../src/utils/personalData.js'
-import { normalizeUrl } from './catalog.js'
+import { migrationSchema, normalizeUrl } from './catalog.js'
+import { DEFAULT_SETTINGS } from './defaults.js'
+
+test('version 3 preserves deleted site associations and accepts an empty catalog', () => {
+	const stamp = '2026-10-05T00:00:00.000Z'
+	const item = {
+		id: 'application',
+		name: 'Removed site',
+		url: 'https://example.com/',
+		description: '',
+		suggestedCategory: '',
+		status: 'approved',
+		reviewNote: '',
+		siteId: null,
+		siteDeletedAt: stamp,
+		createdAt: stamp,
+		updatedAt: stamp,
+		reviewedAt: stamp,
+	}
+	const pkg = {
+		format: 'inav-catalog',
+		formatVersion: 3,
+		appVersion: 'test',
+		exportedAt: stamp,
+		data: {
+			revision: '1',
+			categories: [],
+			sites: [],
+			engines: [],
+			settings: DEFAULT_SETTINGS,
+		},
+		applications: [item],
+	}
+	assert.equal(migrationSchema.parse(pkg).applications[0].siteDeletedAt, stamp)
+	assert.equal(
+		migrationSchema.safeParse({ ...pkg, formatVersion: 2 }).success,
+		false,
+	)
+	assert.equal(
+		migrationSchema.safeParse({
+			...pkg,
+			applications: [{ ...item, siteId: 'missing' }],
+		}).success,
+		false,
+	)
+	assert.equal(
+		migrationSchema.safeParse({
+			...pkg,
+			applications: [{ ...item, siteDeletedAt: null }],
+		}).success,
+		false,
+	)
+})
 
 test('URL normalization preserves path, query, fragment and protocol semantics', () => {
 	assert.equal(

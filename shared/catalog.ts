@@ -106,7 +106,7 @@ export const settingsSchema = z
 		metadataProxyTemplate: template('{url}'),
 		remoteImagesEnabled: z.boolean().default(false),
 		metadataFetchEnabled: z.boolean().default(false),
-		backupIntervalHours: z.number().int().min(1).max(8760),
+		backupIntervalHours: z.number().int().min(0).max(8760),
 		backupKeep: z.number().int().min(1).max(365),
 		applicationsEnabled: z.boolean().default(true),
 	})
@@ -114,7 +114,7 @@ export const settingsSchema = z
 export const catalogSchema = z
 	.object({
 		revision: z.string(),
-		categories: z.array(categorySchema).min(1).max(MAX_CATALOG_CATEGORIES),
+		categories: z.array(categorySchema).max(MAX_CATALOG_CATEGORIES),
 		sites: z.array(siteSchema).max(MAX_CATALOG_SITES),
 		engines: z.array(engineSchema).max(MAX_SEARCH_ENGINES),
 		settings: settingsSchema,
@@ -140,6 +140,7 @@ export const applicationSchema = applicationInputSchema
 		status: applicationStatusSchema,
 		reviewNote: z.string().max(1000),
 		siteId: id.nullable(),
+		siteDeletedAt: z.iso.datetime().nullable().default(null),
 		createdAt: z.iso.datetime(),
 		updatedAt: z.iso.datetime(),
 		reviewedAt: z.iso.datetime().nullable(),
@@ -148,13 +149,22 @@ export const applicationSchema = applicationInputSchema
 	.superRefine((item, ctx) => {
 		if (
 			item.status === 'pending'
-				? item.reviewedAt !== null || item.siteId !== null
+				? item.reviewedAt !== null ||
+					item.siteId !== null ||
+					item.siteDeletedAt !== null
 				: item.reviewedAt === null
 		)
 			ctx.addIssue({ code: 'custom', message: '申请状态和审核时间不一致' })
-		if (['approved', 'duplicate'].includes(item.status) && !item.siteId)
+		if (
+			['approved', 'duplicate'].includes(item.status) &&
+			!item.siteId &&
+			!item.siteDeletedAt
+		)
 			ctx.addIssue({ code: 'custom', message: '已收录或重复申请必须关联站点' })
-		if (item.status === 'rejected' && item.siteId)
+		if (
+			(item.status === 'rejected' && (item.siteId || item.siteDeletedAt)) ||
+			(item.siteId && item.siteDeletedAt)
+		)
 			ctx.addIssue({ code: 'custom', message: '拒绝申请不能关联站点' })
 	})
 export const submissionSchema = applicationInputSchema
@@ -200,7 +210,7 @@ export interface ApplicationList {
 export const migrationSchema = z
 	.object({
 		format: z.literal('inav-catalog'),
-		formatVersion: z.union([z.literal(1), z.literal(2)]),
+		formatVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
 		appVersion: z.string().max(100),
 		exportedAt: z.iso.datetime(),
 		data: catalogSchema,
@@ -222,6 +232,11 @@ export const migrationSchema = z
 		const siteIds = new Set(sites.map((site) => site.id))
 		const pendingUrls = new Set<string>()
 		for (const item of value.applications) {
+			if (value.formatVersion < 3 && item.siteDeletedAt)
+				ctx.addIssue({
+					code: 'custom',
+					message: '旧版迁移包不支持已删除站点关联',
+				})
 			if (item.status === 'pending') {
 				const url = normalizeUrl(item.url)
 				if (pendingUrls.has(url))

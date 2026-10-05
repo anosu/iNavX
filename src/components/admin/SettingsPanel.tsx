@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { requestAdminApi } from '@/utils/adminApi'
 import { type Settings, settingsSchema } from '../../../shared/catalog'
 import {
-	Checkbox,
 	Field,
 	inputClass,
 	Panel,
 	type RunAdminAction,
 	SaveBar,
+	Switch,
 	useDirtyForm,
 } from './ui'
 
@@ -105,9 +105,8 @@ export function SettingsPanel({
 							访客功能
 						</h3>
 						{Object.entries(featureLabels).map(([key, label]) => (
-							<Checkbox
+							<Switch
 								key={key}
-								card
 								label={label}
 								checked={value.features[key as keyof Settings['features']]}
 								onChange={(checked) =>
@@ -119,8 +118,7 @@ export function SettingsPanel({
 							/>
 						))}
 					</div>
-					<Checkbox
-						card
+					<Switch
 						className="sm:col-span-2"
 						label="接收匿名收录申请"
 						hint="关闭后停止新申请，历史记录仍可审核。验证码通过服务器环境配置。"
@@ -135,8 +133,7 @@ export function SettingsPanel({
 							默认使用本站资源和文字图标。外部服务按需启用，所有图片地址可填写站内路径。
 						</p>
 					</div>
-					<Checkbox
-						card
+					<Switch
 						className="sm:col-span-2"
 						label="允许加载远程图片"
 						hint="适用于站点图标、搜索引擎图标和 Logo。关闭时只加载同源图片，已有远程地址仍保留。"
@@ -155,8 +152,7 @@ export function SettingsPanel({
 							}
 						/>
 					</Field>
-					<Checkbox
-						card
+					<Switch
 						className="sm:col-span-2"
 						label="启用链接标题与描述获取"
 						hint="添加个人收藏时，会将目标网址发送给下方配置的代理。需要可用的代理并允许浏览器跨域访问；关闭后手动填写。"
@@ -175,10 +171,13 @@ export function SettingsPanel({
 							}
 						/>
 					</Field>
-					<Field label="自动备份间隔（小时）">
+					<Field
+						label="自动备份间隔（小时）"
+						hint="设为 0 关闭自动备份。已有备份可在备份管理中删除。"
+					>
 						<input
 							type="number"
-							min={1}
+							min={0}
 							max={8760}
 							required
 							className={inputClass}

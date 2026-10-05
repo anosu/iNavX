@@ -9,6 +9,8 @@ node_modules
 dist
 dist-ssr
 dist-server
+runtime
+bin
 data
 backups
 .env

@@ -16,7 +16,7 @@ import {
 	primaryClass,
 	type RunAdminAction,
 } from '@/components/admin/ui'
-import { useTheme } from '@/hooks/useTheme'
+import { ThemeToggle } from '@/components/molecules/ThemeToggle'
 import { ApiError, requestAdminApi } from '@/utils/adminApi'
 import { type Catalog, catalogSchema } from '../../shared/catalog'
 
@@ -73,7 +73,6 @@ export default function Admin() {
 	const tab = current.id
 	const [dirty, setDirty] = useState(false)
 	const blocker = useBlocker(dirty)
-	const { isDark, toggleTheme } = useTheme()
 	const [pendingCount, setPendingCount] = useState(0)
 	const [confirmLogout, setConfirmLogout] = useState(false)
 	const [busy, setBusy] = useState(false)
@@ -163,14 +162,7 @@ export default function Admin() {
 							</p>
 						</div>
 						<div className="flex gap-2 items-center">
-							<button
-								type="button"
-								className={buttonClass}
-								onClick={toggleTheme}
-								aria-label={isDark ? '切换到亮色模式' : '切换到暗色模式'}
-							>
-								{isDark ? '亮色' : '暗色'}
-							</button>
+							<ThemeToggle />
 							<Link to="/" className={buttonClass}>
 								返回首页
 							</Link>

@@ -15,6 +15,13 @@
 			"when": 1791097684770,
 			"tag": "0001_last_dazzler",
 			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "6",
+			"when": 1791177870379,
+			"tag": "0002_permanent_site_deletion",
+			"breakpoints": true
 		}
 	]
 }

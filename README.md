@@ -75,6 +75,7 @@ cd iNavX
 bun install --frozen-lockfile
 
 # 启动后端，另一个终端启动前端
+export APP_ORIGIN=http://localhost:5173
 bun run dev:server
 bun dev
 
@@ -85,9 +86,9 @@ bun run build
 bun run preview
 ```
 
-开发首页为 `http://localhost:5173`，后台为 `/admin`，访客申请为 `/submit`。首次使用后台运行 `node --env-file-if-exists=.env --import tsx server/entry.ts setup-token` 获取初始化凭据。若已有 `.env`，开发时 APP_ORIGIN 使用 `http://localhost:5173`。
+开发首页为 `http://localhost:5173`，后台为 `/admin`，访客申请为 `/submit`。首次使用后台运行 `go run ./backend setup-token` 获取初始化凭据。开发时 APP_ORIGIN 使用 `http://localhost:5173`，CLI 与服务使用相同数据目录。
 
-`bun run preview` 仅预览静态文件；要验证生产后台，构建后使用 `bun start`。Node 需要 22.18 或更新版本，生产 Docker 镜像使用 Node 24。
+后端需要 Go 1.27.1 与 C 编译器，Windows 建议通过 WSL 或 Docker 运行。`bun run preview` 仅预览静态文件；生产后台先执行 `bun run build:server`，再执行 `bun start`。生产容器只运行 Go 与 SQLite，没有 Node/Bun 运行时；Node 22.18+ 仅用于前端测试工具。
 
 ### 添加自定义站点
 

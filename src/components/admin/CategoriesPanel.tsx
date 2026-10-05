@@ -168,6 +168,7 @@ function DeleteCategoryDialog({
 }) {
 	const formId = useId()
 	const [target, setTarget] = useState('')
+	const [deleteSites, setDeleteSites] = useState(false)
 	const [error, setError] = useState('')
 	const count = data.sites.filter(
 		(site) => site.categoryId === category.id,
@@ -175,7 +176,7 @@ function DeleteCategoryDialog({
 	return (
 		<Dialog
 			title={`删除分类：${category.name}`}
-			description="分类删除后无法撤销，关联站点不会被删除。"
+			description="永久删除无法撤销，请选择关联站点的处理方式。"
 			onClose={onClose}
 			busy={busy}
 			footer={
@@ -198,7 +199,7 @@ function DeleteCategoryDialog({
 							type="submit"
 							form={formId}
 							className={`${buttonClass} border-error/30 text-error hover:bg-error/5`}
-							disabled={busy || (count > 0 && !target)}
+							disabled={busy || (count > 0 && !target && !deleteSites)}
 						>
 							{busy ? '正在删除…' : '确认删除分类'}
 						</button>
@@ -217,7 +218,11 @@ function DeleteCategoryDialog({
 							await requestAdminApi(
 								`admin/categories/${category.id}`,
 								csrf,
-								target ? { targetId: target } : {},
+								deleteSites
+									? { deleteSites: true }
+									: target
+										? { targetId: target }
+										: {},
 								'DELETE',
 							)
 						} catch (error) {
@@ -231,19 +236,29 @@ function DeleteCategoryDialog({
 			>
 				<p className="text-sm text-muted-foreground leading-relaxed">
 					此分类包含 {count} 个站点（含回收站）。
-					{count > 0 ? '请先选择迁移目标。' : '可以直接删除空分类。'}
+					{count > 0
+						? '可以迁移站点，或连同站点一起永久删除。'
+						: '可以直接删除空分类。'}
 					个人浏览器中的旧分类继续保留。
 				</p>
 				{count > 0 && (
-					<Field label="迁移到分类">
+					<Field label="关联站点处理">
 						<select
 							required
 							disabled={busy}
 							className={inputClass}
-							value={target}
-							onChange={(event) => setTarget(event.target.value)}
+							value={deleteSites ? '__delete__' : target}
+							onChange={(event) => {
+								setDeleteSites(event.target.value === '__delete__')
+								setTarget(
+									event.target.value === '__delete__' ? '' : event.target.value,
+								)
+							}}
 						>
 							<option value="">请选择迁移目标</option>
+							<option value="__delete__">
+								永久删除此分类的全部站点（含回收站）
+							</option>
 							{data.categories
 								.filter((item) => item.id !== category.id)
 								.map((item) => (
@@ -320,10 +335,7 @@ export function CategoriesPanel({
 							</button>
 							<button
 								type="button"
-								disabled={busy || data.categories.length <= 1}
-								title={
-									data.categories.length <= 1 ? '至少保留一个分类' : undefined
-								}
+								disabled={busy}
 								className={`${buttonClass} text-error`}
 								onClick={() => setDeleting(category)}
 							>

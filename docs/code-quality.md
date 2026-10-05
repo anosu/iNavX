@@ -7,7 +7,8 @@
 - `shared/catalog.ts` 定义公共目录、申请、迁移模型及运行时校验；引擎类型以这里的 `Engine` 为准。
 - `shared/limits.ts` 定义前后端共同遵守的容量、分页和管理请求大小。领域含义不同的限制保持独立，避免因数值相同而误复用。
 - `shared/resources.ts` 校验图片/模板地址并实现同源图片策略，界面通过 `src/hooks/useImageUrl.ts` 使用配置。新增图片入口不能绕过远程图片开关；不得增加固定外部代理或隐藏回退来源。
-- `server/modules/` 管理领域操作与持久化；`server/app.ts` 负责 HTTP、来源校验和路由，不把事务拆到前端。
+- `backend/` 是 Go 后端：`http.go` 负责传输和访问校验，`catalog.go` / `applications.go` 负责内容事务，`database.go` 保持 SQLite 与旧迁移兼容，`auth.go` / `backups.go` 提供认证和恢复。数据库写入与关联调整保持同一事务。
+- `scripts/export-runtime.ts` 从共享默认配置和限制生成 Go 使用的 JSON，避免手工维护第二套默认值。Go 对网络 JSON 进行严格类型、字段和关联校验；契约变化须同步两端及兼容测试。
 - `src/components/admin/` 负责后台交互；`ui.tsx` 放共享界面控件。HTTP 请求在 `src/utils/adminApi.ts`，导入解析在 `src/utils/catalogImport.ts`。
 - `src/utils/` 放可复用的解析、协调和数据转换；`src/hooks/` 管理 React 状态、订阅和副作用。全局浏览器类型声明集中在 `src/env.d.ts`。
 
@@ -32,6 +33,8 @@ bun run lint:fix
 bun run lint
 bun run build
 bun run test
+bun run test:server
+go vet ./backend
 ```
 
 `lint:fix` 只执行安全自动修复，仍需审查差异；不要直接对全库执行未限定规则的 unsafe 修复。`lint` 包含格式、导入排序和警告检查。禁止为让检查通过而宽泛关闭规则或添加无依据的断言。
