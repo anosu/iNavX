@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { buttonVariants } from '@/components/atoms/Button'
 import { ExternalLinkIcon, SearchIcon, XIcon } from '@/components/atoms/Icons'
-import { inputVariants } from '@/components/atoms/Input'
+import { Input } from '@/components/atoms/Input'
 import { ResourceImage } from '@/components/atoms/ResourceImage'
 import { getCategoryColor } from '@/data/categories'
 import { useDialogLifecycle } from '@/hooks/useDialogLifecycle'
@@ -334,7 +334,7 @@ export function CommandPalette({ open, onClose, sites }: CommandPaletteProps) {
 						size={16}
 						className="text-muted-foreground shrink-0 opacity-60"
 					/>
-					<input
+					<Input
 						ref={inputRef}
 						role="combobox"
 						aria-expanded="true"
@@ -348,7 +348,22 @@ export function CommandPalette({ open, onClose, sites }: CommandPaletteProps) {
 						autoCorrect="off"
 						autoCapitalize="off"
 						spellCheck={false}
-						className={inputVariants({ className: 'flex-1' })}
+						className="flex-1 min-w-0"
+						rightIcon={
+							query ? (
+								<button
+									type="button"
+									onClick={() => {
+										setQuery('')
+										requestAnimationFrame(() => inputRef.current?.focus())
+									}}
+									className={buttonVariants({ variant: 'icon', size: 'sm' })}
+									aria-label="清除搜索"
+								>
+									<XIcon size={14} />
+								</button>
+							) : null
+						}
 						aria-label="搜索站点"
 						aria-autocomplete="list"
 						aria-controls="cmd-results"
@@ -358,16 +373,6 @@ export function CommandPalette({ open, onClose, sites }: CommandPaletteProps) {
 								: undefined
 						}
 					/>
-					{query && (
-						<button
-							type="button"
-							onClick={() => setQuery('')}
-							className={buttonVariants({ variant: 'icon', size: 'sm' })}
-							aria-label="清除搜索"
-						>
-							<XIcon size={14} />
-						</button>
-					)}
 					<button
 						type="button"
 						onClick={onClose}
