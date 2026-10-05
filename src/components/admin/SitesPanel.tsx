@@ -1,4 +1,5 @@
 import { useId, useRef, useState } from 'react'
+import { TagInput } from '@/components/molecules/TagInput'
 import { requestAdminApi } from '@/utils/adminApi'
 import {
 	type Catalog,
@@ -7,6 +8,7 @@ import {
 	siteInputSchema,
 } from '../../../shared/catalog'
 import { ADMIN_PAGE_SIZE } from '../../../shared/limits'
+import { parseTagInput } from '../../../shared/tags'
 import {
 	buttonClass,
 	Dialog,
@@ -100,7 +102,10 @@ function SiteEditor({
 								className={buttonClass}
 								type="button"
 								disabled={busy}
-								onClick={() => setDiscard(false)}
+								onClick={(event) => {
+									event.preventDefault()
+									setDiscard(false)
+								}}
 							>
 								继续编辑
 							</button>
@@ -149,10 +154,7 @@ function SiteEditor({
 					event.preventDefault()
 					const parsed = siteInputSchema.safeParse({
 						...value,
-						tags: tags
-							.split(',')
-							.map((tag) => tag.trim())
-							.filter(Boolean),
+						tags: parseTagInput(tags),
 					})
 					if (!parsed.success)
 						setError(
@@ -227,12 +229,8 @@ function SiteEditor({
 							}
 						/>
 					</Field>
-					<Field label="标签（英文逗号分隔）">
-						<input
-							className={inputClass}
-							value={tags}
-							onChange={(e) => setTags(e.target.value)}
-						/>
+					<Field label="标签">
+						<TagInput value={tags} onChange={setTags} />
 					</Field>
 					<Field label="排序（数字越小越靠前）">
 						<input

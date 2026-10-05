@@ -159,7 +159,7 @@ func (s *Store) importMigration(pkg Migration, mode string) (MergeReport, error)
 		if err != nil {
 			return err
 		}
-		check := Migration{Format: "inav-catalog", FormatVersion: 3, AppVersion: "validate", ExportedAt: now(), Data: combined, Applications: all}
+		check := Migration{Format: "inav-catalog", FormatVersion: 4, AppVersion: "validate", ExportedAt: now(), Data: combined, Applications: all}
 		if err = check.validate(s.Defaults.Limits); err != nil {
 			return err
 		}

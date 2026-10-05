@@ -9,6 +9,7 @@ import {
 import { inputVariants } from '@/components/atoms/Input'
 import { ResourceImage } from '@/components/atoms/ResourceImage'
 import { Switch } from '@/components/atoms/Switch'
+import { TagInput } from '@/components/molecules/TagInput'
 import { SITE_CATEGORIES } from '@/data/categories'
 import { useDialogLifecycle } from '@/hooks/useDialogLifecycle'
 import { useImageUrl, useSiteIconUrl } from '@/hooks/useImageUrl'
@@ -19,6 +20,7 @@ import {
 	validateSitePayload,
 } from '@/hooks/useSiteManager'
 import type { Site } from '@/types'
+import { parseTagInput } from '../../../shared/tags'
 
 /* ============================================================
    useFetchMeta
@@ -428,7 +430,7 @@ export function SiteFormModal({
 	)
 	const [errors, setErrors] = useState<ValidationError[]>([])
 	const [submitted, setSubmitted] = useState(false)
-	const [tagInput, setTagInput] = useState('')
+	const [tags, setTags] = useState((editSite?.tags ?? []).join(', '))
 	const [creatingCategory, setCreatingCategory] = useState(false)
 	const [categoryInput, setCategoryInput] = useState('')
 	const [categoryError, setCategoryError] = useState('')
@@ -468,7 +470,7 @@ export function SiteFormModal({
 			setForm(initial)
 			setErrors([])
 			setSubmitted(false)
-			setTagInput('')
+			setTags((initial.tags ?? []).join(', '))
 			setCreatingCategory(false)
 			setCategoryInput('')
 			setCategoryError('')
@@ -581,26 +583,6 @@ export function SiteFormModal({
 		setCategoryError('')
 	}
 
-	const addTag = useCallback(() => {
-		const tag = tagInput.trim()
-		if (!tag) return
-		if (!(form.tags ?? []).includes(tag)) {
-			setField('tags', [...(form.tags ?? []), tag])
-		}
-		setTagInput('')
-	}, [tagInput, form.tags, setField])
-
-	// 删除 tag
-	const removeTag = useCallback(
-		(tag: string) => {
-			setField(
-				'tags',
-				(form.tags ?? []).filter((t) => t !== tag),
-			)
-		},
-		[form.tags, setField],
-	)
-
 	// 删除（编辑模式下 custom/imported 站点）
 	const handleDelete = useCallback(() => {
 		if (!editSite || !onDelete) return
@@ -615,7 +597,8 @@ export function SiteFormModal({
 			e.preventDefault()
 			setSubmitted(true)
 
-			const errs = validateSitePayload(form)
+			const payload = { ...form, tags: parseTagInput(tags) }
+			const errs = validateSitePayload(payload)
 
 			// 额外检查 URL 重复
 			if (!errs.find((e) => e.field === 'url') && isUrlDuplicate) {
@@ -629,10 +612,10 @@ export function SiteFormModal({
 				return
 			}
 
-			onSubmit(form, editSite?.id)
+			onSubmit(payload, editSite?.id)
 			onClose()
 		},
-		[form, editSite, isUrlDuplicate, onSubmit, onClose],
+		[form, tags, editSite, isUrlDuplicate, onSubmit, onClose],
 	)
 
 	const canDelete = isEdit && Boolean(onDelete) && Boolean(editSite)
@@ -957,49 +940,16 @@ export function SiteFormModal({
 					<Field
 						label="标签"
 						htmlFor="sf-tags"
-						hint="按 Enter 或逗号添加，用于搜索过滤"
+						error={errors.find((error) => error.field === 'tags')?.message}
 					>
-						<div className="space-y-2">
-							{/* 已有标签 */}
-							{(form.tags?.length ?? 0) > 0 && (
-								<div className="flex flex-wrap gap-1.5">
-									{(form.tags ?? []).map((tag) => (
-										<span
-											key={tag}
-											className="badge badge-primary max-w-full flex items-center gap-1"
-										>
-											<span className="truncate" title={tag}>
-												{tag}
-											</span>
-											<button
-												type="button"
-												onClick={() => removeTag(tag)}
-												className="shrink-0 hover:text-error transition-colors"
-												aria-label={`删除标签 ${tag}`}
-											>
-												<XIcon size={10} />
-											</button>
-										</span>
-									))}
-								</div>
-							)}
-							{/* 输入框 */}
-							<input
-								id="sf-tags"
-								type="text"
-								value={tagInput}
-								onChange={(e) => setTagInput(e.target.value)}
-								onKeyDown={(e) => {
-									if (e.key === 'Enter' || e.key === ',') {
-										e.preventDefault()
-										addTag()
-									}
-								}}
-								placeholder="输入标签后按 Enter"
-								className={inputVariants()}
-								autoComplete="off"
-							/>
-						</div>
+						<TagInput
+							id="sf-tags"
+							value={tags}
+							onChange={(value) => {
+								setTags(value)
+								setField('tags', parseTagInput(value))
+							}}
+						/>
 					</Field>
 
 					{/* 置顶开关 */}

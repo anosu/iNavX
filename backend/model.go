@@ -121,10 +121,11 @@ type Catalog struct {
 	Settings   Settings   `json:"settings" required:"true"`
 }
 type ApplicationInput struct {
-	Name              string `json:"name" required:"true"`
-	URL               string `json:"url" required:"true"`
-	Description       string `json:"description"`
-	SuggestedCategory string `json:"suggestedCategory"`
+	Name              string   `json:"name" required:"true"`
+	URL               string   `json:"url" required:"true"`
+	Description       string   `json:"description"`
+	SuggestedCategory string   `json:"suggestedCategory"`
+	Tags              []string `json:"tags"`
 }
 type Submission struct {
 	ApplicationInput
@@ -238,21 +239,31 @@ func (v *SiteInput) validate() error {
 	v.Name = trim(v.Name)
 	v.URL = trim(v.URL)
 	v.Description = trim(v.Description)
-	if !text(v.Name, 100, true) || !text(v.Description, 1000, false) || !validID(v.CategoryID) || !resourceURL(v.IconURL) || v.SortOrder < 0 || v.SortOrder > 1000000 || len(v.Tags) > 30 {
+	if !text(v.Name, 100, true) || !text(v.Description, 1000, false) || !validID(v.CategoryID) || !resourceURL(v.IconURL) || v.SortOrder < 0 || v.SortOrder > 1000000 {
 		return fail(400, "站点字段无效")
 	}
 	if _, err := normalizeURL(v.URL); err != nil {
 		return err
 	}
-	if v.Tags == nil {
-		v.Tags = []string{}
+	return validateTags(&v.Tags)
+}
+func validateTags(tags *[]string) error {
+	if len(*tags) > 30 {
+		return fail(400, "最多添加 30 个标签")
 	}
-	for i, tag := range v.Tags {
-		v.Tags[i] = trim(tag)
-		if !text(v.Tags[i], 100, true) {
-			return fail(400, "标签无效")
+	values := []string{}
+	seen := map[string]bool{}
+	for _, tag := range *tags {
+		tag = trim(tag)
+		if !text(tag, 100, true) {
+			return fail(400, "标签不能为空，且不超过 100 个字符")
+		}
+		if !seen[tag] {
+			seen[tag] = true
+			values = append(values, tag)
 		}
 	}
+	*tags = values
 	return nil
 }
 func (v *CategoryInput) validate() error {
@@ -296,6 +307,9 @@ func (v *ApplicationInput) validate() error {
 	if !text(v.Name, 100, true) || !text(v.Description, 1000, false) || !text(v.SuggestedCategory, 100, false) {
 		return fail(400, "申请字段无效")
 	}
+	if err := validateTags(&v.Tags); err != nil {
+		return err
+	}
 	_, err := normalizeURL(v.URL)
 	return err
 }
@@ -325,7 +339,7 @@ func (v *Application) validate() error {
 	return nil
 }
 func (v *Migration) validate(l Limits) error {
-	if v.Format != "inav-catalog" || v.FormatVersion < 1 || v.FormatVersion > 3 || !text(v.AppVersion, 100, false) || !validTime(v.ExportedAt) || v.FormatVersion == 1 && len(v.Applications) > 0 {
+	if v.Format != "inav-catalog" || v.FormatVersion < 1 || v.FormatVersion > 4 || !text(v.AppVersion, 100, false) || !validTime(v.ExportedAt) || v.FormatVersion == 1 && len(v.Applications) > 0 {
 		return fail(400, "迁移包版本或信息无效")
 	}
 	c := &v.Data
@@ -371,6 +385,9 @@ func (v *Migration) validate(l Limits) error {
 	}
 	for i := range v.Applications {
 		item := &v.Applications[i]
+		if v.FormatVersion < 4 && len(item.Tags) > 0 {
+			return fail(400, "旧版迁移包不支持申请标签")
+		}
 		if v.FormatVersion < 3 && item.SiteDeletedAt != nil {
 			return fail(400, "旧版迁移包不支持已删除站点关联")
 		}

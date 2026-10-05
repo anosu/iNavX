@@ -11,6 +11,7 @@ import {
 import { NavLink } from 'react-router'
 import { Button } from '@/components/atoms/Button'
 import { Dialog } from '@/components/atoms/Dialog'
+import { XIcon } from '@/components/atoms/Icons'
 import { BookmarkIO } from '@/components/molecules/BookmarkIO'
 import { CategoryFilter } from '@/components/molecules/CategoryFilter'
 import { EngineSettings } from '@/components/molecules/EngineSettings'
@@ -37,32 +38,9 @@ import {
 } from '@/hooks/usePublicCatalog'
 import { type SitePayload, useSiteManager } from '@/hooks/useSiteManager'
 import type { Site, SiteCategory } from '@/types'
+import { filterSites } from '@/utils/filterSites'
 import { mergeSites } from '@/utils/mergeSites'
 import { exportPersonalData } from '@/utils/personalData'
-
-/* ============================================================
-   filterSites
-   对 name / description / tags / url 做多字段模糊匹配
-   ============================================================ */
-function filterSites(
-	sites: Site[],
-	query: string,
-	category: SiteCategory | null,
-): Site[] {
-	let result = sites
-	if (category) {
-		result = result.filter((s) => s.category === category)
-	}
-	const q = query.trim().toLowerCase()
-	if (!q) return result
-	return result.filter(
-		(s) =>
-			s.name.toLowerCase().includes(q) ||
-			s.description.toLowerCase().includes(q) ||
-			s.url.toLowerCase().includes(q) ||
-			s.tags?.some((t) => t.toLowerCase().includes(q)),
-	)
-}
 
 /* ============================================================
    Toast 通知（轻量内部实现）
@@ -185,6 +163,7 @@ export default function Home() {
 	)
 	// ---- 搜索 & 分类状态 ----
 	const [query, setQuery] = useState('')
+	const [activeTag, setActiveTag] = useState<string | null>(null)
 	const [activeCategory, setActiveCategory] = useState<SiteCategory | null>(
 		null,
 	)
@@ -271,12 +250,13 @@ export default function Home() {
 
 	// ---- 过滤 ----
 	const filteredSites = useMemo(
-		() => filterSites(allSites, deferredQuery, activeCategory),
-		[allSites, deferredQuery, activeCategory],
+		() => filterSites(allSites, deferredQuery, activeCategory, activeTag),
+		[allSites, deferredQuery, activeCategory, activeTag],
 	)
 
 	const isStale = query !== deferredQuery
-	const hasFilter = query.trim() !== '' || activeCategory !== null
+	const hasFilter =
+		query.trim() !== '' || activeCategory !== null || activeTag !== null
 
 	// ---- 事件处理 ----
 	const handleSearchChange = useCallback((value: string) => {
@@ -473,6 +453,7 @@ export default function Home() {
 				onReset={() => {
 					setQuery('')
 					setActiveCategory(null)
+					setActiveTag(null)
 					requestAnimationFrame(() => searchInputRef.current?.blur())
 				}}
 			/>
@@ -537,6 +518,21 @@ export default function Home() {
 				</div>
 
 				{/* 搜索结果信息 */}
+				{activeTag && (
+					<div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+						<span className="shrink-0">标签筛选</span>
+						<button
+							type="button"
+							onClick={() => setActiveTag(null)}
+							className="badge badge-primary min-w-0 gap-1.5 py-1.5 hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+							title={`取消标签筛选：${activeTag}`}
+							aria-label={`取消标签筛选：${activeTag}`}
+						>
+							<span className="truncate">{activeTag}</span>
+							<XIcon size={12} className="shrink-0" />
+						</button>
+					</div>
+				)}
 				{hasFilter && (
 					<div
 						aria-live="polite"
@@ -578,6 +574,8 @@ export default function Home() {
 					<NavGrid
 						sites={filteredSites}
 						searchQuery={deferredQuery}
+						activeTag={activeTag}
+						onTagSelect={setActiveTag}
 						enabledEngines={engineOrder.enabledEngines}
 						engineSettings={<EngineSettings engineOrder={engineOrder} />}
 						isStale={isStale}

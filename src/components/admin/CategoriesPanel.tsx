@@ -63,7 +63,10 @@ function CategoryEditor({
 								type="button"
 								className={buttonClass}
 								disabled={busy}
-								onClick={() => setDiscard(false)}
+								onClick={(event) => {
+									event.preventDefault()
+									setDiscard(false)
+								}}
 							>
 								继续编辑
 							</button>

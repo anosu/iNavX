@@ -6,6 +6,7 @@ import {
 	MAX_SEARCH_ENGINES,
 } from './limits.js'
 import { isResourceUrl } from './resources.js'
+import { tagsSchema } from './tags.js'
 
 export function normalizeUrl(value: string): string {
 	return new URL(value.trim()).href
@@ -63,7 +64,7 @@ export const siteInputSchema = z
 		categoryId: id,
 		iconUrl: imageUrl.default(''),
 		pinned: z.boolean().default(false),
-		tags: z.array(z.string().trim().min(1).max(100)).max(30).default([]),
+		tags: tagsSchema,
 		sortOrder: z.number().int().min(0).max(1000000).default(0),
 	})
 	.strict()
@@ -126,6 +127,7 @@ const applicationInputSchema = z
 		url: httpUrl,
 		description: z.string().trim().max(1000).default(''),
 		suggestedCategory: z.string().trim().max(100).default(''),
+		tags: tagsSchema,
 	})
 	.strict()
 export const applicationStatusSchema = z.enum([
@@ -210,7 +212,12 @@ export interface ApplicationList {
 export const migrationSchema = z
 	.object({
 		format: z.literal('inav-catalog'),
-		formatVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+		formatVersion: z.union([
+			z.literal(1),
+			z.literal(2),
+			z.literal(3),
+			z.literal(4),
+		]),
 		appVersion: z.string().max(100),
 		exportedAt: z.iso.datetime(),
 		data: catalogSchema,
@@ -232,6 +239,8 @@ export const migrationSchema = z
 		const siteIds = new Set(sites.map((site) => site.id))
 		const pendingUrls = new Set<string>()
 		for (const item of value.applications) {
+			if (value.formatVersion < 4 && item.tags.length)
+				ctx.addIssue({ code: 'custom', message: '旧版迁移包不支持申请标签' })
 			if (value.formatVersion < 3 && item.siteDeletedAt)
 				ctx.addIssue({
 					code: 'custom',

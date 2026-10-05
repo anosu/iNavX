@@ -227,12 +227,16 @@ export function NavCard({
 	onEdit,
 	onDelete,
 	onTogglePin,
+	activeTag,
+	onTagSelect,
 }: SiteCardProps) {
 	const { features } = usePublicCatalog().settings
 	const ALLOW_HIDE_BUILTIN = features.hideBuiltin
 	const { name, url, description, iconUrl, category, pinned, source } = site
 
 	const [copied, setCopied] = useState(false)
+	const [showAllTags, setShowAllTags] = useState(false)
+	const tags = [...new Set(site.tags ?? [])]
 
 	const isIOS = useIsIOS()
 
@@ -348,58 +352,60 @@ export function NavCard({
 
 	return (
 		<>
-			<a
-				href={url}
-				target="_blank"
-				rel="noopener noreferrer"
-				aria-label={`${name} — ${description}（在新标签页中打开）`}
-				className={[
-					'card-interactive group relative flex min-w-0 flex-col gap-2 p-3',
-					'no-underline text-foreground no-tap-highlight',
-					'focus-visible:outline-none focus-visible:ring-2',
-					'focus-visible:ring-primary focus-visible:ring-offset-2',
-					className,
-				]
-					.filter(Boolean)
-					.join(' ')}
-				style={{
-					WebkitTouchCallout: 'none',
-					userSelect: 'none',
-					touchAction: 'manipulation',
-				}}
-				onContextMenu={isIOS ? undefined : onContextMenu}
-				onTouchStart={isIOS ? undefined : onTouchStart}
-				onTouchEnd={isIOS ? undefined : onTouchEnd}
-				onTouchMove={isIOS ? undefined : onTouchMove}
+			<div
+				className={`card-interactive group relative flex min-w-0 flex-col ${className}`}
 			>
-				{/* iOS-only: three-dot menu button, always visible in top-right */}
-				{isIOS && contextActions.length > 0 && (
-					<button
-						ref={dotsBtnRef}
-						type="button"
-						aria-label="更多操作"
-						aria-haspopup="menu"
-						aria-expanded={menuState.open}
-						onTouchStart={() => {
-							dotsTouchMoved.current = false
-						}}
-						onTouchMove={() => {
-							dotsTouchMoved.current = true
-						}}
-						onTouchEnd={(e) => {
-							// Only open if the finger didn't scroll away
-							if (dotsTouchMoved.current) return
-							e.preventDefault() // prevent ghost click on card beneath
-							e.stopPropagation()
-							openIOSMenu()
-						}}
-						onClick={(e) => {
-							// Fallback for non-touch iOS (e.g. iPad with mouse)
-							e.preventDefault()
-							e.stopPropagation()
-							openIOSMenu()
-						}}
-						className="
+				<a
+					href={url}
+					target="_blank"
+					rel="noopener noreferrer"
+					aria-label={`${name} — ${description}（在新标签页中打开）`}
+					className={[
+						'relative flex min-w-0 flex-1 flex-col gap-2 p-3 rounded-card',
+						'no-underline text-foreground no-tap-highlight',
+						'focus-visible:outline-none focus-visible:ring-2',
+						'focus-visible:ring-primary focus-visible:ring-offset-2',
+					]
+						.filter(Boolean)
+						.join(' ')}
+					style={{
+						WebkitTouchCallout: 'none',
+						userSelect: 'none',
+						touchAction: 'manipulation',
+					}}
+					onContextMenu={isIOS ? undefined : onContextMenu}
+					onTouchStart={isIOS ? undefined : onTouchStart}
+					onTouchEnd={isIOS ? undefined : onTouchEnd}
+					onTouchMove={isIOS ? undefined : onTouchMove}
+				>
+					{/* iOS-only: three-dot menu button, always visible in top-right */}
+					{isIOS && contextActions.length > 0 && (
+						<button
+							ref={dotsBtnRef}
+							type="button"
+							aria-label="更多操作"
+							aria-haspopup="menu"
+							aria-expanded={menuState.open}
+							onTouchStart={() => {
+								dotsTouchMoved.current = false
+							}}
+							onTouchMove={() => {
+								dotsTouchMoved.current = true
+							}}
+							onTouchEnd={(e) => {
+								// Only open if the finger didn't scroll away
+								if (dotsTouchMoved.current) return
+								e.preventDefault() // prevent ghost click on card beneath
+								e.stopPropagation()
+								openIOSMenu()
+							}}
+							onClick={(e) => {
+								// Fallback for non-touch iOS (e.g. iPad with mouse)
+								e.preventDefault()
+								e.stopPropagation()
+								openIOSMenu()
+							}}
+							className="
 							absolute top-2 right-2 z-10
 							flex items-center justify-center
 							h-6 w-6 rounded-md
@@ -410,157 +416,161 @@ export function NavCard({
 							active:bg-muted
 							focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary
 						"
-					>
-						<svg
-							width="14"
-							height="14"
-							viewBox="0 0 24 24"
-							fill="currentColor"
-							aria-hidden="true"
 						>
-							<circle cx="5" cy="12" r="2" />
-							<circle cx="12" cy="12" r="2" />
-							<circle cx="19" cy="12" r="2" />
-						</svg>
-					</button>
-				)}
-				<div className="flex items-center gap-2.5">
-					<SiteIcon name={name} iconUrl={iconUrl} siteUrl={url} />
+							<svg
+								width="14"
+								height="14"
+								viewBox="0 0 24 24"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<circle cx="5" cy="12" r="2" />
+								<circle cx="12" cy="12" r="2" />
+								<circle cx="19" cy="12" r="2" />
+							</svg>
+						</button>
+					)}
+					<div className="flex items-center gap-2.5">
+						<SiteIcon name={name} iconUrl={iconUrl} siteUrl={url} />
 
-					<div className="min-w-0 flex-1">
-						<div className="flex items-center gap-1.5 min-w-0">
-							<span className="truncate text-sm font-medium text-foreground group-hover:text-primary transition-colors duration-100 leading-snug">
-								{highlightText(name, searchQuery)}
-							</span>
-							<span className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-50 transition-opacity duration-100">
-								<ExternalLinkIcon size={10} />
-							</span>
-						</div>
-						{(pinned || source === 'imported' || source === 'custom') && (
-							<div className="flex items-center gap-1 mt-0.5">
-								{pinned && (
-									<span className="inline-flex items-center gap-0.5 text-[10px] text-primary leading-none">
-										<PinIcon size={9} />
-									</span>
-								)}
-								<SourceBadge source={source} />
+						<div className="min-w-0 flex-1">
+							<div className="flex items-center gap-1.5 min-w-0">
+								<span className="truncate text-sm font-medium text-foreground group-hover:text-primary transition-colors duration-100 leading-snug">
+									{highlightText(name, searchQuery)}
+								</span>
+								<span className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-50 transition-opacity duration-100">
+									<ExternalLinkIcon size={10} />
+								</span>
 							</div>
-						)}
-					</div>
+							{(pinned || source === 'imported' || source === 'custom') && (
+								<div className="flex items-center gap-1 mt-0.5">
+									{pinned && (
+										<span className="inline-flex items-center gap-0.5 text-[10px] text-primary leading-none">
+											<PinIcon size={9} />
+										</span>
+									)}
+									<SourceBadge source={source} />
+								</div>
+							)}
+						</div>
 
-					<div
-						className="
+						<div
+							className="
 							shrink-0 flex items-center gap-0.5
 									opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100
 							transition-opacity duration-100
 						"
-						onClick={(e) => e.preventDefault()}
-						onKeyDown={(e) => e.stopPropagation()}
-						role="toolbar"
-						aria-label="快捷操作"
-					>
-						{/* builtin：复制 + 隐藏 */}
-						{isBuiltin && (
-							<>
-								<QuickAction
-									icon={
-										copied ? (
-											<svg
-												width="12"
-												height="12"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												strokeWidth="2.5"
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												aria-hidden="true"
-											>
-												<polyline points="20 6 9 17 4 12" />
-											</svg>
-										) : (
-											<CopyIcon size={12} />
-										)
-									}
-									label={copied ? '已复制' : '复制链接'}
-									onClick={handleCopy}
-								/>
-
-								{onDelete && ALLOW_HIDE_BUILTIN && (
-									<QuickAction
-										icon={<TrashIcon size={12} />}
-										label="本地隐藏"
-										onClick={handleDelete}
-										destructive
-									/>
-								)}
-							</>
-						)}
-
-						{/* custom / imported：复制 + 编辑 + pin */}
-						{!isBuiltin && (
-							<>
-								<QuickAction
-									icon={
-										copied ? (
-											<svg
-												width="12"
-												height="12"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												strokeWidth="2.5"
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												aria-hidden="true"
-											>
-												<polyline points="20 6 9 17 4 12" />
-											</svg>
-										) : (
-											<CopyIcon size={12} />
-										)
-									}
-									label={copied ? '已复制' : '复制链接'}
-									onClick={handleCopy}
-								/>
-
-								{onEdit && canEdit && (
-									<QuickAction
-										icon={<EditIcon size={12} />}
-										label="编辑"
-										onClick={handleEdit}
-									/>
-								)}
-
-								{onTogglePin && (
+							onClick={(e) => e.preventDefault()}
+							onKeyDown={(e) => e.stopPropagation()}
+							role="toolbar"
+							aria-label="快捷操作"
+						>
+							{/* builtin：复制 + 隐藏 */}
+							{isBuiltin && (
+								<>
 									<QuickAction
 										icon={
-											pinned ? <PinOffIcon size={12} /> : <PinIcon size={12} />
+											copied ? (
+												<svg
+													width="12"
+													height="12"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2.5"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													aria-hidden="true"
+												>
+													<polyline points="20 6 9 17 4 12" />
+												</svg>
+											) : (
+												<CopyIcon size={12} />
+											)
 										}
-										label={pinned ? '取消置顶' : '置顶'}
-										onClick={handleTogglePin}
+										label={copied ? '已复制' : '复制链接'}
+										onClick={handleCopy}
 									/>
-								)}
-							</>
-						)}
+
+									{onDelete && ALLOW_HIDE_BUILTIN && (
+										<QuickAction
+											icon={<TrashIcon size={12} />}
+											label="本地隐藏"
+											onClick={handleDelete}
+											destructive
+										/>
+									)}
+								</>
+							)}
+
+							{/* custom / imported：复制 + 编辑 + pin */}
+							{!isBuiltin && (
+								<>
+									<QuickAction
+										icon={
+											copied ? (
+												<svg
+													width="12"
+													height="12"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2.5"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													aria-hidden="true"
+												>
+													<polyline points="20 6 9 17 4 12" />
+												</svg>
+											) : (
+												<CopyIcon size={12} />
+											)
+										}
+										label={copied ? '已复制' : '复制链接'}
+										onClick={handleCopy}
+									/>
+
+									{onEdit && canEdit && (
+										<QuickAction
+											icon={<EditIcon size={12} />}
+											label="编辑"
+											onClick={handleEdit}
+										/>
+									)}
+
+									{onTogglePin && (
+										<QuickAction
+											icon={
+												pinned ? (
+													<PinOffIcon size={12} />
+												) : (
+													<PinIcon size={12} />
+												)
+											}
+											label={pinned ? '取消置顶' : '置顶'}
+											onClick={handleTogglePin}
+										/>
+									)}
+								</>
+							)}
+						</div>
 					</div>
-				</div>
 
-				<p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed break-words">
-					{highlightText(description, searchQuery)}
-				</p>
+					<p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed break-words">
+						{highlightText(description, searchQuery)}
+					</p>
 
-				<div className="mt-auto flex min-w-0 items-center justify-between gap-2 pt-0.5">
-					<Badge
-						variant="primary"
-						className="min-w-0 badge-desktop-md"
-						title={category}
-					>
-						<span className="truncate">{category}</span>
-					</Badge>
-					{rank !== undefined && (
-						<span
-							className="
+					<div className="mt-auto flex min-w-0 items-center justify-between gap-2 pt-0.5">
+						<Badge
+							variant="primary"
+							className="min-w-0 badge-desktop-md"
+							title={category}
+						>
+							<span className="truncate">{category}</span>
+						</Badge>
+						{rank !== undefined && (
+							<span
+								className="
 								inline-flex shrink-0 items-center justify-center
 								h-4 min-w-4 px-1
 								rounded text-[10px] font-semibold tabular-nums leading-none
@@ -568,13 +578,56 @@ export function NavCard({
 								border border-border
 								select-none
 							"
-							title={`Ctrl+${rank} 打开`}
+								title={`Ctrl+${rank} 打开`}
+							>
+								{rank}
+							</span>
+						)}
+					</div>
+				</a>
+				{tags.length > 0 && (
+					<fieldset
+						className="flex min-w-0 flex-wrap items-center gap-1 px-3 pb-3"
+						aria-label={`${name}的标签`}
+					>
+						<div
+							className={
+								showAllTags
+									? 'flex max-h-48 w-full min-w-0 flex-wrap gap-1 overflow-y-auto'
+									: 'contents'
+							}
 						>
-							{rank}
-						</span>
-					)}
-				</div>
-			</a>
+							{(showAllTags ? tags : tags.slice(0, 2)).map((tag) => (
+								<button
+									key={tag}
+									type="button"
+									onClick={() => onTagSelect?.(tag)}
+									className={`badge ${activeTag === tag ? 'badge-active' : 'badge-default'} max-w-full min-w-0 py-1 hover:text-primary hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${showAllTags ? 'whitespace-normal rounded-md text-left leading-relaxed' : ''}`}
+									title={tag}
+									aria-label={`筛选标签：${tag}`}
+									aria-pressed={activeTag === tag}
+									disabled={!onTagSelect}
+								>
+									<span className={showAllTags ? 'break-all' : 'truncate'}>
+										{tag}
+									</span>
+								</button>
+							))}
+						</div>
+						{tags.length > 2 && (
+							<button
+								type="button"
+								onClick={() => setShowAllTags(!showAllTags)}
+								aria-expanded={showAllTags}
+								className="rounded px-1.5 py-1 text-[11px] leading-none text-muted-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+								aria-label={`${showAllTags ? '收起' : '展开'}${name}的标签`}
+							>
+								{showAllTags ? '收起' : `+${tags.length - 2}`}
+							</button>
+						)}
+					</fieldset>
+				)}
+			</div>
 
 			{menuState.open && contextActions.length > 0 && (
 				<ContextMenu

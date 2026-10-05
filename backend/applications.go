@@ -2,15 +2,20 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"strings"
 )
 
-const applicationColumns = "id,name,url,description,suggested_category,status,review_note,site_id,site_deleted_at,created_at,updated_at,reviewed_at"
+const applicationColumns = "id,name,url,description,suggested_category,tags,status,review_note,site_id,site_deleted_at,created_at,updated_at,reviewed_at"
 
 func scanApplication(row scanner) (Application, error) {
 	var v Application
-	err := row.Scan(&v.ID, &v.Name, &v.URL, &v.Description, &v.SuggestedCategory, &v.Status, &v.ReviewNote, &v.SiteID, &v.SiteDeletedAt, &v.CreatedAt, &v.UpdatedAt, &v.ReviewedAt)
+	var tags string
+	err := row.Scan(&v.ID, &v.Name, &v.URL, &v.Description, &v.SuggestedCategory, &tags, &v.Status, &v.ReviewNote, &v.SiteID, &v.SiteDeletedAt, &v.CreatedAt, &v.UpdatedAt, &v.ReviewedAt)
+	if err == nil {
+		err = json.Unmarshal([]byte(tags), &v.Tags)
+	}
 	return v, err
 }
 func insertApplication(q queryer, v Application) error {
@@ -18,7 +23,7 @@ func insertApplication(q queryer, v Application) error {
 	if err != nil {
 		return err
 	}
-	_, err = q.Exec("INSERT INTO applications(id,name,url,normalized_url,description,suggested_category,status,review_note,site_id,site_deleted_at,created_at,updated_at,reviewed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", v.ID, v.Name, v.URL, u, v.Description, v.SuggestedCategory, v.Status, v.ReviewNote, v.SiteID, v.SiteDeletedAt, v.CreatedAt, v.UpdatedAt, v.ReviewedAt)
+	_, err = q.Exec("INSERT INTO applications(id,name,url,normalized_url,description,suggested_category,tags,status,review_note,site_id,site_deleted_at,created_at,updated_at,reviewed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", v.ID, v.Name, v.URL, u, v.Description, v.SuggestedCategory, marshal(v.Tags), v.Status, v.ReviewNote, v.SiteID, v.SiteDeletedAt, v.CreatedAt, v.UpdatedAt, v.ReviewedAt)
 	return err
 }
 func applicationCounts(q queryer) (map[string]int, error) {

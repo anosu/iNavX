@@ -2,14 +2,117 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Site } from '../src/types/index.js'
 import { reconcileEngines } from '../src/utils/enginePreferences.js'
+import { filterSites } from '../src/utils/filterSites.js'
 import { mergeSites } from '../src/utils/mergeSites.js'
 import {
 	personalSchema,
 	readStoredSites,
 	restorePersonalData,
 } from '../src/utils/personalData.js'
-import { migrationSchema, normalizeUrl } from './catalog.js'
+import { migrationSchema, normalizeUrl, submissionSchema } from './catalog.js'
 import { DEFAULT_SETTINGS } from './defaults.js'
+import { parseTagInput, tagsSchema } from './tags.js'
+
+test('tag input includes unfinished text and preserves spaces while trimming and deduplicating', () => {
+	assert.deepEqual(
+		parseTagInput(' 开源，开发工具, 开源, Visual Studio\n最后一个'),
+		['开源', '开发工具', 'Visual Studio', '最后一个'],
+	)
+	assert.deepEqual(tagsSchema.parse([' 开源 ', '开源']), ['开源'])
+	assert.deepEqual(
+		submissionSchema.parse({ name: 'Test', url: 'https://test.example' }).tags,
+		[],
+	)
+	for (const tags of [
+		[''],
+		['a'.repeat(101)],
+		Array.from({ length: 31 }, (_, i) => String(i)),
+	])
+		assert.equal(
+			submissionSchema.safeParse({
+				name: 'Test',
+				url: 'https://test.example',
+				tags,
+			}).success,
+			false,
+		)
+})
+
+test('tag filters match complete values and combine with category and search', () => {
+	const base: Site = {
+		id: 'tagged',
+		name: 'Editor',
+		url: 'https://test.example',
+		description: '',
+		category: '开发',
+		tags: ['Go'],
+		source: 'builtin',
+	}
+	const sites = [
+		base,
+		{ ...base, id: 'partial', tags: ['Golang'] },
+		{ ...base, id: 'name', name: 'Go', tags: [] },
+	]
+	assert.deepEqual(
+		filterSites(sites, '', null, 'Go').map((s) => s.id),
+		['tagged'],
+	)
+	assert.deepEqual(filterSites(sites, 'editor', '开发', 'Go'), [base])
+	assert.deepEqual(filterSites(sites, '', '其他', 'Go'), [])
+	assert.deepEqual(filterSites(sites, '', null, 'go'), [])
+	assert.equal(filterSites(sites, 'go', null, null).length, 3)
+})
+
+test('version 4 carries application tags and old packages supply an empty list', () => {
+	const stamp = '2026-10-05T00:00:00.000Z'
+	const item = {
+		id: 'application',
+		name: 'Test',
+		url: 'https://test.example',
+		description: '',
+		suggestedCategory: '',
+		status: 'pending',
+		reviewNote: '',
+		siteId: null,
+		createdAt: stamp,
+		updatedAt: stamp,
+		reviewedAt: null,
+	}
+	const pkg = {
+		format: 'inav-catalog',
+		formatVersion: 4,
+		appVersion: 'test',
+		exportedAt: stamp,
+		data: {
+			revision: '1',
+			categories: [],
+			sites: [],
+			engines: [],
+			settings: DEFAULT_SETTINGS,
+		},
+		applications: [{ ...item, tags: ['开源'] }],
+	}
+	assert.deepEqual(migrationSchema.parse(pkg).applications[0].tags, ['开源'])
+	for (const version of [2, 3]) {
+		assert.equal(
+			migrationSchema.safeParse({ ...pkg, formatVersion: version }).success,
+			false,
+		)
+		assert.deepEqual(
+			migrationSchema.parse({
+				...pkg,
+				formatVersion: version,
+				applications: [item],
+			}).applications[0].tags,
+			[],
+		)
+	}
+	assert.deepEqual(
+		migrationSchema.parse({ ...pkg, formatVersion: 1, applications: [] })
+			.applications,
+		[],
+	)
+})
 
 test('version 3 preserves deleted site associations and accepts an empty catalog', () => {
 	const stamp = '2026-10-05T00:00:00.000Z'

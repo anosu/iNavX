@@ -8,9 +8,11 @@ import {
 	Panel,
 	primaryClass,
 } from '@/components/admin/ui'
+import { TagInput } from '@/components/molecules/TagInput'
 import { Turnstile } from '@/components/Turnstile'
 import { publicApiUrl, usePublicCatalog } from '@/hooks/usePublicCatalog'
 import { submissionSchema } from '../../shared/catalog'
+import { parseTagInput } from '../../shared/tags'
 
 export default function Submit() {
 	const catalog = usePublicCatalog()
@@ -30,11 +32,16 @@ export default function Submit() {
 		website: '',
 	})
 	const [captchaToken, setCaptchaToken] = useState('')
+	const [tags, setTags] = useState('')
 	const [captchaReset, setCaptchaReset] = useState(0)
 	const dirty =
 		!received &&
 		Boolean(
-			value.name || value.url || value.description || value.suggestedCategory,
+			value.name ||
+				value.url ||
+				value.description ||
+				value.suggestedCategory ||
+				tags,
 		)
 	const blocker = useBlocker(dirty && !busy)
 	// biome-ignore lint/correctness/useExhaustiveDependencies: retry explicitly reloads service configuration.
@@ -138,6 +145,7 @@ export default function Submit() {
 								event.preventDefault()
 								const parsed = submissionSchema.safeParse({
 									...value,
+									tags: parseTagInput(tags),
 									captchaToken,
 								})
 								if (!parsed.success) {
@@ -231,6 +239,12 @@ export default function Submit() {
 											</option>
 										))}
 									</select>
+								</Field>
+								<Field
+									label="建议标签（选填）"
+									hint="标签由管理员审核调整后公开，用于搜索与筛选。"
+								>
+									<TagInput value={tags} onChange={setTags} />
 								</Field>
 								<div className="hidden" aria-hidden="true">
 									<label>

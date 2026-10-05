@@ -3,6 +3,7 @@ import type { Site, SiteCategory } from '@/types'
 import { extractDomain, getFaviconUrl } from '@/utils/favicon'
 import { readStoredSites } from '@/utils/personalData'
 import { httpUrl, normalizeUrl } from '../../shared/catalog'
+import { tagsSchema } from '../../shared/tags'
 
 const STORAGE_KEY = 'inav-custom-sites'
 const HIDDEN_BUILTIN_KEY = 'inav-hidden-builtin'
@@ -115,6 +116,9 @@ export function validateSitePayload(
 		errors.push({ field: 'category', message: '分类名称不超过 100 个字符' })
 	}
 
+	const tags = tagsSchema.safeParse(payload.tags)
+	if (!tags.success)
+		errors.push({ field: 'tags', message: tags.error.issues[0].message })
 	return errors
 }
 

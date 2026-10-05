@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { TagInput } from '@/components/molecules/TagInput'
 import { requestAdminApi } from '@/utils/adminApi'
 import type {
 	Application,
@@ -7,6 +8,7 @@ import type {
 	SiteInput,
 } from '../../../shared/catalog'
 import { httpUrl, normalizeUrl, reviewSchema } from '../../../shared/catalog'
+import { parseTagInput } from '../../../shared/tags'
 import {
 	buttonClass,
 	Dialog,
@@ -63,11 +65,12 @@ function ReviewDialog({
 			data.categories[0]?.id ||
 			'',
 		iconUrl: '',
-		tags: [],
+		tags: item.tags,
 		pinned: false,
 		sortOrder: data.sites.length,
 	})
 	const [siteId, setSiteId] = useState(initialDuplicate?.id || '')
+	const [tags, setTags] = useState(item.tags.join(', '))
 	const currentUrl = httpUrl.safeParse(site.url)
 	const duplicate = currentUrl.success
 		? data.sites.find(
@@ -79,10 +82,10 @@ function ReviewDialog({
 	const [note, setNote] = useState('')
 	const [error, setError] = useState('')
 	const [discard, setDiscard] = useState(false)
-	const initial = useRef(JSON.stringify({ action, site, siteId, note }))
+	const initial = useRef(JSON.stringify({ action, site, siteId, note, tags }))
 	const dirty =
 		item.status === 'pending' &&
-		initial.current !== JSON.stringify({ action, site, siteId, note })
+		initial.current !== JSON.stringify({ action, site, siteId, note, tags })
 	useDirtyForm(dirty)
 	const cancel = () => {
 		if (dirty) setDiscard(true)
@@ -113,7 +116,10 @@ function ReviewDialog({
 									type="button"
 									className={buttonClass}
 									disabled={busy}
-									onClick={() => setDiscard(false)}
+									onClick={(event) => {
+										event.preventDefault()
+										setDiscard(false)
+									}}
 								>
 									继续审核
 								</button>
@@ -185,6 +191,9 @@ function ReviewDialog({
 				<p className="text-xs text-muted-foreground break-words">
 					建议分类：{item.suggestedCategory || '未指定'}
 				</p>
+				<p className="text-xs text-muted-foreground break-words">
+					建议标签：{item.tags.join('、') || '未填写'}
+				</p>
 			</div>
 			{item.status !== 'pending' ? (
 				<div className="text-sm space-y-3">
@@ -210,7 +219,7 @@ function ReviewDialog({
 							expectedUpdatedAt: item.updatedAt,
 							reviewNote: note,
 							...(action === 'approved'
-								? { site }
+								? { site: { ...site, tags: parseTagInput(tags) } }
 								: action === 'duplicate'
 									? { siteId }
 									: {}),
@@ -313,6 +322,14 @@ function ReviewDialog({
 										}
 									/>
 								</Field>
+								<div className="sm:col-span-2">
+									<Field
+										label="公开标签"
+										hint="以申请建议为初始值，可以增删或修改。"
+									>
+										<TagInput value={tags} onChange={setTags} />
+									</Field>
+								</div>
 								<div className="sm:col-span-2">
 									<Field label="公开描述">
 										<textarea

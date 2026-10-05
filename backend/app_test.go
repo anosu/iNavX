@@ -63,6 +63,10 @@ func TestLegacyNodeDatabaseAndURLCompatibility(t *testing.T) {
 	if _, err = db.Exec("INSERT INTO configuration(id,settings,engines,revision) VALUES(1,?,?,42)", marshal(settings), "[]"); err != nil {
 		t.Fatal(err)
 	}
+	stamp := now()
+	if _, err = db.Exec("INSERT INTO applications(id,name,url,normalized_url,description,suggested_category,status,review_note,created_at,updated_at) VALUES('legacy-application','Legacy','https://legacy.example/','https://legacy.example/','','','pending','',?,?)", stamp, stamp); err != nil {
+		t.Fatal(err)
+	}
 	db.Close()
 	upgraded, err := openStore(legacy)
 	if err != nil {
@@ -79,6 +83,26 @@ func TestLegacyNodeDatabaseAndURLCompatibility(t *testing.T) {
 	backups, err := upgraded.listBackups()
 	if err != nil || len(backups) != 1 {
 		t.Fatalf("upgrade backup missing: %v %v", backups, err)
+	}
+	apps, err := upgraded.listApplications("pending", "Legacy", 1)
+	if err != nil || len(apps.Items) != 1 || apps.Items[0].Tags == nil || len(apps.Items[0].Tags) != 0 {
+		t.Fatalf("legacy application tags: %+v %v", apps, err)
+	}
+	restoredConfig := legacy
+	restoredConfig.DataDir = t.TempDir()
+	restoredConfig.DatabasePath = filepath.Join(restoredConfig.DataDir, "inav.sqlite")
+	restoredConfig.BackupDir = filepath.Join(restoredConfig.DataDir, "backups")
+	if err = restoreNative(restoredConfig, filepath.Join(legacy.BackupDir, backups[0].Name)); err != nil {
+		t.Fatal(err)
+	}
+	restored, err := openStore(restoredConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restored.DB.Close()
+	apps, err = restored.listApplications("pending", "Legacy", 1)
+	if err != nil || len(apps.Items) != 1 || len(apps.Items[0].Tags) != 0 {
+		t.Fatalf("old native backup tags: %+v %v", apps, err)
 	}
 	for input, want := range map[string]string{" https://EXAMPLE.com:443/Path?q=A#part ": "https://example.com/Path?q=A#part", "https://例子.测试/路径": "https://xn--fsqu00a.xn--0zwm56d/%E8%B7%AF%E5%BE%84", "https://example.com/a/../b": "https://example.com/b", "https://example.com": "https://example.com/"} {
 		got, err := normalizeURL(input)
