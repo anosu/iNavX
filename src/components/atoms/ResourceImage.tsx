@@ -39,6 +39,12 @@ async function recoverSvg(src: string, signal: AbortSignal): Promise<Blob> {
 		throw new Error('Not a namespace-less SVG')
 	}
 	root.removeAttribute('xmlns')
+	// External SVG cannot inherit the page's text color. Preserve authored colors,
+	// but give currentColor-only icons a default for the embedding color scheme.
+	const colors = document.createElement('style')
+	colors.textContent =
+		':root { color: #1d1d1f; } @media (prefers-color-scheme: dark) { :root { color: #f5f5f5; } }'
+	root.prepend(colors)
 	const svg = new XMLSerializer()
 		.serializeToString(root)
 		.replace(/^<svg(?=[\s>])/, `<svg xmlns="${SVG_NAMESPACE}"`)
