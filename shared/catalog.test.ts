@@ -11,9 +11,27 @@ import {
 } from '../src/utils/personalData.js'
 import { migrationSchema, normalizeUrl, submissionSchema } from './catalog.js'
 import { DEFAULT_SETTINGS } from './defaults.js'
-import { parseTagInput, tagsSchema } from './tags.js'
+import {
+	createTagInput,
+	parseTagInput,
+	readTagInput,
+	tagsSchema,
+} from './tags.js'
 
 test('tag input includes unfinished text and preserves spaces while trimming and deduplicating', () => {
+	assert.deepEqual(
+		readTagInput({
+			...createTagInput(['已添加', 'Visual Studio']),
+			draft: '未按 Enter',
+		}),
+		['已添加', 'Visual Studio', '未按 Enter'],
+	)
+	assert.deepEqual(readTagInput(createTagInput(['保留'])), ['保留'])
+	assert.deepEqual(readTagInput({ tags: ['C, C++'], draft: 'Go，最后一个' }), [
+		'C, C++',
+		'Go',
+		'最后一个',
+	])
 	assert.deepEqual(
 		parseTagInput(' 开源，开发工具, 开源, Visual Studio\n最后一个'),
 		['开源', '开发工具', 'Visual Studio', '最后一个'],

@@ -8,7 +8,7 @@ import type {
 	SiteInput,
 } from '../../../shared/catalog'
 import { httpUrl, normalizeUrl, reviewSchema } from '../../../shared/catalog'
-import { parseTagInput } from '../../../shared/tags'
+import { createTagInput, readTagInput } from '../../../shared/tags'
 import {
 	buttonClass,
 	Dialog,
@@ -70,7 +70,7 @@ function ReviewDialog({
 		sortOrder: data.sites.length,
 	})
 	const [siteId, setSiteId] = useState(initialDuplicate?.id || '')
-	const [tags, setTags] = useState(item.tags.join(', '))
+	const [tags, setTags] = useState(createTagInput(item.tags))
 	const currentUrl = httpUrl.safeParse(site.url)
 	const duplicate = currentUrl.success
 		? data.sites.find(
@@ -219,7 +219,7 @@ function ReviewDialog({
 							expectedUpdatedAt: item.updatedAt,
 							reviewNote: note,
 							...(action === 'approved'
-								? { site: { ...site, tags: parseTagInput(tags) } }
+								? { site: { ...site, tags: readTagInput(tags) } }
 								: action === 'duplicate'
 									? { siteId }
 									: {}),
@@ -323,12 +323,12 @@ function ReviewDialog({
 									/>
 								</Field>
 								<div className="sm:col-span-2">
-									<Field
+									<TagInput
 										label="公开标签"
 										hint="以申请建议为初始值，可以增删或修改。"
-									>
-										<TagInput value={tags} onChange={setTags} />
-									</Field>
+										value={tags}
+										onChange={setTags}
+									/>
 								</div>
 								<div className="sm:col-span-2">
 									<Field label="公开描述">

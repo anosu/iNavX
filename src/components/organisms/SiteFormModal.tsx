@@ -20,7 +20,7 @@ import {
 	validateSitePayload,
 } from '@/hooks/useSiteManager'
 import type { Site } from '@/types'
-import { parseTagInput } from '../../../shared/tags'
+import { createTagInput, readTagInput } from '../../../shared/tags'
 
 /* ============================================================
    useFetchMeta
@@ -430,7 +430,7 @@ export function SiteFormModal({
 	)
 	const [errors, setErrors] = useState<ValidationError[]>([])
 	const [submitted, setSubmitted] = useState(false)
-	const [tags, setTags] = useState((editSite?.tags ?? []).join(', '))
+	const [tags, setTags] = useState(createTagInput(editSite?.tags ?? []))
 	const [creatingCategory, setCreatingCategory] = useState(false)
 	const [categoryInput, setCategoryInput] = useState('')
 	const [categoryError, setCategoryError] = useState('')
@@ -470,7 +470,7 @@ export function SiteFormModal({
 			setForm(initial)
 			setErrors([])
 			setSubmitted(false)
-			setTags((initial.tags ?? []).join(', '))
+			setTags(createTagInput(initial.tags ?? []))
 			setCreatingCategory(false)
 			setCategoryInput('')
 			setCategoryError('')
@@ -597,7 +597,7 @@ export function SiteFormModal({
 			e.preventDefault()
 			setSubmitted(true)
 
-			const payload = { ...form, tags: parseTagInput(tags) }
+			const payload = { ...form, tags: readTagInput(tags) }
 			const errs = validateSitePayload(payload)
 
 			// 额外检查 URL 重复
@@ -937,20 +937,15 @@ export function SiteFormModal({
 					</Field>
 
 					{/* 标签（可选） */}
-					<Field
+					<TagInput
 						label="标签"
-						htmlFor="sf-tags"
-						error={errors.find((error) => error.field === 'tags')?.message}
-					>
-						<TagInput
-							id="sf-tags"
-							value={tags}
-							onChange={(value) => {
-								setTags(value)
-								setField('tags', parseTagInput(value))
-							}}
-						/>
-					</Field>
+						id="sf-tags"
+						value={tags}
+						onChange={(value) => {
+							setTags(value)
+							setField('tags', readTagInput(value))
+						}}
+					/>
 
 					{/* 置顶开关 */}
 					<Switch

@@ -26,3 +26,21 @@ export function parseTagInput(value: string): string[] {
 		),
 	]
 }
+
+export interface TagInputDraft {
+	tags: string[]
+	draft: string
+}
+
+export function createTagInput(tags: readonly string[] = []): TagInputDraft {
+	return { tags: [...new Set(tags)], draft: '' }
+}
+
+export function readTagInput(value: TagInputDraft): string[] {
+	return [
+		...new Set([
+			...value.tags.map((tag) => tag.trim()),
+			...parseTagInput(value.draft),
+		]),
+	]
+}

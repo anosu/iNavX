@@ -8,7 +8,7 @@ import {
 	siteInputSchema,
 } from '../../../shared/catalog'
 import { ADMIN_PAGE_SIZE } from '../../../shared/limits'
-import { parseTagInput } from '../../../shared/tags'
+import { createTagInput, readTagInput } from '../../../shared/tags'
 import {
 	buttonClass,
 	Dialog,
@@ -63,9 +63,9 @@ function SiteEditor({
 					sortOrder: data.sites.length,
 				},
 	)
-	const [tags, setTags] = useState(value.tags.join(', '))
+	const [tags, setTags] = useState(createTagInput(value.tags))
 	const initial = useRef(
-		JSON.stringify({ ...value, tags: value.tags.join(', ') }),
+		JSON.stringify({ ...value, tags: createTagInput(value.tags) }),
 	)
 	const dirty = JSON.stringify({ ...value, tags }) !== initial.current
 	useDirtyForm(dirty)
@@ -154,7 +154,7 @@ function SiteEditor({
 					event.preventDefault()
 					const parsed = siteInputSchema.safeParse({
 						...value,
-						tags: parseTagInput(tags),
+						tags: readTagInput(tags),
 					})
 					if (!parsed.success)
 						setError(
@@ -229,9 +229,7 @@ function SiteEditor({
 							}
 						/>
 					</Field>
-					<Field label="标签">
-						<TagInput value={tags} onChange={setTags} />
-					</Field>
+					<TagInput label="标签" value={tags} onChange={setTags} />
 					<Field label="排序（数字越小越靠前）">
 						<input
 							type="number"
