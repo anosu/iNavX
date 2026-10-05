@@ -3,6 +3,7 @@ import { requestAdminApi } from '@/utils/adminApi'
 import type { Engine } from '../../../shared/catalog'
 import {
 	buttonClass,
+	dangerClass,
 	Field,
 	inputClass,
 	Panel,
@@ -109,7 +110,7 @@ export function EnginesPanel({
 								</button>
 								<button
 									type="button"
-									className={`${buttonClass} text-error`}
+									className={dangerClass}
 									onClick={() =>
 										setItems(items.filter((item) => item.id !== engine.id))
 									}

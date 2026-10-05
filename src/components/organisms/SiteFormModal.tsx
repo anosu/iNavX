@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button } from '@/components/atoms/Button'
+import { Button, buttonVariants } from '@/components/atoms/Button'
 import {
 	CheckIcon,
 	GlobeIcon,
 	RefreshIcon,
 	XIcon,
 } from '@/components/atoms/Icons'
+import { inputVariants } from '@/components/atoms/Input'
 import { Switch } from '@/components/atoms/Switch'
 import { SITE_CATEGORIES } from '@/data/categories'
 import { useDialogLifecycle } from '@/hooks/useDialogLifecycle'
@@ -142,6 +143,13 @@ function FaviconPreview({
 		setPopoverOpen(false)
 		triggerRef.current?.focus({ preventScroll: true })
 	}
+	const handlePopoverKeyDown = (event: React.KeyboardEvent) => {
+		if (popoverOpen && event.key === 'Escape') {
+			event.preventDefault()
+			event.stopPropagation()
+			closePopover()
+		}
+	}
 	const handleConfirm = () => {
 		onIconUrlChange(inputVal.trim())
 		closePopover()
@@ -182,11 +190,12 @@ function FaviconPreview({
 				ref={triggerRef}
 				type="button"
 				onClick={openPopover}
+				onKeyDown={handlePopoverKeyDown}
 				aria-label="自定义图标"
 				title="点击自定义图标"
 				className="
 					group relative
-					h-9 w-9 rounded-lg
+						h-9 w-9 rounded-md
 					bg-muted border border-border
 					flex items-center justify-center
 					overflow-hidden
@@ -200,7 +209,7 @@ function FaviconPreview({
 				<span
 					className="
 					absolute inset-0 flex items-center justify-center
-					bg-black/40 rounded-lg
+						bg-black/40 rounded-md
 					opacity-0 group-hover:opacity-100
 					transition-opacity duration-150
 				"
@@ -228,17 +237,11 @@ function FaviconPreview({
 				<div
 					className="
 						absolute left-0 top-full mt-2 z-50
-						w-72 popover animate-in
+							w-72 max-w-[calc(100vw_-_4.5rem)] popover animate-in
 					"
 					role="dialog"
 					aria-label="自定义图标 URL"
-					onKeyDown={(e) => {
-						if (e.key === 'Escape') {
-							e.preventDefault()
-							e.stopPropagation()
-							closePopover()
-						}
-					}}
+					onKeyDown={handlePopoverKeyDown}
 				>
 					<div className="px-3 py-2.5 border-b border-border">
 						<p className="text-xs font-medium text-foreground">自定义图标</p>
@@ -268,6 +271,7 @@ function FaviconPreview({
 							</div>
 							<input
 								ref={inputRef}
+								aria-label="图标地址"
 								type="text"
 								value={inputVal}
 								onChange={(e) => {
@@ -281,43 +285,28 @@ function FaviconPreview({
 									}
 								}}
 								placeholder="/icons/example.svg"
-								className="input-base px-2.5 py-1.5 text-xs flex-1 min-w-0"
+								className={inputVariants({ className: 'flex-1' })}
 								autoComplete="off"
 								spellCheck={false}
 							/>
 						</div>
 						{/* 操作按钮 */}
-						<div className="flex items-center justify-between gap-2">
-							<button
-								type="button"
+						<div className="flex flex-wrap items-center justify-between gap-2">
+							<Button
+								variant="ghost"
+								size="sm"
 								onClick={handleClear}
-								className="text-[11px] text-muted-foreground hover:text-error transition-colors"
+								className="text-muted-foreground"
 							>
 								使用默认图标
-							</button>
+							</Button>
 							<div className="flex gap-1.5">
-								<button
-									type="button"
-									onClick={closePopover}
-									className="
-										h-7 px-2.5 rounded-md text-xs
-										text-muted-foreground hover:bg-muted
-										transition-colors duration-100
-									"
-								>
+								<Button variant="secondary" size="sm" onClick={closePopover}>
 									取消
-								</button>
-								<button
-									type="button"
-									onClick={handleConfirm}
-									className="
-										h-7 px-2.5 rounded-md text-xs font-medium
-										bg-primary text-white hover:bg-primary/90
-										transition-colors duration-100
-									"
-								>
+								</Button>
+								<Button size="sm" onClick={handleConfirm}>
 									确认
-								</button>
+								</Button>
 							</div>
 						</div>
 					</div>
@@ -347,8 +336,8 @@ function Field({
 	hint,
 }: FieldProps) {
 	return (
-		<div className="flex flex-col gap-1.5">
-			<label htmlFor={htmlFor} className="text-xs font-medium text-foreground">
+		<div className="flex min-w-0 flex-col gap-1.5">
+			<label htmlFor={htmlFor} className="text-sm font-medium text-foreground">
 				{label}
 				{required && (
 					<span className="ml-0.5 text-error" aria-hidden="true">
@@ -373,13 +362,7 @@ function Field({
 
 // ---- 输入框样式 ----
 
-const inputCls = (hasError: boolean) =>
-	[
-		'input-base px-3 py-2 text-base sm:text-sm',
-		hasError ? 'border-error focus:border-error' : '',
-	]
-		.filter(Boolean)
-		.join(' ')
+const inputCls = (hasError: boolean) => inputVariants({ error: hasError })
 
 // ---- 初始表单状态 ----
 
@@ -660,7 +643,7 @@ export function SiteFormModal({
 			ref={dialogRef}
 			aria-modal="true"
 			aria-label={isEdit ? '编辑站点' : '添加站点'}
-			className="m-auto w-[calc(100%_-_2rem)] max-w-lg max-h-[90dvh] overflow-hidden rounded-2xl border border-border bg-surface p-0 text-foreground shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-sm animate-scale-up"
+			className="dialog-panel max-w-lg animate-scale-up"
 			onCancel={(e) => {
 				e.preventDefault()
 				onClose()
@@ -678,10 +661,10 @@ export function SiteFormModal({
 			}}
 			tabIndex={-1}
 		>
-			<div className="max-h-[90dvh] flex flex-col">
+			<div className="max-h-[calc(100dvh_-_2rem)] flex flex-col">
 				{/* Header */}
-				<div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-					<div className="flex items-center gap-3">
+				<div className="dialog-header flex items-center justify-between gap-3 shrink-0">
+					<div className="flex min-w-0 items-center gap-3">
 						{/* 预览图标（可点击自定义） */}
 						<FaviconPreview
 							siteUrl={form.url}
@@ -689,11 +672,11 @@ export function SiteFormModal({
 							customIconUrl={form.iconUrl ?? ''}
 							onIconUrlChange={(url) => setField('iconUrl', url)}
 						/>
-						<div>
-							<h2 className="text-sm font-semibold text-foreground">
+						<div className="min-w-0">
+							<h2 className="text-base font-semibold text-foreground">
 								{isEdit ? '编辑站点' : '添加站点'}
 							</h2>
-							<p className="text-[11px] text-muted-foreground mt-0.5">
+							<p className="text-xs text-muted-foreground mt-1 truncate">
 								{form.name.trim() || (isEdit ? editSite?.name : '新站点')}
 							</p>
 						</div>
@@ -701,7 +684,7 @@ export function SiteFormModal({
 					<button
 						type="button"
 						onClick={onClose}
-						className="text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+						className={buttonVariants({ variant: 'icon' })}
 						aria-label="关闭"
 					>
 						<XIcon size={16} />
@@ -712,7 +695,7 @@ export function SiteFormModal({
 				<form
 					onSubmit={handleSubmit}
 					noValidate
-					className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-thin px-5 py-4 space-y-4"
+					className="dialog-body min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-4"
 				>
 					{/* 站点名称 */}
 					<Field
@@ -760,14 +743,14 @@ export function SiteFormModal({
 								placeholder="https://example.com"
 								className={[
 									inputCls(Boolean(fieldError('url'))),
-									'pl-8 pr-8',
+									'pl-8 pr-10',
 								].join(' ')}
 								autoComplete="url"
 								autoCapitalize="none"
 								spellCheck={false}
 							/>
 							{/* 右侧操作区：编辑模式显示刷新按钮，添加模式显示抓取状态 */}
-							<div className="absolute inset-y-0 right-0 flex items-center pr-2">
+							<div className="absolute inset-y-0 right-1 flex items-center">
 								{isEdit && metadataEnabled ? (
 									/* 编辑模式：刷新按钮 */
 									<button
@@ -778,15 +761,7 @@ export function SiteFormModal({
 										}
 										aria-label="重新获取标题与描述"
 										title="重新获取标题与描述"
-										className="
-												flex items-center justify-center
-												h-5 w-5 rounded
-												text-muted-foreground
-												hover:text-foreground hover:bg-muted
-												disabled:opacity-30 disabled:pointer-events-none
-												transition-colors duration-100
-												focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary
-											"
+										className={buttonVariants({ variant: 'icon', size: 'sm' })}
 									>
 										{fetchStatus === 'loading' ? (
 											<span className="h-3 w-3 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
@@ -892,15 +867,19 @@ export function SiteFormModal({
 						required
 						error={fieldError('category')}
 					>
-						<fieldset className="flex flex-wrap gap-1.5" aria-label="选择分类">
+						<fieldset
+							className="flex min-w-0 flex-wrap gap-1.5"
+							aria-label="选择分类"
+						>
 							{[...new Set([...categories, form.category].filter(Boolean))].map(
 								(cat) => (
 									<button
 										key={cat}
 										type="button"
+										title={cat}
 										onClick={() => setField('category', cat)}
 										className={[
-											'badge cursor-pointer transition-all duration-100',
+											'badge max-w-full cursor-pointer transition-all duration-100',
 											'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
 											form.category === cat
 												? 'badge-active'
@@ -908,7 +887,7 @@ export function SiteFormModal({
 										].join(' ')}
 										aria-pressed={form.category === cat}
 									>
-										{cat}
+										<span className="truncate">{cat}</span>
 									</button>
 								),
 							)}
@@ -923,7 +902,9 @@ export function SiteFormModal({
 										aria-describedby={
 											categoryError ? 'sf-category-error' : undefined
 										}
-										className="input-base h-9 min-w-0 flex-1 basis-full px-3 text-base sm:basis-0 sm:text-sm"
+										className={inputVariants({
+											className: 'flex-1 basis-full sm:basis-0',
+										})}
 										value={categoryInput}
 										maxLength={100}
 										placeholder="新分类名称"
@@ -984,13 +965,15 @@ export function SiteFormModal({
 									{(form.tags ?? []).map((tag) => (
 										<span
 											key={tag}
-											className="badge badge-primary flex items-center gap-1"
+											className="badge badge-primary max-w-full flex items-center gap-1"
 										>
-											{tag}
+											<span className="truncate" title={tag}>
+												{tag}
+											</span>
 											<button
 												type="button"
 												onClick={() => removeTag(tag)}
-												className="hover:text-error transition-colors"
+												className="shrink-0 hover:text-error transition-colors"
 												aria-label={`删除标签 ${tag}`}
 											>
 												<XIcon size={10} />
@@ -1012,7 +995,7 @@ export function SiteFormModal({
 									}
 								}}
 								placeholder="输入标签后按 Enter"
-								className="input-base px-3 py-2 text-base sm:text-sm"
+								className={inputVariants()}
 								autoComplete="off"
 							/>
 						</div>
@@ -1028,19 +1011,13 @@ export function SiteFormModal({
 				</form>
 
 				{/* Footer */}
-				<div className="flex items-center justify-between gap-3 px-5 py-3.5 border-t border-border shrink-0">
+				<div className="dialog-footer flex flex-wrap items-center justify-between gap-2 shrink-0">
 					{/* 左侧：删除按钮（仅编辑 custom/imported 时出现） */}
 					{canDelete ? (
 						<button
 							type="button"
 							onClick={handleDelete}
-							className="
-										flex items-center gap-1.5
-										h-8 px-3 text-xs font-medium rounded-lg
-										text-error hover:bg-error/10
-										transition-colors duration-100
-										focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error
-									"
+							className={buttonVariants({ variant: 'danger' })}
 							aria-label="删除此站点"
 						>
 							<svg
@@ -1062,24 +1039,19 @@ export function SiteFormModal({
 							删除
 						</button>
 					) : (
-						<Button variant="ghost" size="sm" type="button" onClick={onClose}>
+						<Button variant="secondary" type="button" onClick={onClose}>
 							取消
 						</Button>
 					)}
 
 					{/* 右侧：取消（删除模式下）+ 保存/添加 */}
-					<div className="flex items-center gap-2">
+					<div className="ml-auto flex items-center gap-2">
 						{canDelete && (
-							<Button variant="ghost" size="sm" type="button" onClick={onClose}>
+							<Button variant="secondary" type="button" onClick={onClose}>
 								取消
 							</Button>
 						)}
-						<Button
-							variant="primary"
-							size="sm"
-							type="submit"
-							onClick={handleSubmit}
-						>
+						<Button variant="primary" type="submit" onClick={handleSubmit}>
 							<CheckIcon size={14} />
 							{isEdit ? '保存更改' : '添加站点'}
 						</Button>

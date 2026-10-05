@@ -10,6 +10,7 @@ import { httpUrl, normalizeUrl, reviewSchema } from '../../../shared/catalog'
 import {
 	buttonClass,
 	Dialog,
+	dangerClass,
 	EmptyState,
 	Field,
 	inputClass,
@@ -90,6 +91,7 @@ function ReviewDialog({
 	const linked = data.sites.find((s) => s.id === item.siteId)
 	return (
 		<Dialog
+			size="lg"
 			title={item.status === 'pending' ? '审核收录申请' : '申请详情'}
 			description={`提交于 ${date(item.createdAt)}`}
 			onClose={cancel}
@@ -117,7 +119,7 @@ function ReviewDialog({
 								</button>
 								<button
 									type="button"
-									className={`${buttonClass} text-error`}
+									className={dangerClass}
 									disabled={busy}
 									onClick={onClose}
 								>
@@ -162,10 +164,10 @@ function ReviewDialog({
 				)
 			}
 		>
-			<div className="mb-5 rounded-xl bg-muted/50 p-4 text-sm space-y-2">
-				<div className="flex items-center justify-between gap-3">
-					<strong>{item.name}</strong>
-					<span className="rounded-full bg-primary/10 text-primary px-2 py-1 text-xs">
+			<div className="mb-5 rounded-md bg-muted/50 p-4 text-sm space-y-2">
+				<div className="flex items-start justify-between gap-3">
+					<strong className="min-w-0 break-words">{item.name}</strong>
+					<span className="shrink-0 rounded-full bg-primary/10 text-primary px-2 py-1 text-xs">
 						{labels[item.status]}
 					</span>
 				</div>
@@ -180,7 +182,7 @@ function ReviewDialog({
 				<p className="text-muted-foreground whitespace-pre-wrap break-words">
 					{item.description || '未填写描述'}
 				</p>
-				<p className="text-xs text-muted-foreground">
+				<p className="text-xs text-muted-foreground break-words">
 					建议分类：{item.suggestedCategory || '未指定'}
 				</p>
 			</div>
@@ -191,7 +193,7 @@ function ReviewDialog({
 						审核备注：{item.reviewNote || '无'}
 					</p>
 					{linked && (
-						<p>
+						<p className="break-words">
 							关联站点：{linked.name}
 							{linked.deletedAt ? '（已移入回收站）' : ''}
 						</p>
@@ -470,7 +472,7 @@ export function ApplicationsPanel({
 						全部
 					</button>
 				</div>
-				<div className="flex gap-2">
+				<div className="flex items-center gap-2">
 					<input
 						className={inputClass}
 						aria-label="搜索收录申请"
@@ -512,7 +514,9 @@ export function ApplicationsPanel({
 							>
 								<div className="min-w-0 flex-1 basis-48">
 									<div className="flex flex-wrap items-center gap-2">
-										<h3 className="text-sm font-semibold">{item.name}</h3>
+										<h3 className="min-w-0 text-sm font-semibold break-words">
+											{item.name}
+										</h3>
 										<span
 											className={
 												'rounded-full px-2 py-0.5 text-[11px] ' +
@@ -527,7 +531,7 @@ export function ApplicationsPanel({
 									<p className="text-xs text-muted-foreground truncate mt-1">
 										{item.url}
 									</p>
-									<p className="text-xs text-muted-foreground mt-2">
+									<p className="text-xs text-muted-foreground mt-2 break-words">
 										{date(item.createdAt)} ·{' '}
 										{item.suggestedCategory || '未指定分类'}
 									</p>
@@ -545,7 +549,7 @@ export function ApplicationsPanel({
 								<button
 									type="button"
 									disabled={busy}
-									className={`${buttonClass} text-error`}
+									className={dangerClass}
 									onClick={() => {
 										setDeleteError('')
 										setDeleting(item)
@@ -609,7 +613,7 @@ export function ApplicationsPanel({
 							</button>
 							<button
 								type="button"
-								className={`${buttonClass} text-error`}
+								className={dangerClass}
 								disabled={busy}
 								onClick={() =>
 									void runAction(async () => {

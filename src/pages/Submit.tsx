@@ -78,7 +78,7 @@ export default function Submit() {
 			<div className="mx-auto max-w-2xl space-y-6">
 				<Link
 					to="/"
-					className="inline-flex text-sm text-muted-foreground hover:text-primary"
+					className="inline-flex text-sm text-muted-foreground hover:text-primary break-words"
 				>
 					← 返回 {catalog.settings.name}
 				</Link>
@@ -256,7 +256,7 @@ export default function Submit() {
 								{error && (
 									<p
 										role="alert"
-										className="rounded-xl bg-error/5 border border-error/20 p-3 text-sm text-error"
+										className="rounded-md bg-error-bg border border-error/20 p-3 text-sm text-error break-words"
 									>
 										{error}
 									</p>
@@ -281,24 +281,25 @@ export default function Submit() {
 					title="放弃填写？"
 					description="申请尚未提交，离开后填写的内容会丢失。"
 					onClose={() => blocker.reset()}
-				>
-					<div className="flex justify-end gap-2">
-						<button
-							type="button"
-							className={buttonClass}
-							onClick={() => blocker.reset()}
-						>
-							继续填写
-						</button>
-						<button
-							type="button"
-							className={primaryClass}
-							onClick={() => blocker.proceed()}
-						>
-							放弃并离开
-						</button>
-					</div>
-				</Dialog>
+					footer={
+						<div className="flex flex-wrap justify-end gap-2">
+							<button
+								type="button"
+								className={buttonClass}
+								onClick={() => blocker.reset()}
+							>
+								继续填写
+							</button>
+							<button
+								type="button"
+								className={primaryClass}
+								onClick={() => blocker.proceed()}
+							>
+								放弃并离开
+							</button>
+						</div>
+					}
+				/>
 			)}
 		</main>
 	)

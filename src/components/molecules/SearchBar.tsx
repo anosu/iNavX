@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { buttonVariants } from '@/components/atoms/Button'
 import { Input } from '@/components/atoms/Input'
 import type { SearchBarProps } from '@/types'
 
@@ -86,7 +87,7 @@ export function SearchBar({
 							type="button"
 							onClick={handleClear}
 							aria-label="清除搜索内容"
-							className="flex items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+							className={buttonVariants({ variant: 'icon', size: 'sm' })}
 						>
 							<ClearIcon />
 						</button>

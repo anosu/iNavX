@@ -6,6 +6,7 @@ import { MAX_API_BODY_BYTES } from '../../../shared/limits'
 import {
 	buttonClass,
 	Dialog,
+	dangerClass,
 	inputClass,
 	Panel,
 	primaryClass,
@@ -125,7 +126,7 @@ export function BackupsPanel({
 								</a>
 								<button
 									type="button"
-									className={`${buttonClass} text-error`}
+									className={dangerClass}
 									disabled={busy}
 									onClick={() => {
 										setDeleteError('')
@@ -329,7 +330,7 @@ export function BackupsPanel({
 							</button>
 							<button
 								type="button"
-								className={`${buttonClass} text-error`}
+								className={dangerClass}
 								disabled={busy}
 								onClick={() =>
 									void runAction(async () => {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router'
-import { Button } from '@/components/atoms/Button'
+import { Button, buttonVariants } from '@/components/atoms/Button'
 import {
 	CommandIcon,
 	InfoIcon,
@@ -167,7 +167,7 @@ function Logo() {
 				<NavLogoIcon size={26} />
 			)}
 			<div>
-				<p className="text-sm font-bold text-foreground leading-none tracking-tight truncate max-w-44">
+				<p className="text-sm font-bold text-foreground leading-none tracking-tight truncate max-w-14 sm:max-w-44">
 					{settings.name}
 				</p>
 				<p className="text-[10px] text-muted-foreground leading-none mt-0.5 hidden sm:block truncate max-w-44">
@@ -190,17 +190,10 @@ function CmdKButton({ onClick }: CmdKButtonProps) {
 			type="button"
 			onClick={onClick}
 			aria-label="打开命令面板 (⌘K)"
-			className="
-				hidden sm:flex items-center gap-1.5
-				h-9 px-2.5
-				rounded-lg border border-border
-				text-xs text-muted-foreground
-				bg-surface
-				hover:bg-muted hover:text-foreground hover:border-primary/30
-				transition-all duration-100
-				focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary
-				shrink-0
-			"
+			className={buttonVariants({
+				variant: 'secondary',
+				className: 'text-muted-foreground',
+			})}
 		>
 			<CommandIcon size={13} />
 			<span className="hidden md:inline">命令面板</span>
@@ -238,7 +231,7 @@ export function Header({
 	const { settings } = usePublicCatalog()
 	return (
 		<header className="sticky top-0 z-50 glass border-b border-border">
-			<div className="w-full flex items-center gap-2 h-12 px-4 sm:px-6">
+			<div className="mx-auto w-full max-w-7xl flex items-center gap-2 h-12 px-4 sm:px-6">
 				{/* 左：Logo — 点击重置搜索和分类 */}
 				<NavLink
 					to="/"
@@ -250,7 +243,7 @@ export function Header({
 				</NavLink>
 
 				{/* 中：搜索框（flex-1） */}
-				<div className="flex-1 min-w-0 mx-2">
+				<div className="flex-1 min-w-0">
 					<SearchBar
 						value={searchValue}
 						onChange={onSearchChange}
@@ -262,7 +255,9 @@ export function Header({
 				{/* 右：工具区 */}
 				<div className="flex items-center gap-1 shrink-0">
 					{/* ⌘K 命令面板 */}
-					<CmdKButton onClick={onOpenCommandPalette} />
+					<div className="hidden sm:block">
+						<CmdKButton onClick={onOpenCommandPalette} />
+					</div>
 
 					{/* 分割线 */}
 					<div
@@ -274,18 +269,20 @@ export function Header({
 					{onAddSite && (
 						<Button
 							variant="primary"
-							size="sm"
 							onClick={onAddSite}
 							aria-label="添加站点"
-							className="gap-1.5"
+							className="w-9 px-0 sm:w-auto sm:px-3.5"
 						>
-							<PlusIcon size={14} />
+							<PlusIcon size={16} />
 							<span className="hidden sm:inline">添加</span>
 						</Button>
 					)}
 
 					{/* 分割线 */}
-					<div className="h-5 w-px bg-border mx-0.5" aria-hidden="true" />
+					<div
+						className="hidden sm:block h-5 w-px bg-border mx-0.5"
+						aria-hidden="true"
+					/>
 
 					{/* 主题切换 */}
 					<ThemeToggle />

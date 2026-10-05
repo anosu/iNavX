@@ -14,6 +14,7 @@ export function Badge({
 	variant = 'default',
 	className = '',
 	onClick,
+	...rest
 }: BadgeProps) {
 	const baseClass = [variantClasses[variant], className]
 		.filter(Boolean)
@@ -24,6 +25,7 @@ export function Badge({
 			<button
 				type="button"
 				onClick={onClick}
+				{...rest}
 				className={[
 					baseClass,
 					'cursor-pointer',
@@ -37,5 +39,9 @@ export function Badge({
 		)
 	}
 
-	return <span className={baseClass}>{children}</span>
+	return (
+		<span className={baseClass} {...rest}>
+			{children}
+		</span>
+	)
 }

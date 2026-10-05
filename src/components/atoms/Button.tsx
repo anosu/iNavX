@@ -3,22 +3,24 @@ import type { ButtonProps } from '@/types'
 // variant/size → Tailwind class 映射表
 const variantClasses: Record<NonNullable<ButtonProps['variant']>, string> = {
 	primary:
-		'bg-primary text-primary-foreground hover:opacity-90 active:opacity-80',
+		'bg-primary text-primary-foreground hover:bg-primary-hover active:opacity-80',
 	secondary:
 		'bg-transparent border border-border text-foreground hover:bg-muted active:bg-muted/80',
 	ghost: 'bg-transparent text-foreground hover:bg-muted active:bg-muted/80',
 	icon: 'bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted/80',
+	danger:
+		'border border-error/30 bg-transparent text-error hover:bg-error-bg active:bg-error-bg/80',
 }
 
 const sizeClasses: Record<NonNullable<ButtonProps['size']>, string> = {
-	sm: 'h-7 px-2.5 text-xs gap-1.5',
+	sm: 'h-8 px-2.5 text-xs gap-1.5',
 	md: 'h-9 px-3.5 text-sm gap-2',
 	lg: 'h-11 px-5 text-base gap-2.5',
 }
 
 // icon variant 使用正方形尺寸（无水平 padding）
 const iconSizeClasses: Record<NonNullable<ButtonProps['size']>, string> = {
-	sm: 'h-7 w-7',
+	sm: 'h-8 w-8',
 	md: 'h-9 w-9',
 	lg: 'h-11 w-11',
 }
@@ -40,10 +42,10 @@ export function buttonVariants({
 
 	return [
 		'inline-flex items-center justify-center',
-		'rounded-lg font-medium leading-none shrink-0',
+		'rounded-md font-medium leading-none shrink-0 whitespace-nowrap',
 		'transition-colors duration-100',
 		'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
-		'disabled:pointer-events-none disabled:opacity-50',
+		'disabled:cursor-not-allowed disabled:opacity-50',
 		variantClasses[variant ?? 'primary'],
 		sizeClass,
 		className,

@@ -262,30 +262,30 @@ export function BookmarkIO({
 			{importedCount > 0 &&
 				bookmarks.clearImported &&
 				(showClearConfirm ? (
-					<div className="flex items-center gap-1 border border-border rounded-lg px-2 py-1 bg-surface animate-in">
+					<div className="flex flex-wrap items-center gap-1 border border-border rounded-md px-2 py-1 bg-surface animate-in">
 						<span className="text-xs text-muted-foreground whitespace-nowrap">
 							清除 {importedCount} 条导入？
 						</span>
-						<button
-							type="button"
+						<Button
+							variant="danger"
+							size="sm"
 							onClick={() => {
 								bookmarks.clearImported?.()
 								setShowClearConfirm(false)
 								showToast('已清除所有导入书签', 'success')
 							}}
-							className="text-error hover:opacity-80 transition-opacity"
 							aria-label="确认清除"
 						>
 							<CheckIcon size={14} />
-						</button>
-						<button
-							type="button"
+						</Button>
+						<Button
+							variant="icon"
+							size="sm"
 							onClick={() => setShowClearConfirm(false)}
-							className="text-muted-foreground hover:text-foreground transition-colors"
 							aria-label="取消"
 						>
 							<XIcon size={14} />
-						</button>
+						</Button>
 					</div>
 				) : (
 					<Button
@@ -307,30 +307,29 @@ export function BookmarkIO({
 			{onRestoreBuiltin &&
 				hiddenBuiltinCount > 0 &&
 				(showRestoreConfirm ? (
-					<div className="flex items-center gap-1 border border-border rounded-lg px-2 py-1 bg-surface animate-in">
+					<div className="flex flex-wrap items-center gap-1 border border-border rounded-md px-2 py-1 bg-surface animate-in">
 						<span className="text-xs text-muted-foreground whitespace-nowrap">
 							恢复 {hiddenBuiltinCount} 个隐藏？
 						</span>
-						<button
-							type="button"
+						<Button
+							size="sm"
 							onClick={() => {
 								onRestoreBuiltin()
 								setShowRestoreConfirm(false)
 								showToast(`已恢复 ${hiddenBuiltinCount} 个内置站点`, 'success')
 							}}
-							className="text-primary hover:opacity-80 transition-opacity"
 							aria-label="确认恢复"
 						>
 							<CheckIcon size={14} />
-						</button>
-						<button
-							type="button"
+						</Button>
+						<Button
+							variant="icon"
+							size="sm"
 							onClick={() => setShowRestoreConfirm(false)}
-							className="text-muted-foreground hover:text-foreground transition-colors"
 							aria-label="取消"
 						>
 							<XIcon size={14} />
-						</button>
+						</Button>
 					</div>
 				) : (
 					<Button

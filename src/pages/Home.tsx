@@ -9,6 +9,8 @@ import {
 	useState,
 } from 'react'
 import { NavLink } from 'react-router'
+import { Button } from '@/components/atoms/Button'
+import { Dialog } from '@/components/atoms/Dialog'
 import { BookmarkIO } from '@/components/molecules/BookmarkIO'
 import { CategoryFilter } from '@/components/molecules/CategoryFilter'
 import { EngineSettings } from '@/components/molecules/EngineSettings'
@@ -96,19 +98,19 @@ function ToastContainer({ toasts }: { toasts: ToastItem[] }) {
 		<div
 			aria-live="polite"
 			aria-atomic="false"
-			className="fixed bottom-4 left-1/2 -translate-x-1/2 z-400 flex flex-col gap-2 items-center pointer-events-none"
+			className="fixed bottom-4 left-1/2 -translate-x-1/2 z-400 w-[calc(100%_-_2rem)] max-w-lg flex flex-col gap-2 items-center pointer-events-none"
 		>
 			{toasts.map((t) => (
 				<div
 					key={t.id}
 					className={[
-						'flex items-center gap-2 px-4 py-2.5 rounded-lg',
-						'text-xs font-medium shadow-lg animate-in',
+						'w-full border bg-surface px-4 py-3 rounded-md break-words',
+						'text-sm shadow-lg animate-in',
 						t.type === 'success'
-							? 'bg-foreground text-background'
+							? 'border-success/30 text-success'
 							: t.type === 'error'
-								? 'bg-error text-white'
-								: 'bg-surface border border-border text-foreground',
+								? 'border-error/30 text-error'
+								: 'border-border text-foreground',
 					].join(' ')}
 				>
 					{t.message}
@@ -128,101 +130,30 @@ interface DeleteConfirmProps {
 }
 
 function DeleteConfirm({ site, onConfirm, onCancel }: DeleteConfirmProps) {
-	// Esc 取消
-	useEffect(() => {
-		const h = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') onCancel()
-		}
-		window.addEventListener('keydown', h)
-		return () => window.removeEventListener('keydown', h)
-	}, [onCancel])
-
 	const isBuiltin = site.source === 'builtin'
 
 	return (
-		<>
-			<div
-				className="modal-overlay animate-fade-in"
-				onClick={onCancel}
-				aria-hidden="true"
-			/>
-			<div
-				role="alertdialog"
-				aria-modal="true"
-				aria-labelledby="del-title"
-				aria-describedby="del-desc"
-				className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm animate-scale-up"
-				style={{ zIndex: 300 }}
-				onClick={(e) => e.stopPropagation()}
-				onKeyDown={(e) => {
-					if (e.key === 'Escape') onCancel()
-					e.stopPropagation()
-				}}
-				tabIndex={-1}
-			>
-				<div className="popover mx-4 p-5 space-y-4">
-					<div>
-						<h3
-							id="del-title"
-							className="text-sm font-semibold text-foreground mb-1"
-						>
-							{isBuiltin ? '本地隐藏站点' : '删除站点'}
-						</h3>
-						<p
-							id="del-desc"
-							className="text-xs text-muted-foreground leading-relaxed"
-						>
-							{isBuiltin ? (
-								<>
-									确定要在本地隐藏{' '}
-									<strong className="text-foreground font-medium">
-										{site.name}
-									</strong>{' '}
-									吗？该站点将不再显示，可在设置中恢复。
-								</>
-							) : (
-								<>
-									确定要删除{' '}
-									<strong className="text-foreground font-medium">
-										{site.name}
-									</strong>{' '}
-									吗？此操作不可撤销。
-								</>
-							)}
-						</p>
-					</div>
-					<div className="flex items-center justify-end gap-2">
-						<button
-							type="button"
-							onClick={onCancel}
-							className="
-								h-8 px-3 text-xs font-medium rounded-lg
-								text-muted-foreground hover:text-foreground
-								hover:bg-muted transition-colors duration-100
-								focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary
-							"
-						>
-							取消
-						</button>
-						<button
-							type="button"
-							// biome-ignore lint/a11y/noAutofocus: 删除确认按钮需要立即获焦
-							autoFocus
-							onClick={onConfirm}
-							className="
-								h-8 px-3 text-xs font-medium rounded-lg
-								bg-error text-white
-								hover:opacity-90 active:opacity-80
-								transition-opacity duration-100
-								focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error
-							"
-						>
-							{isBuiltin ? '确认隐藏' : '确认删除'}
-						</button>
-					</div>
+		<Dialog
+			role="alertdialog"
+			size="sm"
+			title={isBuiltin ? '本地隐藏站点' : '删除站点'}
+			description={
+				isBuiltin
+					? `确定要在本地隐藏「${site.name}」吗？可通过恢复隐藏站点重新显示。`
+					: `确定要删除「${site.name}」吗？此操作不可撤销。`
+			}
+			onClose={onCancel}
+			footer={
+				<div className="flex flex-wrap justify-end gap-2">
+					<Button variant="secondary" onClick={onCancel}>
+						取消
+					</Button>
+					<Button variant="danger" onClick={onConfirm}>
+						{isBuiltin ? '确认隐藏' : '确认删除'}
+					</Button>
 				</div>
-			</div>
-		</>
+			}
+		/>
 	)
 }
 

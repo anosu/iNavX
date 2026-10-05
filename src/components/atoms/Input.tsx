@@ -1,5 +1,21 @@
 import type { InputProps } from '@/types'
 
+export function inputVariants({
+	error = false,
+	className = '',
+}: {
+	error?: boolean
+	className?: string
+} = {}) {
+	return [
+		'input-base w-full min-w-0 px-3 text-base sm:text-sm',
+		error ? 'border-error focus:border-error focus:ring-error/20' : '',
+		className,
+	]
+		.filter(Boolean)
+		.join(' ')
+}
+
 export function Input({
 	leftIcon,
 	rightIcon,
@@ -25,23 +41,19 @@ export function Input({
 			<input
 				ref={ref}
 				id={id}
-				className={[
-					'input-base',
-					leftIcon ? 'pl-8' : 'pl-3',
-					rightIcon ? 'pr-8' : 'pr-3',
-					'py-1.5',
-					'text-base sm:text-sm',
-					error ? 'border-error focus:border-error focus:ring-error/20' : '',
-				]
-					.filter(Boolean)
-					.join(' ')}
+				className={inputVariants({
+					error: Boolean(error),
+					className: [leftIcon ? 'pl-8' : '', rightIcon ? 'pr-10' : '']
+						.filter(Boolean)
+						.join(' '),
+				})}
 				aria-describedby={error ? errorId : undefined}
 				aria-invalid={error ? true : undefined}
 				{...rest}
 			/>
 
 			{rightIcon && (
-				<div className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground">
+				<div className="absolute inset-y-0 right-1 flex items-center text-muted-foreground">
 					{rightIcon}
 				</div>
 			)}

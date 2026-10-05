@@ -16,6 +16,8 @@ import {
 	primaryClass,
 	type RunAdminAction,
 } from '@/components/admin/ui'
+import { buttonVariants } from '@/components/atoms/Button'
+import { XIcon } from '@/components/atoms/Icons'
 import { ThemeToggle } from '@/components/molecules/ThemeToggle'
 import { ApiError, requestAdminApi } from '@/utils/adminApi'
 import { type Catalog, catalogSchema } from '../../shared/catalog'
@@ -150,18 +152,18 @@ export default function Admin() {
 			<main className="min-h-screen bg-background text-foreground">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
 					<header className="flex flex-wrap justify-between items-center gap-4 pb-6 border-b border-border">
-						<div>
+						<div className="min-w-0">
 							<p className="text-[11px] font-semibold tracking-[0.2em] text-primary uppercase mb-2">
 								iNavX · 管理工作台
 							</p>
-							<h1 className="text-2xl font-semibold tracking-tight">
+							<h1 className="text-2xl font-semibold tracking-tight break-words">
 								{data?.settings.name || '管理后台'}
 							</h1>
 							<p className="text-sm text-muted-foreground mt-1">
 								公共内容集中管理，个人偏好留在各自浏览器。
 							</p>
 						</div>
-						<div className="flex gap-2 items-center">
+						<div className="flex max-w-full flex-wrap gap-2 items-center">
 							<ThemeToggle />
 							<Link to="/" className={buttonClass}>
 								返回首页
@@ -173,7 +175,8 @@ export default function Admin() {
 									className={buttonClass}
 									onClick={() => setConfirmLogout(true)}
 								>
-									退出 {status.username}
+									退出{' '}
+									<span className="max-w-28 truncate">{status.username}</span>
 								</button>
 							)}
 							{confirmLogout && status && (
@@ -235,20 +238,24 @@ export default function Admin() {
 						<p
 							role={notice.error ? 'alert' : 'status'}
 							className={
-								'fixed bottom-4 right-4 left-4 sm:left-auto z-50 max-w-lg rounded-xl border bg-surface shadow-lg px-4 py-3 text-sm flex items-center gap-3 ' +
+								'fixed bottom-4 right-4 left-4 sm:left-auto z-50 max-w-lg rounded-md border bg-surface shadow-lg px-4 py-3 text-sm flex items-center gap-3 break-words ' +
 								(notice.error
 									? 'border-error/30 text-error'
-									: 'border-primary/20 text-primary')
+									: 'border-success/30 text-success')
 							}
 						>
 							{notice.message}
 							<button
 								type="button"
-								className="ml-auto shrink-0 rounded-lg p-2 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+								className={buttonVariants({
+									variant: 'icon',
+									size: 'sm',
+									className: 'ml-auto',
+								})}
 								aria-label="关闭提示"
 								onClick={() => setNotice(null)}
 							>
-								✕
+								<XIcon size={16} />
 							</button>
 						</p>
 					)}
@@ -371,7 +378,7 @@ export default function Admin() {
 					)}
 					{status?.authenticated && data && status.csrf && (
 						<>
-							<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+							<div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
 								{[
 									{
 										label: '已收录站点',
@@ -399,22 +406,22 @@ export default function Admin() {
 										disabled={busy}
 										key={item.label}
 										onClick={() => setParams({ tab: item.target })}
-										className="text-left rounded-2xl border border-border bg-surface p-4 sm:p-5 hover:border-primary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+										className="min-w-0 text-left rounded-card border border-border bg-surface p-4 hover:border-primary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 									>
 										<span className="text-xs text-muted-foreground">
 											{item.label}
 										</span>
-										<span className="block mt-2 text-2xl sm:text-3xl font-semibold tabular-nums tracking-tight">
+										<span className="block mt-1 text-2xl font-semibold tabular-nums tracking-tight">
 											{item.value}
 										</span>
 									</button>
 								))}
 							</div>
 							<div className="grid grid-cols-1 lg:grid-cols-[13rem_minmax(0,1fr)] items-start gap-5 sm:gap-6">
-								<aside className="min-w-0 lg:sticky lg:top-6 rounded-2xl border border-border bg-surface p-2">
+								<aside className="min-w-0 lg:sticky lg:top-6 rounded-card border border-border bg-surface p-2">
 									<nav
 										aria-label="后台管理分类"
-										className="flex lg:flex-col gap-1 overflow-x-auto"
+										className="flex lg:flex-col gap-1 overflow-x-auto scrollbar-thin"
 									>
 										{tabs.map((item) => (
 											<button
@@ -422,11 +429,11 @@ export default function Admin() {
 												key={item.id}
 												disabled={busy}
 												aria-current={tab === item.id ? 'page' : undefined}
-												className={
-													tab === item.id
-														? 'flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium bg-primary/10 text-primary whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-														: 'flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-												}
+												className={buttonVariants({
+													variant: 'ghost',
+													className:
+														'justify-start text-muted-foreground aria-[current=page]:bg-primary-subtle aria-[current=page]:text-primary aria-[current=page]:hover:bg-primary-subtle',
+												})}
 												onClick={() => {
 													setParams({ tab: item.id })
 													setNotice(null)
@@ -518,27 +525,28 @@ export default function Admin() {
 						title="离开当前页面？"
 						description="你有未保存的修改，离开后需要重新填写。"
 						onClose={() => blocker.reset()}
-					>
-						<div className="flex justify-end gap-2">
-							<button
-								type="button"
-								className={buttonClass}
-								onClick={() => blocker.reset()}
-							>
-								继续编辑
-							</button>
-							<button
-								type="button"
-								className={primaryClass}
-								onClick={() => {
-									setDirty(false)
-									blocker.proceed()
-								}}
-							>
-								放弃修改并离开
-							</button>
-						</div>
-					</Dialog>
+						footer={
+							<div className="flex flex-wrap justify-end gap-2">
+								<button
+									type="button"
+									className={buttonClass}
+									onClick={() => blocker.reset()}
+								>
+									继续编辑
+								</button>
+								<button
+									type="button"
+									className={primaryClass}
+									onClick={() => {
+										setDirty(false)
+										blocker.proceed()
+									}}
+								>
+									放弃修改并离开
+								</button>
+							</div>
+						}
+					/>
 				)}
 			</main>
 		</DirtyContext.Provider>

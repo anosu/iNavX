@@ -30,12 +30,13 @@ export function CategoryFilter({
 				return (
 					<Badge
 						key={category}
+						title={category}
 						variant={isActive ? 'active' : 'primary'}
 						onClick={() => handleSelect(category)}
-						className="shrink-0 whitespace-nowrap badge-desktop-md"
+						className="max-w-48 shrink-0 whitespace-nowrap badge-desktop-md"
 						aria-pressed={isActive}
 					>
-						{category}
+						<span className="truncate">{category}</span>
 					</Badge>
 				)
 			})}

@@ -24,6 +24,12 @@
 
 站内说明只写使用者需要知道的操作、数据保存与服务行为；技术栈、部署、数据库恢复和开发命令写入项目文档。可用功能的说明随公开配置变化。
 
+## 界面样式
+
+首页、后台与公开页面复用 `atoms/Button.tsx` 的 `buttonVariants`、`atoms/Input.tsx` 的 `inputVariants` 和主题变量。同类操作使用 36 px 常规按钮与单行表单控件，32 px 紧凑按钮；控件、卡片及气泡圆角为 8 px，弹窗为 16 px。分类徽章与卡片快捷操作按内容密度使用较小尺寸，避免把所有元素扩成常规按钮。
+
+弹窗复用 `atoms/Dialog.tsx`；有特殊结构的个人站点表单和命令面板沿用相同 `dialog-*` 样式及 `useDialogLifecycle`。头尾固定、内容区单独滚动，不能让滚动条破坏外框圆角。启停设置使用 `Switch`，多选与确认使用 `Checkbox`；手机表单输入保持 16 px 字号，长名称与分类须限制宽度或换行。键盘聚焦、触屏操作、禁用和错误状态也属于视觉回归范围。
+
 ## 格式与检查
 
 文件使用 UTF-8 和 LF。缩进由 `.editorconfig` 与 `biome.json` 控制；TypeScript、JSON 等使用 tab，Markdown、YAML 使用空格。Biome 负责支持文件的格式和导入排序。

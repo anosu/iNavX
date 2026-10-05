@@ -4,6 +4,7 @@ import type { Catalog, Category } from '../../../shared/catalog'
 import {
 	buttonClass,
 	Dialog,
+	dangerClass,
 	Field,
 	inputClass,
 	Panel,
@@ -68,7 +69,7 @@ function CategoryEditor({
 							</button>
 							<button
 								type="button"
-								className={`${buttonClass} text-error`}
+								className={dangerClass}
 								disabled={busy}
 								onClick={onClose}
 							>
@@ -198,7 +199,7 @@ function DeleteCategoryDialog({
 						<button
 							type="submit"
 							form={formId}
-							className={`${buttonClass} border-error/30 text-error hover:bg-error/5`}
+							className={dangerClass}
 							disabled={busy || (count > 0 && !target && !deleteSites)}
 						>
 							{busy ? '正在删除…' : '确认删除分类'}
@@ -336,7 +337,7 @@ export function CategoriesPanel({
 							<button
 								type="button"
 								disabled={busy}
-								className={`${buttonClass} text-error`}
+								className={dangerClass}
 								onClick={() => setDeleting(category)}
 							>
 								删除

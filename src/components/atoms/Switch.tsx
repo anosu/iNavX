@@ -22,7 +22,7 @@ export function Switch({
 	const id = useId()
 	return (
 		<div
-			className={`flex items-center justify-between gap-4 ${labelHidden ? '' : 'py-1.5'} ${className}`}
+			className={`flex items-center justify-between gap-3 ${labelHidden ? '' : 'py-1.5'} ${className}`}
 		>
 			<div className={labelHidden ? 'sr-only' : 'min-w-0'}>
 				<label
@@ -48,12 +48,16 @@ export function Switch({
 				aria-describedby={hint ? `${id}-hint` : undefined}
 				disabled={disabled}
 				onClick={() => onChange(!checked)}
-				className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${checked ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+				className="inline-flex h-9 w-11 shrink-0 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 			>
 				<span
 					aria-hidden="true"
-					className={`size-3.5 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-4.5' : 'translate-x-0.5'}`}
-				/>
+					className={`inline-flex h-5 w-9 items-center rounded-full transition-colors ${checked ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+				>
+					<span
+						className={`size-3.5 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-4.5' : 'translate-x-0.5'}`}
+					/>
+				</span>
 			</button>
 		</div>
 	)

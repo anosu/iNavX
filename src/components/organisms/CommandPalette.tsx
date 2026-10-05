@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-	CommandIcon,
-	ExternalLinkIcon,
-	SearchIcon,
-	XIcon,
-} from '@/components/atoms/Icons'
+import { buttonVariants } from '@/components/atoms/Button'
+import { ExternalLinkIcon, SearchIcon, XIcon } from '@/components/atoms/Icons'
+import { inputVariants } from '@/components/atoms/Input'
 import { getCategoryColor } from '@/data/categories'
+import { useDialogLifecycle } from '@/hooks/useDialogLifecycle'
 import { useSiteIconUrl } from '@/hooks/useImageUrl'
 import type { Site, SiteCategory } from '@/types'
 
@@ -141,6 +139,9 @@ function ResultItem({
 	return (
 		<button
 			ref={ref}
+			id={`cmd-item-${site.source}-${site.id}`}
+			role="option"
+			aria-selected={selected}
 			type="button"
 			className="cmd-item w-full text-left"
 			data-selected={selected ? 'true' : undefined}
@@ -158,7 +159,10 @@ function ResultItem({
 						{highlightMatch(site.name, query)}
 					</span>
 					<CategoryDot category={site.category} />
-					<span className="text-[11px] text-muted-foreground shrink-0">
+					<span
+						className="max-w-24 truncate text-[11px] text-muted-foreground"
+						title={site.category}
+					>
 						{site.category}
 					</span>
 				</div>
@@ -183,7 +187,7 @@ function EmptyState({ query }: { query: string }) {
 	return (
 		<div className="flex flex-col items-center justify-center py-12 px-4 text-center">
 			<SearchIcon size={24} className="text-muted-foreground mb-3 opacity-40" />
-			<p className="text-sm text-muted-foreground">
+			<p className="text-sm text-muted-foreground break-words">
 				未找到
 				{query.trim() && (
 					<>
@@ -205,7 +209,7 @@ function EmptyState({ query }: { query: string }) {
 
 function Footer({ resultCount }: { resultCount: number }) {
 	return (
-		<div className="flex items-center justify-between px-3 py-2 border-t border-border">
+		<div className="flex flex-wrap items-center justify-between gap-2">
 			<div className="flex items-center gap-3">
 				<span className="flex items-center gap-1 text-[11px] text-muted-foreground">
 					<kbd className="kbd">↑</kbd>
@@ -239,6 +243,7 @@ export interface CommandPaletteProps {
 }
 
 export function CommandPalette({ open, onClose, sites }: CommandPaletteProps) {
+	const dialogRef = useDialogLifecycle(open)
 	const [query, setQuery] = useState('')
 	const [selectedIndex, setSelectedIndex] = useState(0)
 	const inputRef = useRef<HTMLInputElement>(null)
@@ -301,134 +306,113 @@ export function CommandPalette({ open, onClose, sites }: CommandPaletteProps) {
 		[results.length, selectedIndex, openSelected, onClose],
 	)
 
-	// 阻止 modal 内点击冒泡到 overlay
-	const handlePanelClick = useCallback((e: React.MouseEvent) => {
-		e.stopPropagation()
-	}, [])
-
 	if (!open) return null
 
 	return (
-		<>
-			{/* 遮罩层 */}
-			<div
-				className="modal-overlay animate-fade-in"
-				onClick={onClose}
-				aria-hidden="true"
-			/>
-
-			{/* 面板 */}
-			<div
-				role="dialog"
-				aria-modal="true"
-				aria-label="命令面板"
-				className="
-					fixed left-1/2 top-[18%] -translate-x-1/2
-					w-full max-w-xl
-					z-(--z-modal)
-					animate-scale-up
-				"
-				style={{ zIndex: 300 }}
-				onClick={handlePanelClick}
-				onKeyDown={(e) => {
-					// Mirror the click behavior for keyboard users
-					e.stopPropagation()
-				}}
-				tabIndex={-1}
-			>
-				<div className="popover mx-4">
-					{/* 搜索输入行 */}
-					<div className="flex items-center gap-2.5 px-3 py-2.5 border-b border-border">
-						<SearchIcon
-							size={16}
-							className="text-muted-foreground shrink-0 opacity-60"
-						/>
-						<input
-							ref={inputRef}
-							type="text"
-							value={query}
-							onChange={(e) => setQuery(e.target.value)}
-							onKeyDown={handleKeyDown}
-							placeholder="搜索站点..."
-							autoComplete="off"
-							autoCorrect="off"
-							autoCapitalize="off"
-							spellCheck={false}
-							className="
-								flex-1 bg-transparent
-								text-sm text-foreground
-								placeholder:text-muted-foreground
-								outline-none border-none
-								font-[inherit]
-							"
-							aria-label="搜索站点"
-							aria-autocomplete="list"
-							aria-controls="cmd-results"
-							aria-activedescendant={
-								results[selectedIndex]
-									? `cmd-item-${results[selectedIndex].id}`
-									: undefined
-							}
-						/>
-						{query && (
-							<button
-								type="button"
-								onClick={() => setQuery('')}
-								className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-								aria-label="清除搜索"
-							>
-								<XIcon size={14} />
-							</button>
-						)}
-						{/* ⌘K 提示 */}
-						{!query && (
-							<div className="shrink-0 flex items-center gap-0.5">
-								<CommandIcon
-									size={11}
-									className="text-muted-foreground opacity-40"
-								/>
-								<span className="text-[11px] text-muted-foreground opacity-40">
-									K
-								</span>
-							</div>
-						)}
-					</div>
-
-					{/* 分组标题 */}
-					<div className="px-3 pt-2 pb-1">
-						<span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-							{query.trim() ? `搜索结果` : '最近添加 / 置顶'}
-						</span>
-					</div>
-
-					{/* 结果列表 */}
-					<div
-						ref={listRef}
-						id="cmd-results"
-						role="listbox"
-						aria-label="站点搜索结果"
-						className="px-1.5 pb-1.5 max-h-80 overflow-y-auto scrollbar-thin"
+		<dialog
+			ref={dialogRef}
+			aria-label="命令面板"
+			className="dialog-panel max-w-xl animate-scale-up"
+			onCancel={(event) => {
+				event.preventDefault()
+				onClose()
+			}}
+			onClick={(event) => {
+				if (event.target === event.currentTarget) onClose()
+				event.stopPropagation()
+			}}
+			onKeyDown={(e) => {
+				e.stopPropagation()
+			}}
+			tabIndex={-1}
+		>
+			<div className="flex max-h-[calc(100dvh_-_2rem)] flex-col">
+				{/* 搜索输入行 */}
+				<div className="dialog-header flex shrink-0 items-center gap-2">
+					<SearchIcon
+						size={16}
+						className="text-muted-foreground shrink-0 opacity-60"
+					/>
+					<input
+						ref={inputRef}
+						role="combobox"
+						aria-expanded="true"
+						aria-haspopup="listbox"
+						type="text"
+						value={query}
+						onChange={(e) => setQuery(e.target.value)}
+						onKeyDown={handleKeyDown}
+						placeholder="搜索站点..."
+						autoComplete="off"
+						autoCorrect="off"
+						autoCapitalize="off"
+						spellCheck={false}
+						className={inputVariants({ className: 'flex-1' })}
+						aria-label="搜索站点"
+						aria-autocomplete="list"
+						aria-controls="cmd-results"
+						aria-activedescendant={
+							results[selectedIndex]
+								? `cmd-item-${results[selectedIndex].source}-${results[selectedIndex].id}`
+								: undefined
+						}
+					/>
+					{query && (
+						<button
+							type="button"
+							onClick={() => setQuery('')}
+							className={buttonVariants({ variant: 'icon', size: 'sm' })}
+							aria-label="清除搜索"
+						>
+							<XIcon size={14} />
+						</button>
+					)}
+					<button
+						type="button"
+						onClick={onClose}
+						className={buttonVariants({ variant: 'icon', size: 'sm' })}
+						aria-label="关闭命令面板"
 					>
-						{results.length > 0 ? (
-							results.map((site, index) => (
-								<ResultItem
-									key={`${site.source}:${site.id}`}
-									site={site}
-									query={query}
-									selected={index === selectedIndex}
-									onMouseEnter={() => setSelectedIndex(index)}
-									onClick={() => openSelected(index)}
-								/>
-							))
-						) : (
-							<EmptyState query={query} />
-						)}
-					</div>
+						<XIcon size={16} />
+					</button>
+				</div>
 
-					{/* 页脚 */}
+				{/* 分组标题 */}
+				<div className="shrink-0 px-5 pt-3 pb-1">
+					<span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+						{query.trim() ? `搜索结果` : '最近添加 / 置顶'}
+					</span>
+				</div>
+
+				{/* 结果列表 */}
+				<div
+					ref={listRef}
+					id="cmd-results"
+					role="listbox"
+					aria-label="站点搜索结果"
+					className="min-h-0 flex-1 px-1.5 pb-1.5 max-h-80 overflow-y-auto overscroll-contain scrollbar-thin"
+				>
+					{results.length > 0 ? (
+						results.map((site, index) => (
+							<ResultItem
+								key={`${site.source}:${site.id}`}
+								site={site}
+								query={query}
+								selected={index === selectedIndex}
+								onMouseEnter={() => setSelectedIndex(index)}
+								onClick={() => openSelected(index)}
+							/>
+						))
+					) : (
+						<EmptyState query={query} />
+					)}
+				</div>
+
+				{/* 页脚 */}
+				<div className="dialog-footer shrink-0">
 					<Footer resultCount={results.length} />
 				</div>
 			</div>
-		</>
+		</dialog>
 	)
 }

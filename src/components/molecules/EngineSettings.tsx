@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Button, buttonVariants } from '@/components/atoms/Button'
 import { SettingsIcon } from '@/components/atoms/Icons'
 import { Switch } from '@/components/atoms/Switch'
 import type { UseEngineOrderReturn } from '@/hooks/useEngineOrder'
@@ -130,7 +131,7 @@ function EngineRow({
 			onDragOver={(e) => e.preventDefault()}
 			aria-label={`${engine.name}，拖拽或 Alt 加方向键重新排序`}
 			className={[
-				'flex min-w-0 items-center gap-2 px-3 py-2.5 rounded-lg',
+				'flex min-w-0 items-center gap-1.5 px-2 py-1 rounded-md',
 				'transition-all duration-100 select-none',
 				'border',
 				isDragOver
@@ -152,7 +153,7 @@ function EngineRow({
 					aria-label={`${direction < 0 ? '上移' : '下移'} ${engine.name}`}
 					disabled={direction < 0 ? index === 0 : isLast}
 					onClick={() => onMove(direction)}
-					className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+					className={buttonVariants({ variant: 'icon', size: 'sm' })}
 				>
 					<span aria-hidden="true">{direction < 0 ? '↑' : '↓'}</span>
 				</button>
@@ -162,7 +163,7 @@ function EngineRow({
 			<EngineIcon engine={engine} />
 
 			{/* 名称 */}
-			<span className="flex-1 text-xs font-medium text-foreground truncate">
+			<span className="min-w-0 flex-1 text-sm font-medium text-foreground truncate">
 				{engine.name}
 			</span>
 
@@ -260,14 +261,11 @@ export function EngineSettings({ engineOrder }: EngineSettingsProps) {
 				aria-label="搜索引擎设置"
 				aria-expanded={open}
 				title="搜索引擎设置"
-				className={[
-					'flex items-center justify-center',
-					'h-7 w-7 rounded-md',
-					'text-muted-foreground transition-colors duration-100',
-					'hover:text-foreground hover:bg-muted',
-					'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-					open ? 'text-foreground bg-muted' : '',
-				].join(' ')}
+				className={buttonVariants({
+					variant: 'icon',
+					size: 'sm',
+					className: open ? 'text-foreground bg-muted' : '',
+				})}
 			>
 				<SettingsIcon size={15} />
 			</button>
@@ -277,7 +275,7 @@ export function EngineSettings({ engineOrder }: EngineSettingsProps) {
 				<div
 					className="
 						absolute right-0 top-full mt-2 z-50
-						w-72
+						w-80 max-w-[calc(100vw_-_2rem)]
 						popover animate-in
 					"
 					role="dialog"
@@ -288,19 +286,16 @@ export function EngineSettings({ engineOrder }: EngineSettingsProps) {
 						<span className="text-xs font-semibold text-foreground">
 							搜索引擎
 						</span>
-						<button
-							type="button"
+						<Button
+							variant="ghost"
+							size="sm"
 							onClick={resetToDefault}
 							title="恢复默认"
-							className="
-								flex items-center gap-1 text-[11px] text-muted-foreground
-								hover:text-foreground transition-colors duration-100
-								focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded
-							"
+							className="text-muted-foreground"
 						>
 							<ResetIcon />
 							重置
-						</button>
+						</Button>
 					</div>
 
 					{/* 说明 */}
@@ -309,7 +304,7 @@ export function EngineSettings({ engineOrder }: EngineSettingsProps) {
 					</p>
 
 					{/* 引擎列表 */}
-					<div className="px-1.5 pb-2 space-y-0.5">
+					<div className="max-h-[min(24rem,50dvh)] overflow-y-auto overscroll-contain scrollbar-thin px-1.5 pb-2 space-y-0.5">
 						{engines.map((engine, i) => (
 							<EngineRow
 								key={engine.id}

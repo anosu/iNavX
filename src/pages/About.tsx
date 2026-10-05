@@ -70,10 +70,10 @@ export default function About() {
 					<p className="text-xs text-primary tracking-widest">
 						你的常用网站，从这里出发
 					</p>
-					<h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">
+					<h1 className="text-3xl sm:text-4xl font-semibold tracking-tight break-words">
 						使用 {settings.name}
 					</h1>
-					<p className="max-w-2xl text-muted-foreground leading-relaxed">
+					<p className="max-w-2xl text-muted-foreground leading-relaxed break-words">
 						{settings.description}
 					</p>
 					<div className="flex flex-wrap gap-2">
@@ -174,7 +174,9 @@ export default function About() {
 			</main>
 			<footer className="border-t border-border">
 				<div className="max-w-4xl mx-auto px-4 sm:px-6 py-5 flex flex-wrap justify-between gap-3 text-xs text-muted-foreground">
-					<span>{settings.name} · 公共导航与个人收藏</span>
+					<span className="min-w-0 break-words">
+						{settings.name} · 公共导航与个人收藏
+					</span>
 					<nav aria-label="页脚导航" className="flex gap-4">
 						<Link to="/">首页</Link>
 						{settings.applicationsEnabled && <Link to="/submit">申请收录</Link>}

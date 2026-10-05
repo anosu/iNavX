@@ -40,16 +40,17 @@ export interface UseThemeReturn {
 
 /* ---- 组件 Props ---- */
 
-export interface BadgeProps {
+export interface BadgeProps extends React.AriaAttributes {
 	children: React.ReactNode
 	variant?: 'default' | 'primary' | 'active'
 	className?: string
 	onClick?: () => void
+	title?: string
 }
 
 export interface ButtonProps
 	extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-	variant?: 'primary' | 'secondary' | 'ghost' | 'icon'
+	variant?: 'primary' | 'secondary' | 'ghost' | 'icon' | 'danger'
 	size?: 'sm' | 'md' | 'lg'
 	loading?: boolean
 	children: React.ReactNode

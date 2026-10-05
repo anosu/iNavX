@@ -10,6 +10,7 @@ import { ADMIN_PAGE_SIZE } from '../../../shared/limits'
 import {
 	buttonClass,
 	Dialog,
+	dangerClass,
 	EmptyState,
 	Field,
 	inputClass,
@@ -74,6 +75,7 @@ function SiteEditor({
 	const [error, setError] = useState('')
 	return (
 		<Dialog
+			size="lg"
 			title={site ? '编辑站点' : '新增站点'}
 			description={
 				site?.deletedAt
@@ -103,7 +105,7 @@ function SiteEditor({
 								继续编辑
 							</button>
 							<button
-								className={`${buttonClass} text-error`}
+								className={dangerClass}
 								type="button"
 								disabled={busy}
 								onClick={cancel}
@@ -323,7 +325,7 @@ export function SitesPanel({
 			<button
 				type="button"
 				disabled={busy}
-				className={`${buttonClass} text-error`}
+				className={dangerClass}
 				onClick={() => {
 					setDeleteError('')
 					setDeleting(site)
@@ -373,7 +375,7 @@ export function SitesPanel({
 						: '搜索名称、地址、描述或标签，按分类快速定位。'
 				}
 			>
-				<div className="flex flex-wrap gap-2">
+				<div className="flex flex-wrap items-center gap-2">
 					<input
 						aria-label="搜索公共站点"
 						className={`${inputClass} sm:max-w-xs`}
@@ -430,7 +432,7 @@ export function SitesPanel({
 					{rows.map((site) => (
 						<article
 							key={site.id}
-							className="rounded-xl border border-border p-4 space-y-3"
+							className="rounded-card border border-border p-3 space-y-3"
 						>
 							<div>
 								<a

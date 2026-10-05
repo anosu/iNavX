@@ -353,7 +353,7 @@ export function NavCard({
 				rel="noopener noreferrer"
 				aria-label={`${name} — ${description}（在新标签页中打开）`}
 				className={[
-					'card-interactive group relative flex flex-col gap-2 p-3',
+					'card-interactive group relative flex min-w-0 flex-col gap-2 p-3',
 					'no-underline text-foreground no-tap-highlight',
 					'focus-visible:outline-none focus-visible:ring-2',
 					'focus-visible:ring-primary focus-visible:ring-offset-2',
@@ -450,13 +450,11 @@ export function NavCard({
 					<div
 						className="
 							shrink-0 flex items-center gap-0.5
-							opacity-0 group-hover:opacity-100
+									opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100
 							transition-opacity duration-100
 						"
 						onClick={(e) => e.preventDefault()}
-						onKeyDown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') e.preventDefault()
-						}}
+						onKeyDown={(e) => e.stopPropagation()}
 						role="toolbar"
 						aria-label="快捷操作"
 					>
@@ -547,18 +545,22 @@ export function NavCard({
 					</div>
 				</div>
 
-				<p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed">
+				<p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed break-words">
 					{highlightText(description, searchQuery)}
 				</p>
 
-				<div className="mt-auto flex items-center justify-between pt-0.5">
-					<Badge variant="primary" className="badge-desktop-md">
-						{category}
+				<div className="mt-auto flex min-w-0 items-center justify-between gap-2 pt-0.5">
+					<Badge
+						variant="primary"
+						className="min-w-0 badge-desktop-md"
+						title={category}
+					>
+						<span className="truncate">{category}</span>
 					</Badge>
 					{rank !== undefined && (
 						<span
 							className="
-								inline-flex items-center justify-center
+								inline-flex shrink-0 items-center justify-center
 								h-4 min-w-4 px-1
 								rounded text-[10px] font-semibold tabular-nums leading-none
 								bg-muted text-muted-foreground
