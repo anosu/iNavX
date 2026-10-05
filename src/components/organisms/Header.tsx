@@ -270,11 +270,11 @@ export function Header({
 					{onAddSite && (
 						<Button
 							variant="primary"
+							size="sm"
 							onClick={onAddSite}
 							aria-label="添加站点"
-							className="w-9 px-0 sm:w-auto sm:px-3.5"
 						>
-							<PlusIcon size={16} />
+							<PlusIcon size={14} />
 							<span className="hidden sm:inline">添加</span>
 						</Button>
 					)}
