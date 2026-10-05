@@ -7,6 +7,7 @@ import {
 	XIcon,
 } from '@/components/atoms/Icons'
 import { inputVariants } from '@/components/atoms/Input'
+import { ResourceImage } from '@/components/atoms/ResourceImage'
 import { Switch } from '@/components/atoms/Switch'
 import { SITE_CATEGORIES } from '@/data/categories'
 import { useDialogLifecycle } from '@/hooks/useDialogLifecycle'
@@ -166,7 +167,7 @@ function FaviconPreview({
 
 	const iconContent =
 		displayUrl && displayUrl !== failedUrl ? (
-			<img
+			<ResourceImage
 				key={displayUrl}
 				src={displayUrl}
 				alt=""
@@ -255,7 +256,7 @@ function FaviconPreview({
 							{/* 实时预览 */}
 							<div className="h-8 w-8 shrink-0 rounded-md bg-muted border border-border flex items-center justify-center overflow-hidden">
 								{previewUrl && !previewErr ? (
-									<img
+									<ResourceImage
 										src={previewUrl}
 										alt=""
 										width={32}

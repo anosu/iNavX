@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { buttonVariants } from '@/components/atoms/Button'
 import { ExternalLinkIcon, SearchIcon, XIcon } from '@/components/atoms/Icons'
 import { inputVariants } from '@/components/atoms/Input'
+import { ResourceImage } from '@/components/atoms/ResourceImage'
 import { getCategoryColor } from '@/data/categories'
 import { useDialogLifecycle } from '@/hooks/useDialogLifecycle'
 import { useSiteIconUrl } from '@/hooks/useImageUrl'
@@ -97,7 +98,7 @@ function SiteAvatar({ site }: { site: Site }) {
 	}
 
 	return (
-		<img
+		<ResourceImage
 			src={iconUrl}
 			alt=""
 			width={24}

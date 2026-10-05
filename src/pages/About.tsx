@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { buttonClass, Panel, primaryClass } from '@/components/admin/ui'
 import { NavLogoIcon } from '@/components/atoms/Icons'
+import { ResourceImage } from '@/components/atoms/ResourceImage'
 import { ThemeToggle } from '@/components/molecules/ThemeToggle'
 import { useImageUrl } from '@/hooks/useImageUrl'
 import { usePublicCatalog } from '@/hooks/usePublicCatalog'
@@ -50,7 +51,7 @@ export default function About() {
 						to="/"
 					>
 						{logoUrl && logoUrl !== failedUrl ? (
-							<img
+							<ResourceImage
 								key={logoUrl}
 								src={logoUrl}
 								onError={() => setFailedUrl(logoUrl)}

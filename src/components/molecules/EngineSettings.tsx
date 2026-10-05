@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, buttonVariants } from '@/components/atoms/Button'
 import { SettingsIcon } from '@/components/atoms/Icons'
+import { ResourceImage } from '@/components/atoms/ResourceImage'
 import { Switch } from '@/components/atoms/Switch'
 import type { UseEngineOrderReturn } from '@/hooks/useEngineOrder'
 import { useImageUrl } from '@/hooks/useImageUrl'
@@ -71,7 +72,7 @@ function EngineIcon({ engine }: { engine: Engine }) {
 		)
 	}
 	return (
-		<img
+		<ResourceImage
 			src={iconUrl}
 			alt=""
 			width={20}

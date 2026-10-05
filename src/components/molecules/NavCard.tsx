@@ -8,6 +8,7 @@ import {
 	PinOffIcon,
 	TrashIcon,
 } from '@/components/atoms/Icons'
+import { ResourceImage } from '@/components/atoms/ResourceImage'
 import {
 	buildSiteActions,
 	ContextMenu,
@@ -121,7 +122,7 @@ function SiteIcon({
 					{initial}
 				</div>
 			)}
-			<img
+			<ResourceImage
 				key={iconUrl}
 				src={iconUrl}
 				alt=""

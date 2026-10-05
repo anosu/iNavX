@@ -7,6 +7,7 @@ import {
 	NavLogoIcon,
 	PlusIcon,
 } from '@/components/atoms/Icons'
+import { ResourceImage } from '@/components/atoms/ResourceImage'
 import { SearchBar } from '@/components/molecules/SearchBar'
 import { ThemeToggle } from '@/components/molecules/ThemeToggle'
 import { useImageUrl } from '@/hooks/useImageUrl'
@@ -154,7 +155,7 @@ function Logo() {
 	return (
 		<div className="flex items-center gap-2 shrink-0">
 			{logoUrl && logoUrl !== failedUrl ? (
-				<img
+				<ResourceImage
 					key={logoUrl}
 					src={logoUrl}
 					onError={() => setFailedUrl(logoUrl)}

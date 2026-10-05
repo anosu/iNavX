@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ResourceImage } from '@/components/atoms/ResourceImage'
 import { NavCard } from '@/components/molecules/NavCard'
 import { useImageUrl } from '@/hooks/useImageUrl'
 import type { NavGridProps } from '@/types'
@@ -146,7 +147,7 @@ function EngineIcon({ engine }: { engine: Engine }) {
 					{name[0]}
 				</span>
 			)}
-			<img
+			<ResourceImage
 				key={iconUrl}
 				src={iconUrl}
 				alt=""

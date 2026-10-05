@@ -3,6 +3,7 @@ import type { ThemeMode, UseThemeReturn } from '@/types'
 import { usePublicCatalog } from './usePublicCatalog'
 
 const STORAGE_KEY = 'inav-theme'
+let themeTransitionTimer: number | undefined
 
 function getSystemTheme(): 'light' | 'dark' {
 	if (typeof window === 'undefined') return 'light'
@@ -18,6 +19,20 @@ function resolveTheme(mode: ThemeMode): 'light' | 'dark' {
 
 function applyThemeToDom(resolved: 'light' | 'dark'): void {
 	const root = document.documentElement
+	if (
+		root.dataset.theme !== resolved &&
+		document.body.classList.contains('theme-ready')
+	) {
+		root.classList.add('theme-switching')
+		window.clearTimeout(themeTransitionTimer)
+		const duration = Number.parseFloat(
+			getComputedStyle(root).getPropertyValue('--duration-theme'),
+		)
+		themeTransitionTimer = window.setTimeout(
+			() => root.classList.remove('theme-switching'),
+			duration,
+		)
+	}
 	root.dataset.theme = resolved
 	root.style.colorScheme = resolved
 }

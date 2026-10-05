@@ -66,7 +66,7 @@
 	--duration-fast: 100ms;
 	--duration-normal: 150ms;
 	--duration-slow: 250ms;
-	--duration-theme: 200ms;
+	--duration-theme: 350ms;
 
 	/* ---------- z-index 层级 ---------- */
 	--z-header: 50;
@@ -155,8 +155,8 @@
 
 	body.theme-ready {
 		transition:
-			background-color var(--duration-theme) ease,
-			color var(--duration-theme) ease;
+			background-color var(--duration-theme) ease-in-out,
+			color var(--duration-theme) ease-in-out;
 	}
 
 	a {
@@ -221,6 +221,13 @@
 			scroll-behavior: auto !important;
 		}
 	}
+}
+
+/* 切换时统一表面过渡，避免继承文字颜色的嵌套动画反复重启。 */
+.theme-switching * {
+	transition-property: background-color, border-color, box-shadow;
+	transition-duration: var(--duration-theme);
+	transition-timing-function: ease-in-out;
 }
 
 /* ============================================================
