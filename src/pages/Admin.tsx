@@ -19,15 +19,15 @@ import {
 import { buttonVariants } from '@/components/atoms/Button'
 import { XIcon } from '@/components/atoms/Icons'
 import { ThemeToggle } from '@/components/molecules/ThemeToggle'
-import { ApiError, requestAdminApi } from '@/utils/adminApi'
+import { ApiError, requestAdminApi, requestAdminData } from '@/utils/adminApi'
+import {
+	type AuthStatus,
+	applicationListSchema,
+	authResultSchema,
+	authStatusSchema,
+} from '../../shared/adminApi'
 import { type Catalog, catalogSchema } from '../../shared/catalog'
 
-interface AuthStatus {
-	initialized: boolean
-	authenticated: boolean
-	csrf?: string
-	username?: string
-}
 const tabs = [
 	{
 		id: 'sites',
@@ -86,15 +86,16 @@ export default function Admin() {
 		error: boolean
 	} | null>(null)
 	const refresh = useCallback(async () => {
-		setData(catalogSchema.parse(await requestAdminApi('admin/catalog')))
-		const result = await requestAdminApi<{ counts: { pending: number } }>(
+		setData(await requestAdminData('admin/catalog', catalogSchema))
+		const result = await requestAdminData(
 			'admin/applications?page=1',
+			applicationListSchema,
 		)
 		setPendingCount(result.counts.pending)
 	}, [])
 	const load = useCallback(async () => {
 		try {
-			const next = await requestAdminApi<AuthStatus>('auth/status')
+			const next = await requestAdminData('auth/status', authStatusSchema)
 			setStatus(next)
 			if (next.authenticated) await refresh()
 			setNotice(null)
@@ -182,7 +183,7 @@ export default function Admin() {
 									<span className="max-w-28 truncate">{status.username}</span>
 								</button>
 							)}
-							{confirmLogout && status && (
+							{confirmLogout && status?.authenticated && (
 								<Dialog
 									title="退出后台"
 									description={
@@ -298,8 +299,9 @@ export default function Admin() {
 												? { token: String(form.get('token')) }
 												: {}),
 										}
-										requestAdminApi<{ csrf: string; username: string }>(
+										requestAdminData(
 											`auth/${status.initialized ? 'login' : 'setup'}`,
+											authResultSchema,
 											undefined,
 											value,
 										)

@@ -203,12 +203,6 @@ export const reviewSchema = z.discriminatedUnion('action', [
 export type Application = z.infer<typeof applicationSchema>
 export type ApplicationInput = z.infer<typeof applicationInputSchema>
 export type ReviewInput = z.infer<typeof reviewSchema>
-export interface ApplicationList {
-	items: Application[]
-	total: number
-	counts: Record<Application['status'], number>
-}
-
 export const migrationSchema = z
 	.object({
 		format: z.literal('inav-catalog'),

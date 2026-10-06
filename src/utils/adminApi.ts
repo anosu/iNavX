@@ -1,3 +1,5 @@
+import type { z } from 'zod'
+
 export class ApiError extends Error {
 	readonly status: number
 
@@ -10,13 +12,13 @@ export class ApiError extends Error {
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
-// The transport checks HTTP errors; callers validate successful domain payloads.
-export async function requestAdminApi<T = unknown>(
+// Mutation callers may ignore successful bodies; consumed data must use requestAdminData.
+export async function requestAdminApi(
 	path: string,
 	csrfToken?: string,
 	requestBody?: unknown,
 	method?: HttpMethod,
-): Promise<T> {
+): Promise<unknown> {
 	const response = await fetch(`/api/${path}`, {
 		method: method ?? (requestBody === undefined ? 'GET' : 'POST'),
 		credentials: 'same-origin',
@@ -31,7 +33,12 @@ export async function requestAdminApi<T = unknown>(
 	if (!response.headers.get('Content-Type')?.includes('application/json'))
 		throw new ApiError(response.status, '后台接口不可用，请先启动服务端')
 
-	const responseBody: unknown = await response.json()
+	let responseBody: unknown
+	try {
+		responseBody = await response.json()
+	} catch {
+		throw new ApiError(response.status, '后台响应格式异常，请刷新后重试')
+	}
 	if (!response.ok) {
 		const message =
 			responseBody !== null &&
@@ -43,5 +50,19 @@ export async function requestAdminApi<T = unknown>(
 				: '操作失败'
 		throw new ApiError(response.status, message)
 	}
-	return responseBody as T
+	return responseBody
+}
+
+export async function requestAdminData<T>(
+	path: string,
+	schema: z.ZodType<T>,
+	csrfToken?: string,
+	requestBody?: unknown,
+	method?: HttpMethod,
+): Promise<T> {
+	const result = schema.safeParse(
+		await requestAdminApi(path, csrfToken, requestBody, method),
+	)
+	if (!result.success) throw new ApiError(200, '后台响应格式异常，请刷新后重试')
+	return result.data
 }

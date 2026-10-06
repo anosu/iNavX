@@ -397,7 +397,7 @@ test('personal restore rolls back completely when storage fills after partial wr
 				theme: null,
 				engines: null,
 			}),
-		/QuotaExceededError/,
+		/保存失败/,
 	)
 	assert.deepEqual(stored, original)
 	assert.equal(reloaded, false)

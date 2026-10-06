@@ -457,6 +457,21 @@
 		color: var(--color-primary-foreground);
 	}
 
+	.site-tag:not(:disabled):hover {
+		color: var(--color-primary);
+	}
+
+	.site-tag[aria-pressed="true"]:not(:disabled):hover {
+		background-color: var(--color-primary-hover);
+		color: var(--color-primary-foreground);
+	}
+
+	.site-tags-popover {
+		display: flex;
+		flex-direction: column;
+		max-height: 15rem;
+	}
+
 	.badge-success {
 		background-color: var(--color-success-bg);
 		color: var(--color-success);

@@ -9,6 +9,7 @@ import {
 } from '@/components/atoms/Icons'
 import type { UseBookmarksReturn } from '@/hooks/useBookmarks'
 import type { Site } from '@/types'
+import { StorageWriteError } from '@/utils/browserStorage'
 
 /* ---- 图标 ---- */
 
@@ -108,9 +109,11 @@ export function BookmarkIO({
 						'success',
 					)
 				}
-			} catch {
+			} catch (error) {
 				showToast(
-					'文件解析失败，请确认是有效的书签 HTML 或个人 JSON 文件',
+					error instanceof StorageWriteError
+						? error.message
+						: '文件解析失败，请确认是有效的书签 HTML 或个人 JSON 文件',
 					'error',
 				)
 			} finally {
@@ -270,9 +273,16 @@ export function BookmarkIO({
 							variant="danger"
 							size="sm"
 							onClick={() => {
-								bookmarks.clearImported?.()
-								setShowClearConfirm(false)
-								showToast('已清除所有导入书签', 'success')
+								try {
+									bookmarks.clearImported?.()
+									setShowClearConfirm(false)
+									showToast('已清除所有导入书签', 'success')
+								} catch (error) {
+									showToast(
+										error instanceof Error ? error.message : '清除失败，请重试',
+										'error',
+									)
+								}
 							}}
 							aria-label="确认清除"
 						>
@@ -314,9 +324,19 @@ export function BookmarkIO({
 						<Button
 							size="sm"
 							onClick={() => {
-								onRestoreBuiltin()
-								setShowRestoreConfirm(false)
-								showToast(`已恢复 ${hiddenBuiltinCount} 个内置站点`, 'success')
+								try {
+									onRestoreBuiltin()
+									setShowRestoreConfirm(false)
+									showToast(
+										`已恢复 ${hiddenBuiltinCount} 个内置站点`,
+										'success',
+									)
+								} catch (error) {
+									showToast(
+										error instanceof Error ? error.message : '恢复失败，请重试',
+										'error',
+									)
+								}
 							}}
 							aria-label="确认恢复"
 						>

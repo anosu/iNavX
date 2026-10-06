@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { requestAdminApi } from '@/utils/adminApi'
+import { requestAdminApi, requestAdminData } from '@/utils/adminApi'
 import { parseCatalogImport } from '@/utils/catalogImport'
+import {
+	type DatabaseBackup,
+	databaseBackupsSchema,
+	type ImportPreview,
+	importPreviewSchema,
+	importResultSchema,
+} from '../../../shared/adminApi'
 import type { Catalog, MigrationPackage } from '../../../shared/catalog'
 import { MAX_API_BODY_BYTES } from '../../../shared/limits'
 import {
@@ -12,19 +19,6 @@ import {
 	primaryClass,
 	type RunAdminAction,
 } from './ui'
-
-interface ImportPreview {
-	categories: number
-	sites: number
-	trash: number
-	engines: number
-	revision: string
-	applications: number
-}
-interface DatabaseBackup {
-	name: string
-	size: number
-}
 
 export function BackupsPanel({
 	data,
@@ -54,7 +48,7 @@ export function BackupsPanel({
 	const [mode, setMode] = useState<'merge' | 'replace'>('merge')
 	const [confirmation, setConfirmation] = useState('')
 	const load = useCallback(() => {
-		requestAdminApi<DatabaseBackup[]>('admin/backups')
+		requestAdminData('admin/backups', databaseBackupsSchema)
 			.then((next) => {
 				setBackups(next)
 				setBackupError('')
@@ -179,8 +173,9 @@ export function BackupsPanel({
 							.then(async (text) => {
 								if (generation !== previewGeneration.current) return
 								const parsedImport = parseCatalogImport(text, file.name, data)
-								const preview = await requestAdminApi<ImportPreview>(
+								const preview = await requestAdminData(
 									'admin/import/preview',
+									importPreviewSchema,
 									csrf,
 									parsedImport.package,
 								)
@@ -268,22 +263,20 @@ export function BackupsPanel({
 									async () => {
 										setError('')
 										try {
-											const result = await requestAdminApi<{
-												added?: number
-												skipped?: number
-												conflicts?: string[]
-												backup: string
-												applicationsAdded?: number
-												applicationsSkipped?: number
-											}>('admin/import', csrf, {
-												package: pending.package,
-												mode,
-												revision: pending.preview.revision,
-												confirmation,
-											})
+											const result = await requestAdminData(
+												'admin/import',
+												importResultSchema,
+												csrf,
+												{
+													package: pending.package,
+													mode,
+													revision: pending.preview.revision,
+													confirmation,
+												},
+											)
 											setPending(null)
 											load()
-											if (result.added !== undefined)
+											if ('added' in result)
 												setReport(
 													'导入结果：新增 ' +
 														result.added +

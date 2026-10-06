@@ -24,13 +24,9 @@ func instanceLock(c Config, exclusive bool) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	mode := syscall.LOCK_SH
-	if exclusive {
-		mode = syscall.LOCK_EX
-	}
-	if err = syscall.Flock(int(file.Fd()), mode|syscall.LOCK_NB); err != nil {
+	if err = lockInstance(file, exclusive); err != nil {
 		file.Close()
-		return nil, fmt.Errorf("实例正在运行，请先停止服务再执行恢复或迁移")
+		return nil, fmt.Errorf("无法获取实例锁，请先停止冲突的服务再执行恢复或迁移: %w", err)
 	}
 	return file, nil
 }

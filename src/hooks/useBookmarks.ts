@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback } from 'react'
 import { z } from 'zod'
 import type { BookmarkImportResult, Site } from '@/types'
 import { extractDomain, getFaviconUrl } from '@/utils/favicon'
@@ -8,6 +8,7 @@ import {
 	restorePersonalData,
 } from '@/utils/personalData'
 import { normalizeUrl } from '../../shared/catalog'
+import { useStoredState } from './useStoredState'
 
 const STORAGE_KEY = 'inav-imported-sites'
 
@@ -16,14 +17,6 @@ function loadFromStorage(): Site[] {
 		return readStoredSites(localStorage.getItem(STORAGE_KEY), 'imported')
 	} catch {
 		return []
-	}
-}
-
-function saveToStorage(sites: Site[]): void {
-	try {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(sites))
-	} catch {
-		/* Imported bookmarks remain usable for this visit if storage is unavailable. */
 	}
 }
 
@@ -110,16 +103,10 @@ export interface UseBookmarksReturn {
 }
 
 export function useBookmarks(): UseBookmarksReturn {
-	const [importedSites, setImportedSites] = useState<Site[]>(() =>
-		loadFromStorage(),
+	const [importedSites, setImportedSites] = useStoredState(
+		STORAGE_KEY,
+		loadFromStorage,
 	)
-	const previousSites = useRef(importedSites)
-
-	useEffect(() => {
-		if (previousSites.current === importedSites) return
-		previousSites.current = importedSites
-		saveToStorage(importedSites)
-	}, [importedSites])
 
 	const importFromHtml = useCallback(
 		(html: string): BookmarkImportResult => {
@@ -128,19 +115,25 @@ export function useBookmarks(): UseBookmarksReturn {
 			setImportedSites((prev) => [...prev, ...result.sites])
 			return result
 		},
-		[importedSites],
+		[importedSites, setImportedSites],
 	)
 
-	const removeImported = useCallback((id: string) => {
-		setImportedSites((prev) => prev.filter((s) => s.id !== id))
-	}, [])
-	const updateImported = useCallback((id: string, value: Partial<Site>) => {
-		setImportedSites((previous) =>
-			previous.map((site) =>
-				site.id === id ? { ...site, ...value, id, source: 'imported' } : site,
-			),
-		)
-	}, [])
+	const removeImported = useCallback(
+		(id: string) => {
+			setImportedSites((prev) => prev.filter((s) => s.id !== id))
+		},
+		[setImportedSites],
+	)
+	const updateImported = useCallback(
+		(id: string, value: Partial<Site>) => {
+			setImportedSites((previous) =>
+				previous.map((site) =>
+					site.id === id ? { ...site, ...value, id, source: 'imported' } : site,
+				),
+			)
+		},
+		[setImportedSites],
+	)
 	const importFromJson = useCallback(
 		(json: string): BookmarkImportResult => {
 			const raw: unknown = JSON.parse(json)
@@ -174,12 +167,12 @@ export function useBookmarks(): UseBookmarksReturn {
 				sites,
 			}
 		},
-		[importedSites],
+		[importedSites, setImportedSites],
 	)
 
 	const clearImported = useCallback(() => {
 		setImportedSites([])
-	}, [])
+	}, [setImportedSites])
 
 	const exportToJson = useCallback((visibleSites: Site[]) => {
 		const blob = new Blob([JSON.stringify(visibleSites, null, 2)], {

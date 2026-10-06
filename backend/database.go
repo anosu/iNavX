@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -36,8 +37,22 @@ func uuid() string {
 	b[8] = b[8]&63 | 128
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
+func sqliteFileURL(path string) (url.URL, error) {
+	absolutePath, err := filepath.Abs(path)
+	if err != nil {
+		return url.URL{}, err
+	}
+	uriPath := filepath.ToSlash(absolutePath)
+	if !strings.HasPrefix(uriPath, "/") {
+		uriPath = "/" + uriPath
+	}
+	return url.URL{Scheme: "file", Path: uriPath}, nil
+}
 func openSQLite(path string, readonly bool) (*sql.DB, error) {
-	u := url.URL{Scheme: "file", Path: path}
+	u, err := sqliteFileURL(path)
+	if err != nil {
+		return nil, err
+	}
 	q := u.Query()
 	q.Set("_busy_timeout", "5000")
 	q.Set("_foreign_keys", "on")
@@ -233,7 +248,12 @@ func backupDatabase(source *sql.DB, path string) (err error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	destination, err := sql.Open("sqlite3", "file:"+filepath.ToSlash(path)+"?_busy_timeout=5000")
+	u, err := sqliteFileURL(path)
+	if err != nil {
+		return err
+	}
+	u.RawQuery = "_busy_timeout=5000"
+	destination, err := sql.Open("sqlite3", u.String())
 	if err != nil {
 		return err
 	}

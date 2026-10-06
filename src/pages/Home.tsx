@@ -402,33 +402,46 @@ export default function Home() {
 
 	const confirmDelete = useCallback(() => {
 		if (!deletingSite) return
+		try {
+			if (deletingSite.source === 'builtin') {
+				// 内置站点：本地隐藏
+				hideBuiltin(deletingSite.id)
+				showToast(`「${deletingSite.name}」已在本地隐藏`, 'success')
+			} else if (deletingSite.source === 'imported') {
+				// 导入站点：从导入列表中删除
+				removeImported(deletingSite.id)
+				showToast(`「${deletingSite.name}」已删除`, 'success')
+			} else {
+				// 自定义站点：真删除
+				removeSite(deletingSite.id)
+				showToast(`「${deletingSite.name}」已删除`, 'success')
+			}
 
-		if (deletingSite.source === 'builtin') {
-			// 内置站点：本地隐藏
-			hideBuiltin(deletingSite.id)
-			showToast(`「${deletingSite.name}」已在本地隐藏`, 'success')
-		} else if (deletingSite.source === 'imported') {
-			// 导入站点：从导入列表中删除
-			removeImported(deletingSite.id)
-			showToast(`「${deletingSite.name}」已删除`, 'success')
-		} else {
-			// 自定义站点：真删除
-			removeSite(deletingSite.id)
-			showToast(`「${deletingSite.name}」已删除`, 'success')
+			setDeletingSite(undefined)
+		} catch (error) {
+			showToast(
+				error instanceof Error ? error.message : '操作失败，请重试',
+				'error',
+			)
 		}
-
-		setDeletingSite(undefined)
 	}, [deletingSite, hideBuiltin, removeImported, removeSite, showToast])
 
 	// ---- 置顶回调（仅 custom 站点支持，builtin 不支持 pin） ----
 	const handleTogglePin = useCallback(
 		(site: Site) => {
 			if (site.source !== 'custom') return
-			togglePin(site.id)
-			showToast(
-				site.pinned ? '已取消置顶' : `「${site.name}」已置顶`,
-				'success',
-			)
+			try {
+				togglePin(site.id)
+				showToast(
+					site.pinned ? '已取消置顶' : `「${site.name}」已置顶`,
+					'success',
+				)
+			} catch (error) {
+				showToast(
+					error instanceof Error ? error.message : '保存失败，请重试',
+					'error',
+				)
+			}
 		},
 		[togglePin, showToast],
 	)
@@ -472,7 +485,7 @@ export default function Home() {
 				)}
 				{/* 工具栏：分类筛选 + 书签导入导出 */}
 				<div className="flex flex-col sm:flex-row sm:items-center gap-2">
-					<div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
+					<div className="flex-1 min-w-0">
 						<CategoryFilter
 							categories={categories}
 							activeCategory={activeCategory}

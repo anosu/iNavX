@@ -1,12 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { TagInput } from '@/components/molecules/TagInput'
-import { requestAdminApi } from '@/utils/adminApi'
-import type {
-	Application,
-	ApplicationList,
-	Catalog,
-	SiteInput,
-} from '../../../shared/catalog'
+import { requestAdminApi, requestAdminData } from '@/utils/adminApi'
+import {
+	type ApplicationList,
+	applicationListSchema,
+} from '../../../shared/adminApi'
+import type { Application, Catalog, SiteInput } from '../../../shared/catalog'
 import { httpUrl, normalizeUrl, reviewSchema } from '../../../shared/catalog'
 import { createTagInput, readTagInput } from '../../../shared/tags'
 import {
@@ -435,7 +434,7 @@ export function ApplicationsPanel({
 			q: search,
 			...(status ? { status } : {}),
 		})
-		void requestAdminApi<ApplicationList>(`admin/applications?${params}`)
+		void requestAdminData(`admin/applications?${params}`, applicationListSchema)
 			.then((next) => {
 				if (active) {
 					setResult(next)

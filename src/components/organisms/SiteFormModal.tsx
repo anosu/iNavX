@@ -20,71 +20,10 @@ import {
 	type ValidationError,
 	validateSitePayload,
 } from '@/hooks/useSiteManager'
+import { useSiteMetadata } from '@/hooks/useSiteMetadata'
 import type { Site } from '@/types'
+import { httpUrl } from '../../../shared/catalog'
 import { createTagInput, readTagInput } from '../../../shared/tags'
-
-/* ============================================================
-   useFetchMeta
-   通过站点配置的元数据代理抓取目标页面的 title / description。
-   - 仅在添加模式下、URL 合法时触发
-   - 600ms 防抖，避免频繁请求
-   - 静默失败：网络错误或解析异常均不影响表单使用
-   ============================================================ */
-
-interface PageMeta {
-	title: string
-	description: string
-}
-
-async function fetchPageMeta(
-	url: string,
-	template: string,
-	signal: AbortSignal,
-): Promise<PageMeta | null> {
-	try {
-		if (!template) return null
-		const proxyUrl = template.replaceAll('{url}', encodeURIComponent(url))
-		const res = await fetch(proxyUrl, {
-			signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]),
-		})
-		if (!res.ok) return null
-		const html = await res.text()
-		if (!html) return null
-
-		const doc = new DOMParser().parseFromString(html, 'text/html')
-
-		const title = doc.querySelector('title')?.textContent?.trim() ?? ''
-
-		const description =
-			doc
-				.querySelector('meta[name="description"]')
-				?.getAttribute('content')
-				?.trim() ||
-			doc
-				.querySelector('meta[property="og:description"]')
-				?.getAttribute('content')
-				?.trim() ||
-			doc
-				.querySelector('meta[name="twitter:description"]')
-				?.getAttribute('content')
-				?.trim() ||
-			''
-
-		if (!title && !description) return null
-		return { title, description }
-	} catch {
-		return null
-	}
-}
-
-function isValidUrl(url: string): boolean {
-	try {
-		const u = new URL(url.trim())
-		return u.protocol === 'http:' || u.protocol === 'https:'
-	} catch {
-		return false
-	}
-}
 
 /* ============================================================
    SiteFormModal
@@ -436,6 +375,7 @@ export function SiteFormModal({
 	)
 	const [errors, setErrors] = useState<ValidationError[]>([])
 	const [submitted, setSubmitted] = useState(false)
+	const [submitError, setSubmitError] = useState('')
 	const [tags, setTags] = useState(createTagInput(editSite?.tags ?? []))
 	const [creatingCategory, setCreatingCategory] = useState(false)
 	const [categoryInput, setCategoryInput] = useState('')
@@ -451,24 +391,16 @@ export function SiteFormModal({
 	const backdropHandlers = useDialogBackdropClose(dirty ? undefined : onClose)
 	const firstInputRef = useRef<HTMLInputElement>(null)
 
-	// ---- 自动获取元数据状态 ----
-	const [fetchStatus, setFetchStatus] = useState<
-		'idle' | 'loading' | 'done' | 'error'
-	>('idle')
-	// 防抖 timer
-	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-	const metadataRequestRef = useRef<AbortController | null>(null)
-	const formRef = useRef(form)
-	formRef.current = form
+	const { fetchStatus, cancelMetadata, handleRefreshMeta } = useSiteMetadata(
+		open,
+		isEdit,
+		form,
+		setForm,
+		metadataTemplate,
+	)
 	const categoriesRef = useRef(categories)
 	categoriesRef.current = categories
 	const dialogRef = useDialogLifecycle(open)
-	const cancelMetadata = useCallback(() => {
-		if (debounceRef.current) clearTimeout(debounceRef.current)
-		debounceRef.current = null
-		metadataRequestRef.current?.abort()
-		metadataRequestRef.current = null
-	}, [])
 
 	// 打开时初始化 / 重置
 	useEffect(() => {
@@ -487,11 +419,11 @@ export function SiteFormModal({
 			setDiscardAction(null)
 			setErrors([])
 			setSubmitted(false)
+			setSubmitError('')
 			setTags(createTagInput(initial.tags ?? []))
 			setCreatingCategory(false)
 			setCategoryInput('')
 			setCategoryError('')
-			setFetchStatus('idle')
 			cancelMetadata()
 			requestAnimationFrame(() => firstInputRef.current?.focus())
 		}
@@ -518,75 +450,9 @@ export function SiteFormModal({
 		[form, submitted],
 	)
 
-	/**
-	 * 核心抓取逻辑，添加模式和编辑模式的刷新按钮共用。
-	 * 手动刷新替换原内容，但保留请求期间的人工修改。
-	 */
-	const doFetchMeta = useCallback(
-		async (url: string, overwrite = false) => {
-			const trimmed = url.trim()
-			if (!metadataTemplate || !isValidUrl(trimmed)) return
-			cancelMetadata()
-			const controller = new AbortController()
-			metadataRequestRef.current = controller
-			const before = formRef.current
-			setFetchStatus('loading')
-			const meta = await fetchPageMeta(
-				trimmed,
-				metadataTemplate,
-				controller.signal,
-			)
-			if (
-				controller.signal.aborted ||
-				metadataRequestRef.current !== controller
-			)
-				return
-			if (!meta) {
-				setFetchStatus('error')
-				return
-			}
-			setFetchStatus('done')
-			setForm((prev) =>
-				prev.url.trim() !== trimmed
-					? prev
-					: {
-							...prev,
-							name:
-								(overwrite && prev.name === before.name) || !prev.name.trim()
-									? meta.title.slice(0, 50) || prev.name
-									: prev.name,
-							description:
-								(overwrite && prev.description === before.description) ||
-								!prev.description.trim()
-									? meta.description.slice(0, 100) || prev.description
-									: prev.description,
-						},
-			)
-		},
-		[metadataTemplate, cancelMetadata],
-	)
-
-	/** 编辑模式下手动点击刷新按钮 */
-	const handleRefreshMeta = useCallback(() => {
-		void doFetchMeta(form.url, true)
-	}, [form.url, doFetchMeta])
-
-	// 请求属于当前打开状态、网址与代理配置；任何一项改变都取消旧请求。
-	useEffect(() => {
-		cancelMetadata()
-		setFetchStatus('idle')
-		if (open && !isEdit && metadataTemplate && isValidUrl(form.url)) {
-			debounceRef.current = setTimeout(() => {
-				void doFetchMeta(form.url)
-			}, 600)
-		}
-		return cancelMetadata
-	}, [open, isEdit, form.url, metadataTemplate, doFetchMeta, cancelMetadata])
-
 	const handleUrlChange = useCallback(
 		(url: string) => {
 			cancelMetadata()
-			setFetchStatus('idle')
 			setField('url', url)
 		},
 		[setField, cancelMetadata],
@@ -596,7 +462,7 @@ export function SiteFormModal({
 	const fieldError = (field: keyof SitePayload) =>
 		errors.find((e) => e.field === field)?.message
 
-	// 添加 tag
+	// 创建本地分类
 	const createCategory = () => {
 		const name = categoryInput.trim()
 		if (!name || name.length > 100) {
@@ -623,6 +489,7 @@ export function SiteFormModal({
 			e.preventDefault()
 			if (discardAction) return
 			setSubmitted(true)
+			setSubmitError('')
 
 			const payload = { ...form, tags: readTagInput(tags) }
 			const errs = validateSitePayload(payload)
@@ -639,8 +506,14 @@ export function SiteFormModal({
 				return
 			}
 
-			onSubmit(payload, editSite?.id)
-			onClose()
+			try {
+				onSubmit(payload, editSite?.id)
+				onClose()
+			} catch (error) {
+				setSubmitError(
+					error instanceof Error ? error.message : '保存失败，请重试',
+				)
+			}
 		},
 		[form, tags, editSite, isUrlDuplicate, onSubmit, onClose, discardAction],
 	)
@@ -762,7 +635,8 @@ export function SiteFormModal({
 										type="button"
 										onClick={handleRefreshMeta}
 										disabled={
-											fetchStatus === 'loading' || !isValidUrl(form.url)
+											fetchStatus === 'loading' ||
+											!httpUrl.safeParse(form.url).success
 										}
 										aria-label="重新获取标题与描述"
 										title="重新获取标题与描述"
@@ -979,6 +853,11 @@ export function SiteFormModal({
 
 				{/* Footer */}
 				<div className="dialog-footer flex flex-wrap items-center justify-between gap-2 shrink-0">
+					{submitError && (
+						<p role="alert" className="basis-full text-sm text-error">
+							{submitError}
+						</p>
+					)}
 					{discardAction ? (
 						<>
 							<p role="alert" className="mr-auto text-sm">

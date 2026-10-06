@@ -189,15 +189,7 @@ func restoreNative(c Config, sourcePath string) error {
 			return err
 		}
 	}
-	if err = os.Rename(temp, c.DatabasePath); err != nil {
-		return err
-	}
-	directory, err := os.Open(c.DataDir)
-	if err != nil {
-		return err
-	}
-	defer directory.Close()
-	return directory.Sync()
+	return replaceDatabaseFile(temp, c.DatabasePath)
 }
 func (s *Store) backupDue() (bool, error) {
 	backups, err := s.listBackups()

@@ -4,6 +4,7 @@ import (
 	"html"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -12,6 +13,11 @@ import (
 var titlePattern = regexp.MustCompile(`(?s)<title>.*?</title>`)
 var metaPattern = regexp.MustCompile(`<meta\s+(?:name|property)="([^"]+)"\s+content="[^"]*"\s*/>`)
 var contentPattern = regexp.MustCompile(`content="[^"]*"`)
+
+func validStaticPath(relative string) bool {
+	return relative != "" && filepath.IsLocal(relative) && path.Clean(relative) == relative &&
+		!strings.ContainsAny(relative, `\:`) && !strings.HasPrefix(relative, "..")
+}
 
 func (a *App) staticRoutes() {
 	origin := a.Store.Config.PublicOrigin
@@ -32,7 +38,7 @@ func (a *App) staticRoutes() {
 	})
 	a.route("GET /assets/{path...}", func(w http.ResponseWriter, r *http.Request) error {
 		relative := r.PathValue("path")
-		if relative == "" || filepath.IsAbs(relative) || filepath.Clean(relative) != relative || strings.HasPrefix(relative, "..") {
+		if !validStaticPath(relative) {
 			w.Header().Set("Cache-Control", "no-store")
 			return fail(404, "资源不存在")
 		}
@@ -55,7 +61,7 @@ func (a *App) staticRoutes() {
 			return fail(405, "请求方法不支持")
 		}
 		relative := strings.TrimPrefix(r.URL.Path, "/")
-		if relative != "" && filepath.Clean(relative) == relative && !strings.HasPrefix(relative, ".") {
+		if validStaticPath(relative) && !strings.HasPrefix(relative, ".") {
 			path := filepath.Join(a.Store.Config.DistDir, relative)
 			if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() {
 				w.Header().Set("Cache-Control", "no-cache")

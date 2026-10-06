@@ -8,6 +8,7 @@
 - `shared/limits.ts` 定义前后端共同遵守的容量、分页和管理请求大小。领域含义不同的限制保持独立，避免因数值相同而误复用。
 - `shared/resources.ts` 校验图片/模板地址并实现同源图片策略，界面通过 `src/hooks/useImageUrl.ts` 使用配置。新增图片入口不能绕过远程图片开关；不得增加固定外部代理或隐藏回退来源。
 - `backend/` 是 Go 后端：`http.go` 负责传输和访问校验，`catalog.go` / `applications.go` 负责内容事务，`database.go` 保持 SQLite 与旧迁移兼容，`auth.go` / `backups.go` 提供认证和恢复。数据库写入与关联调整保持同一事务。
+- 当前后端是一个应用包，同包的 `_test.go` 与源码放在同一目录，便于验证内部事务和边界。Go 以目录划分包；独立职责形成稳定接口后再拆包，不按实现与测试分别建目录。
 - `scripts/export-runtime.ts` 从共享默认配置和限制生成 Go 使用的 JSON，避免手工维护第二套默认值。Go 对网络 JSON 进行严格类型、字段和关联校验；契约变化须同步两端及兼容测试。
 - `src/components/admin/` 负责后台交互；`ui.tsx` 放共享界面控件。HTTP 请求在 `src/utils/adminApi.ts`，导入解析在 `src/utils/catalogImport.ts`。
 - `src/utils/` 放可复用的解析、协调和数据转换；`src/hooks/` 管理 React 状态、订阅和副作用。全局浏览器类型声明集中在 `src/env.d.ts`。
@@ -17,6 +18,8 @@
 ## 类型与命名
 
 外部 JSON、浏览器存储和文件内容先视为 `unknown`，使用共享 schema 或明确类型守卫后再进入业务逻辑。泛型 HTTP 返回值只提供静态类型，不替代运行时校验。优先复用共享模型，不保留无调用方的预留类型，不用非空断言掩盖缺失值。
+
+后台消费响应使用 `requestAdminData` 与 `shared/adminApi.ts` 中的响应 schema；仅忽略成功响应正文的操作使用 `requestAdminApi`。个人站点的存储写入成功后才更新 React 状态；失败保留原数据和表单，不能提示成功或静默退化为内存保存。
 
 函数使用能说明动作的名称，如 `trashSite`、`restoreSite`；避免布尔参数改变同一个函数的动作含义。界面事件回调使用 `onClose`、`onPageChange` 等 `onX` 名称；后台动作执行器使用 `runAction`。布尔值表达条件，如 `canReplace`。局部名称在短作用域内保持简洁，跨模块类型与导出符号说明领域归属。
 
@@ -39,6 +42,7 @@ bun run lint:fix
 bun run lint
 bun run build
 bun run test
+bun run test:ui
 bun run test:server
 go vet ./backend
 ```
@@ -48,3 +52,5 @@ go vet ./backend
 整理无用文件、导出或依赖时可运行 `bunx knip --no-progress`；工具按需执行，不加入应用依赖。扫描结果仍需核对 CLI、动态导入和配置入口，不能直接批量删除。
 
 测试优先覆盖数据边界、事务、恢复与异步竞态。样式和简单机械重命名通过针对性检查验证；影响长表单、滚动、焦点或移动端布局时做浏览器回归。测试使用隔离数据，不操作实际管理员账号或业务数据库。
+
+交互回归使用 Happy DOM 验证状态、事件和焦点，布局与主题仍通过真实浏览器检查。CI 同时验证 Linux 与 Windows 后端入口，并检查 Go 格式；测试依赖不进入应用运行环境。

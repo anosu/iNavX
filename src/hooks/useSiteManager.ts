@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback } from 'react'
 import type { Site, SiteCategory } from '@/types'
 import { extractDomain, getFaviconUrl } from '@/utils/favicon'
 import { readStoredSites } from '@/utils/personalData'
 import { httpUrl, normalizeUrl } from '../../shared/catalog'
 import { tagsSchema } from '../../shared/tags'
+import { useStoredState } from './useStoredState'
 
 const STORAGE_KEY = 'inav-custom-sites'
 const HIDDEN_BUILTIN_KEY = 'inav-hidden-builtin'
@@ -13,14 +14,6 @@ function loadCustomSites(): Site[] {
 		return readStoredSites(localStorage.getItem(STORAGE_KEY), 'custom')
 	} catch {
 		return []
-	}
-}
-
-function saveCustomSites(sites: Site[]): void {
-	try {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(sites))
-	} catch {
-		/* Personal storage may be disabled or full; keep the in-memory edits. */
 	}
 }
 
@@ -39,13 +32,7 @@ function loadHiddenBuiltin(): Set<string> {
 	}
 }
 
-function saveHiddenBuiltin(ids: Set<string>): void {
-	try {
-		localStorage.setItem(HIDDEN_BUILTIN_KEY, JSON.stringify(Array.from(ids)))
-	} catch {
-		/* Hiding remains usable for this visit when personal storage is unavailable. */
-	}
-}
+const serializeHidden = (ids: Set<string>) => Array.from(ids)
 
 function slugify(text: string): string {
 	return text
@@ -134,41 +121,26 @@ export interface UseSiteManagerReturn {
 	hideBuiltin: (id: string) => void
 	restoreBuiltin: (id: string) => void
 	restoreAllBuiltin: () => void
-	/** addSite 每次成功后递增，供外部依赖触发重新计算 */
-	siteRevision: number
 }
 
 export function useSiteManager(): UseSiteManagerReturn {
-	const [customSites, setCustomSites] = useState<Site[]>(() =>
-		loadCustomSites(),
+	const [customSites, setCustomSites] = useStoredState(
+		STORAGE_KEY,
+		loadCustomSites,
 	)
-	const [hiddenBuiltinIds, setHiddenBuiltinIds] = useState<Set<string>>(() =>
-		loadHiddenBuiltin(),
+	const [hiddenBuiltinIds, setHiddenBuiltinIds] = useStoredState(
+		HIDDEN_BUILTIN_KEY,
+		loadHiddenBuiltin,
+		serializeHidden,
 	)
-	const [siteRevision, setSiteRevision] = useState(0)
-	const previousSites = useRef(customSites)
-	const previousHidden = useRef(hiddenBuiltinIds)
-
-	useEffect(() => {
-		if (previousSites.current === customSites) return
-		previousSites.current = customSites
-		saveCustomSites(customSites)
-	}, [customSites])
-
-	useEffect(() => {
-		if (previousHidden.current === hiddenBuiltinIds) return
-		previousHidden.current = hiddenBuiltinIds
-		saveHiddenBuiltin(hiddenBuiltinIds)
-	}, [hiddenBuiltinIds])
 
 	const addSite = useCallback(
 		(payload: SitePayload): Site => {
-			const existingIds = new Set(customSites.map((s) => s.id))
 			const iconUrl =
 				payload.iconUrl?.trim() || getFaviconUrl(payload.url) || undefined
 
 			const site: Site = {
-				id: generateId(payload.name, payload.url, existingIds),
+				id: '',
 				name: payload.name.trim(),
 				url: payload.url.trim(),
 				description: payload.description.trim(),
@@ -180,11 +152,17 @@ export function useSiteManager(): UseSiteManagerReturn {
 				addedAt: new Date().toISOString(),
 			}
 
-			setCustomSites((prev) => [site, ...prev])
-			setSiteRevision((v) => v + 1)
+			setCustomSites((previous) => {
+				site.id = generateId(
+					payload.name,
+					payload.url,
+					new Set(previous.map((item) => item.id)),
+				)
+				return [site, ...previous]
+			})
 			return site
 		},
-		[customSites],
+		[setCustomSites],
 	)
 
 	const updateSite = useCallback(
@@ -210,22 +188,28 @@ export function useSiteManager(): UseSiteManagerReturn {
 				}),
 			)
 		},
-		[],
+		[setCustomSites],
 	)
 
-	const removeSite = useCallback((id: string) => {
-		setCustomSites((prev) => prev.filter((s) => s.id !== id))
-	}, [])
+	const removeSite = useCallback(
+		(id: string) => {
+			setCustomSites((prev) => prev.filter((s) => s.id !== id))
+		},
+		[setCustomSites],
+	)
 
-	const togglePin = useCallback((id: string) => {
-		setCustomSites((prev) =>
-			prev.map((s) => (s.id === id ? { ...s, pinned: !s.pinned } : s)),
-		)
-	}, [])
+	const togglePin = useCallback(
+		(id: string) => {
+			setCustomSites((prev) =>
+				prev.map((s) => (s.id === id ? { ...s, pinned: !s.pinned } : s)),
+			)
+		},
+		[setCustomSites],
+	)
 
 	const clearCustomSites = useCallback(() => {
 		setCustomSites([])
-	}, [])
+	}, [setCustomSites])
 
 	const isUrlDuplicate = useCallback(
 		(url: string, excludeId?: string): boolean => {
@@ -238,25 +222,31 @@ export function useSiteManager(): UseSiteManagerReturn {
 		[customSites],
 	)
 
-	const hideBuiltin = useCallback((id: string) => {
-		setHiddenBuiltinIds((prev) => {
-			const next = new Set(prev)
-			next.add(id)
-			return next
-		})
-	}, [])
+	const hideBuiltin = useCallback(
+		(id: string) => {
+			setHiddenBuiltinIds((prev) => {
+				const next = new Set(prev)
+				next.add(id)
+				return next
+			})
+		},
+		[setHiddenBuiltinIds],
+	)
 
-	const restoreBuiltin = useCallback((id: string) => {
-		setHiddenBuiltinIds((prev) => {
-			const next = new Set(prev)
-			next.delete(id)
-			return next
-		})
-	}, [])
+	const restoreBuiltin = useCallback(
+		(id: string) => {
+			setHiddenBuiltinIds((prev) => {
+				const next = new Set(prev)
+				next.delete(id)
+				return next
+			})
+		},
+		[setHiddenBuiltinIds],
+	)
 
 	const restoreAllBuiltin = useCallback(() => {
 		setHiddenBuiltinIds(new Set())
-	}, [])
+	}, [setHiddenBuiltinIds])
 
 	return {
 		customSites,
@@ -270,6 +260,5 @@ export function useSiteManager(): UseSiteManagerReturn {
 		hideBuiltin,
 		restoreBuiltin,
 		restoreAllBuiltin,
-		siteRevision,
 	}
 }

@@ -20,6 +20,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/mattn/go-sqlite3"
 )
 
 type attempt struct {
@@ -73,7 +75,8 @@ func (a *App) respondError(w http.ResponseWriter, err error) {
 		api = &APIError{413, "文件或请求过大"}
 	}
 	if api == nil && !errors.As(err, &api) {
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		var constraint sqlite3.Error
+		if errors.As(err, &constraint) && (constraint.ExtendedCode == sqlite3.ErrConstraintUnique || constraint.ExtendedCode == sqlite3.ErrConstraintPrimaryKey) {
 			api = &APIError{409, "内容重复，请刷新后重试"}
 		} else {
 			log.Printf("request failed: %v", err)
@@ -710,14 +713,10 @@ func (a *App) importHandler(w http.ResponseWriter, r *http.Request) error {
 	if input.Mode == "replace" {
 		return jsonResponse(w, 200, map[string]any{"restored": true, "backup": backup})
 	}
-	data, err := json.Marshal(report)
-	if err != nil {
-		return err
-	}
-	var value map[string]any
-	json.Unmarshal(data, &value)
-	value["backup"] = backup
-	return jsonResponse(w, 200, value)
+	return jsonResponse(w, 200, struct {
+		MergeReport
+		Backup string `json:"backup"`
+	}{report, backup})
 }
 func (a *App) scheduler(ctx context.Context) {
 	tick := func() {

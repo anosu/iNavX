@@ -3,12 +3,41 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestSQLiteConstraintResponses(t *testing.T) {
+	s := testStore(t)
+	if _, err := s.DB.Exec("CREATE TABLE error_test (id INTEGER PRIMARY KEY, name TEXT UNIQUE); INSERT INTO error_test VALUES(1, 'first')"); err != nil {
+		t.Fatal(err)
+	}
+	a := newApp(s)
+	for _, query := range []string{
+		"INSERT INTO error_test VALUES(2, 'first')",
+		"INSERT INTO error_test VALUES(1, 'second')",
+	} {
+		_, err := s.DB.Exec(query)
+		if err == nil {
+			t.Fatal("expected a SQLite constraint error")
+		}
+		w := httptest.NewRecorder()
+		a.respondError(w, fmt.Errorf("save record: %w", err))
+		if w.Code != 409 {
+			t.Fatalf("constraint response: %d %s", w.Code, w.Body)
+		}
+	}
+	w := httptest.NewRecorder()
+	a.respondError(w, errors.New("unrelated error mentioning UNIQUE constraint failed"))
+	if w.Code != 500 {
+		t.Fatalf("classified error text as a constraint: %d", w.Code)
+	}
+}
 
 func TestHTTPOriginLimitsAndPrivateApplications(t *testing.T) {
 	s := testStore(t)
@@ -78,9 +107,12 @@ func TestHTTPOriginLimitsAndPrivateApplications(t *testing.T) {
 
 func TestStaticMetadataAndStrictJSON(t *testing.T) {
 	s := testStore(t)
-	s.Config.DistDir = t.TempDir()
+	s.Config.DistDir = filepath.Join(t.TempDir(), "dist")
 	os.MkdirAll(filepath.Join(s.Config.DistDir, "icons"), 0700)
+	os.MkdirAll(filepath.Join(s.Config.DistDir, "assets/nested"), 0700)
 	os.WriteFile(filepath.Join(s.Config.DistDir, "icons/test.svg"), []byte("<svg/>"), 0600)
+	os.WriteFile(filepath.Join(s.Config.DistDir, "assets/nested/test.css"), []byte("body{}"), 0600)
+	os.WriteFile(filepath.Join(filepath.Dir(s.Config.DistDir), "private.txt"), []byte("private"), 0600)
 	os.WriteFile(filepath.Join(s.Config.DistDir, "index.html"), []byte(`<html><head><title>Default</title><meta name="description" content="Default" /></head></html>`), 0600)
 	settings := s.Defaults.Settings
 	settings.Name = `</title><script>alert(1)</script>`
@@ -90,7 +122,7 @@ func TestStaticMetadataAndStrictJSON(t *testing.T) {
 		return err
 	})
 	a := newApp(s)
-	for path, want := range map[string]int{"/": 200, "/admin": 200, "/icons/test.svg": 200, "/icons/missing.svg": 404, "/assets/missing.js": 404, "/api/missing": 404} {
+	for path, want := range map[string]int{"/": 200, "/admin": 200, "/icons/test.svg": 200, "/assets/nested/test.css": 200, "/icons/missing.svg": 404, "/assets/missing.js": 404, "/api/missing": 404, "/icons/..%5c..%5cprivate.txt": 404, "/assets/..%5cprivate.txt": 404, "/icons/test.svg:stream": 404} {
 		w := httptest.NewRecorder()
 		a.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
 		if w.Code != want {

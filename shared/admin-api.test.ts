@@ -1,6 +1,17 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { ApiError, requestAdminApi } from '../src/utils/adminApi.js'
+import {
+	ApiError,
+	requestAdminApi,
+	requestAdminData,
+} from '../src/utils/adminApi.js'
+import {
+	applicationListSchema,
+	authStatusSchema,
+	databaseBackupsSchema,
+	importPreviewSchema,
+	importResultSchema,
+} from './adminApi.js'
 
 test('admin transport preserves JSON bodies, CSRF and same-origin credentials', async (t) => {
 	const originalFetch = globalThis.fetch
@@ -54,4 +65,69 @@ test('admin transport reports typed HTTP errors for valid, malformed and non-JSO
 		assert.match(error.message, /后台接口不可用/)
 		return true
 	})
+	globalThis.fetch = async () =>
+		new Response('{invalid', {
+			headers: { 'Content-Type': 'application/json' },
+		})
+	await assert.rejects(requestAdminApi('admin/catalog'), (error: unknown) => {
+		assert.ok(error instanceof ApiError)
+		assert.match(error.message, /后台响应格式异常/)
+		return true
+	})
+})
+
+test('consumed admin responses reject invalid payloads before they reach UI state', async (t) => {
+	const originalFetch = globalThis.fetch
+	t.after(() => {
+		globalThis.fetch = originalFetch
+	})
+	for (const schema of [
+		applicationListSchema,
+		authStatusSchema,
+		databaseBackupsSchema,
+		importPreviewSchema,
+		importResultSchema,
+	]) {
+		globalThis.fetch = async () => Response.json({ unexpected: true })
+		await assert.rejects(
+			requestAdminData('admin/example', schema),
+			/后台响应格式异常/,
+		)
+	}
+	globalThis.fetch = async () =>
+		Response.json({ initialized: true, authenticated: true })
+	await assert.rejects(
+		requestAdminData('auth/status', authStatusSchema),
+		/后台响应格式异常/,
+	)
+	globalThis.fetch = async () =>
+		Response.json({ initialized: true, authenticated: false })
+	assert.deepEqual(await requestAdminData('auth/status', authStatusSchema), {
+		initialized: true,
+		authenticated: false,
+	})
+	globalThis.fetch = async () =>
+		Response.json({
+			items: [],
+			total: 0,
+			counts: { pending: 0, approved: 0, rejected: 0, duplicate: 0 },
+		})
+	assert.equal(
+		(await requestAdminData('admin/applications', applicationListSchema)).total,
+		0,
+	)
+	assert.ok(
+		importResultSchema.safeParse({ restored: true, backup: 'backup.sqlite' })
+			.success,
+	)
+	assert.ok(
+		importResultSchema.safeParse({
+			added: 0,
+			skipped: 1,
+			conflicts: [],
+			backup: 'backup.sqlite',
+			applicationsAdded: 0,
+			applicationsSkipped: 0,
+		}).success,
+	)
 })

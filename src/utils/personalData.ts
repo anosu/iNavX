@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { Site } from '@/types'
 import { httpUrl } from '../../shared/catalog'
+import { StorageWriteError } from './browserStorage'
 
 export const localSiteSchema = z.object({
 	id: z.string().min(1).max(200),
@@ -97,9 +98,14 @@ export function restorePersonalData(value: unknown) {
 		'inav-theme': parsed.theme,
 		'inav:engine-order': parsed.engines ? JSON.stringify(parsed.engines) : null,
 	}
-	const previous = Object.fromEntries(
-		Object.keys(changes).map((key) => [key, localStorage.getItem(key)]),
-	)
+	let previous: Record<string, string | null>
+	try {
+		previous = Object.fromEntries(
+			Object.keys(changes).map((key) => [key, localStorage.getItem(key)]),
+		)
+	} catch (cause) {
+		throw new StorageWriteError(cause)
+	}
 	try {
 		for (const [key, raw] of Object.entries(changes))
 			raw === null
@@ -112,7 +118,7 @@ export function restorePersonalData(value: unknown) {
 			raw === null
 				? localStorage.removeItem(key)
 				: localStorage.setItem(key, raw)
-		throw error
+		throw new StorageWriteError(error)
 	}
 	window.location.reload()
 	return true
