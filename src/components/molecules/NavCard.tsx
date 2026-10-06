@@ -21,6 +21,7 @@ import { useSiteIconUrl } from '@/hooks/useImageUrl'
 import { useIsIOS } from '@/hooks/useIsIOS'
 import { usePublicCatalog } from '@/hooks/usePublicCatalog'
 import type { SiteCardProps } from '@/types'
+import { recordSiteOpen } from '@/utils/recentSites'
 
 function hashString(str: string): number {
 	let hash = 0
@@ -310,7 +311,10 @@ export function NavCard({
 	const contextActions = buildSiteActions(
 		{ url, pinned, source },
 		{
-			onOpen: () => window.open(url, '_blank', 'noopener,noreferrer'),
+			onOpen: () => {
+				recordSiteOpen(url)
+				window.open(url, '_blank', 'noopener,noreferrer')
+			},
 			onCopyUrl: () => handleCopy(),
 			onEdit: onEdit && canEdit ? () => handleEdit() : undefined,
 			// builtin 站点不在右键菜单中提供 pin
@@ -336,6 +340,10 @@ export function NavCard({
 					<div className="flex h-10 shrink-0 items-center gap-2.5">
 						<a
 							href={url}
+							onClick={() => recordSiteOpen(url)}
+							onAuxClick={(event) => {
+								if (event.button === 1) recordSiteOpen(url)
+							}}
 							target="_blank"
 							rel="noopener noreferrer"
 							title={`${name} — ${category}\n${description}`}

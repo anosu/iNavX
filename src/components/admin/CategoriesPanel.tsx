@@ -330,7 +330,7 @@ export function CategoriesPanel({
 								个站点
 							</p>
 						</div>
-						<div className="flex shrink-0 gap-2">
+						<div className="ml-auto flex w-full flex-wrap justify-end gap-2 sm:w-auto">
 							<button
 								type="button"
 								disabled={busy}

@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { buttonVariants } from '@/components/atoms/Button'
-import { ExternalLinkIcon, SearchIcon, XIcon } from '@/components/atoms/Icons'
+import {
+	CommandIcon,
+	ExternalLinkIcon,
+	SearchIcon,
+	XIcon,
+} from '@/components/atoms/Icons'
 import { Input } from '@/components/atoms/Input'
 import { ResourceImage } from '@/components/atoms/ResourceImage'
 import { getCategoryColor } from '@/data/categories'
@@ -8,12 +13,19 @@ import { useDialogBackdropClose } from '@/hooks/useDialogBackdropClose'
 import { useDialogLifecycle } from '@/hooks/useDialogLifecycle'
 import { useSiteIconUrl } from '@/hooks/useImageUrl'
 import type { Site, SiteCategory } from '@/types'
+import { searchCommandSites } from '@/utils/commandSearch'
+import {
+	clearRecentSites,
+	readRecentSites,
+	recordSiteOpen,
+} from '@/utils/recentSites'
+import type { Engine } from '../../../shared/catalog'
 
 /* ============================================================
    CommandPalette
-   - ⌘K / Ctrl+K 唤起
-   - 实时模糊搜索站点（名称 / 描述 / tags）
-   - 键盘上下导航，Enter 在新标签页打开
+   - ⌘K / Ctrl+K 开关
+   - 搜索站点、分类、标签与操作；>id 关键词执行站点操作
+   - 键盘上下导航，Enter 执行选中项
    - Esc 关闭
    - 搜索关键词高亮
    ============================================================ */
@@ -25,7 +37,7 @@ function highlightMatch(text: string, query: string): React.ReactNode {
 	const regex = new RegExp(`(${escapeRegex(query.trim())})`, 'gi')
 	const parts = text.split(regex)
 	return parts.map((part, i) =>
-		regex.test(part) ? (
+		i % 2 === 1 ? (
 			// biome-ignore lint/suspicious/noArrayIndexKey: 高亮分片
 			<mark key={i} className="search-highlight not-italic font-medium">
 				{part}
@@ -39,37 +51,6 @@ function highlightMatch(text: string, query: string): React.ReactNode {
 
 function escapeRegex(str: string): string {
 	return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-// ---- 搜索逻辑 ----
-
-function searchSites(sites: Site[], query: string): Site[] {
-	const q = query.trim().toLowerCase()
-	if (!q) return sites.slice(0, 20) // 无输入时显示前 20 个
-
-	return sites
-		.map((site) => {
-			let score = 0
-			const name = site.name.toLowerCase()
-			const desc = site.description.toLowerCase()
-			const tags = site.tags?.join(' ').toLowerCase() ?? ''
-			const url = site.url.toLowerCase()
-
-			if (name === q) score += 100
-			else if (name.startsWith(q)) score += 60
-			else if (name.includes(q)) score += 40
-
-			if (desc.includes(q)) score += 20
-			if (tags.includes(q)) score += 15
-			if (url.includes(q)) score += 10
-			if (site.pinned) score += 5
-
-			return { site, score }
-		})
-		.filter(({ score }) => score > 0)
-		.sort((a, b) => b.score - a.score)
-		.slice(0, 12)
-		.map(({ site }) => site)
 }
 
 // ---- 分类颜色 ----
@@ -115,7 +96,7 @@ function SiteAvatar({ site }: { site: Site }) {
 // ---- 单条结果 ----
 
 interface ResultItemProps {
-	site: Site
+	entry: CommandEntry
 	query: string
 	selected: boolean
 	onMouseEnter: () => void
@@ -123,7 +104,7 @@ interface ResultItemProps {
 }
 
 function ResultItem({
-	site,
+	entry,
 	query,
 	selected,
 	onMouseEnter,
@@ -141,7 +122,7 @@ function ResultItem({
 	return (
 		<button
 			ref={ref}
-			id={`cmd-item-${site.source}-${site.id}`}
+			id={`cmd-item-${encodeURIComponent(entry.id)}`}
 			role="option"
 			aria-selected={selected}
 			type="button"
@@ -152,29 +133,38 @@ function ResultItem({
 			tabIndex={-1}
 		>
 			{/* 图标 */}
-			<SiteAvatar site={site} />
+			{entry.site ? (
+				<SiteAvatar site={entry.site} />
+			) : (
+				<CommandIcon size={20} className="shrink-0 text-muted-foreground" />
+			)}
 
 			{/* 信息 */}
 			<div className="min-w-0 flex-1">
 				<div className="flex items-center gap-1.5 min-w-0">
 					<span className="text-sm font-medium text-foreground truncate">
-						{highlightMatch(site.name, query)}
+						{highlightMatch(entry.label, query)}
 					</span>
-					<CategoryDot category={site.category} />
+					{entry.commandId && (
+						<span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+							{highlightMatch(entry.commandId, query)}
+						</span>
+					)}
+					{entry.site && <CategoryDot category={entry.site.category} />}
 					<span
 						className="max-w-24 truncate text-[11px] text-muted-foreground"
-						title={site.category}
+						title={entry.site?.category}
 					>
-						{site.category}
+						{entry.site?.category}
 					</span>
 				</div>
 				<p className="text-[11px] text-muted-foreground truncate mt-0.5 leading-none">
-					{highlightMatch(site.description, query)}
+					{highlightMatch(entry.detail, query)}
 				</p>
 			</div>
 
 			{/* 外链提示 */}
-			{selected && (
+			{selected && entry.site && !entry.commandId && (
 				<span className="shrink-0 text-muted-foreground opacity-60 animate-fade-in">
 					<ExternalLinkIcon size={12} />
 				</span>
@@ -201,7 +191,7 @@ function EmptyState({ query }: { query: string }) {
 						匹配
 					</>
 				)}{' '}
-				的站点
+				的结果
 			</p>
 		</div>
 	)
@@ -220,7 +210,7 @@ function Footer({ resultCount }: { resultCount: number }) {
 				</span>
 				<span className="flex items-center gap-1 text-[11px] text-muted-foreground">
 					<kbd className="kbd">↵</kbd>
-					打开
+					执行
 				</span>
 				<span className="flex items-center gap-1 text-[11px] text-muted-foreground">
 					<kbd className="kbd">Esc</kbd>
@@ -242,43 +232,238 @@ export interface CommandPaletteProps {
 	open: boolean
 	onClose: () => void
 	sites: Site[]
+	actions: CommandAction[]
+	siteActions?: SiteCommandAction[]
+	engines: Engine[]
+	onCategorySelect: (category: string) => void
+	onTagSelect: (tag: string) => void
 }
 
-export function CommandPalette({ open, onClose, sites }: CommandPaletteProps) {
+export interface CommandAction {
+	id: string
+	label: string
+	detail: string
+	run: () => void
+}
+
+export interface SiteCommandAction extends Omit<CommandAction, 'run'> {
+	isAvailable: (site: Site) => boolean
+	run: (site: Site) => void
+}
+
+const NO_SITE_ACTIONS: SiteCommandAction[] = []
+
+interface CommandEntry extends CommandAction {
+	group: string
+	site?: Site
+	commandId?: string
+	keepOpen?: boolean
+}
+
+export function CommandPalette({
+	open,
+	onClose,
+	sites,
+	actions,
+	siteActions = NO_SITE_ACTIONS,
+	engines,
+	onCategorySelect,
+	onTagSelect,
+}: CommandPaletteProps) {
 	const dialogRef = useDialogLifecycle(open)
 	const [query, setQuery] = useState('')
 	const [selectedIndex, setSelectedIndex] = useState(0)
 	const inputRef = useRef<HTMLInputElement>(null)
-	const listRef = useRef<HTMLDivElement>(null)
 	const backdropHandlers = useDialogBackdropClose(onClose)
+	const changeQuery = useCallback((value: string) => {
+		setQuery(value)
+		setSelectedIndex(0)
+	}, [])
 
-	const results = useMemo(() => searchSites(sites, query), [sites, query])
+	const [recentUrls, setRecentUrls] = useState<string[]>([])
+	const [historyError, setHistoryError] = useState('')
+	const actionsOnly = query.trimStart().startsWith('>')
+	const search = (actionsOnly ? query.trimStart().slice(1) : query).trim()
+	const commandToken = search.split(/\s+/, 1)[0]
+	const siteAction = actionsOnly
+		? siteActions.find(
+				(action) =>
+					action.id === commandToken.toLowerCase() ||
+					action.label === commandToken,
+			)
+		: undefined
+	const siteQuery = siteAction ? search.slice(commandToken.length).trim() : ''
+	const results = useMemo(() => {
+		if (!open) return []
+		if (siteAction) {
+			const eligible = sites.filter(siteAction.isAvailable)
+			const targets = siteQuery
+				? searchCommandSites(eligible, siteQuery)
+				: eligible.slice(0, 12)
+			return targets.map(
+				(site): CommandEntry => ({
+					id: `${siteAction.id}-${site.source}-${site.id}`,
+					commandId: siteAction.id,
+					label: site.name,
+					detail: `${siteAction.label} · ${site.url}`,
+					group: `${siteAction.label} · 选择站点`,
+					site,
+					run: () => siteAction.run(site),
+				}),
+			)
+		}
+		const entries: CommandEntry[] = []
+		const matches = (text: string) =>
+			text.toLowerCase().includes(search.toLowerCase())
+		const addSites = (items: Site[], group: string) => {
+			for (const site of items)
+				entries.push({
+					id: `${group}-${site.source}-${site.id}`,
+					label: site.name,
+					detail: site.description,
+					group,
+					site,
+					run: () => {
+						recordSiteOpen(site.url)
+						window.open(site.url, '_blank', 'noopener,noreferrer')
+					},
+				})
+		}
+		if (!actionsOnly) {
+			if (search) addSites(searchCommandSites(sites, search), '站点')
+			else {
+				const recent = recentUrls
+					.flatMap((url) => sites.find((site) => site.url === url) ?? [])
+					.slice(0, 8)
+				addSites(recent, '最近打开')
+				addSites(
+					sites
+						.filter((site) => site.pinned && !recent.includes(site))
+						.slice(0, 8),
+					'置顶站点',
+				)
+			}
+		}
+		for (const action of actions) {
+			if (matches(`${action.id} ${action.label} ${action.detail}`))
+				entries.push({
+					...action,
+					id: `action-${action.id}`,
+					commandId: action.id,
+					group: '常用操作',
+				})
+		}
+		if (recentUrls.length && matches('clear-history 清空最近打开记录'))
+			entries.push({
+				id: 'clear-history',
+				commandId: 'clear-history',
+				label: '清空最近打开记录',
+				detail: '仅清除本浏览器的打开记录',
+				group: '常用操作',
+				keepOpen: true,
+				run: () => {
+					try {
+						clearRecentSites()
+						setRecentUrls([])
+						setHistoryError('')
+					} catch {
+						setHistoryError('清除失败，请检查浏览器存储权限后重试。')
+					}
+				},
+			})
+		for (const action of siteActions) {
+			if (matches(`${action.id} ${action.label} ${action.detail}`))
+				entries.push({
+					id: `action-${action.id}`,
+					commandId: action.id,
+					label: action.label,
+					detail: action.detail,
+					group: '站点操作',
+					keepOpen: true,
+					run: () => {
+						changeQuery(`>${action.id} `)
+						inputRef.current?.focus()
+					},
+				})
+		}
+		if (search && !actionsOnly) {
+			for (const category of [...new Set(sites.map((site) => site.category))]
+				.filter(matches)
+				.slice(0, 8)) {
+				entries.push({
+					id: `category-${category}`,
+					label: category,
+					detail: '查看此分类的站点',
+					group: '分类',
+					run: () => onCategorySelect(category),
+				})
+			}
+			for (const tag of [...new Set(sites.flatMap((site) => site.tags ?? []))]
+				.filter(matches)
+				.slice(0, 8)) {
+				entries.push({
+					id: `tag-${tag}`,
+					label: tag,
+					detail: '按此标签筛选站点',
+					group: '标签',
+					run: () => onTagSelect(tag),
+				})
+			}
+			for (const engine of engines.filter((engine) => engine.enabled))
+				entries.push({
+					id: `engine-${engine.id}`,
+					label: `用 ${engine.name} 搜索`,
+					detail: search,
+					group: '搜索互联网',
+					run: () => {
+						window.open(
+							engine.searchUrl.replace('{q}', encodeURIComponent(search)),
+							'_blank',
+							'noopener,noreferrer',
+						)
+					},
+				})
+		}
+		// Keep the newly available operations visible even with many pinned sites.
+		return !search && !actionsOnly
+			? [
+					...entries.filter((entry) => entry.group === '常用操作'),
+					...entries.filter((entry) => entry.group !== '常用操作'),
+				]
+			: entries
+	}, [
+		open,
+		changeQuery,
+		sites,
+		search,
+		siteAction,
+		siteQuery,
+		siteActions,
+		actionsOnly,
+		recentUrls,
+		actions,
+		engines,
+		onCategorySelect,
+		onTagSelect,
+	])
+	const activeIndex = Math.min(selectedIndex, Math.max(0, results.length - 1))
 
-	// 打开时重置状态并聚焦
+	// 焦点由共享的原生弹窗生命周期管理。
 	useEffect(() => {
 		if (open) {
-			setQuery('')
-			setSelectedIndex(0)
-			// 等 DOM 渲染后再 focus
-			requestAnimationFrame(() => {
-				inputRef.current?.focus()
-			})
+			setRecentUrls(readRecentSites())
+			setHistoryError('')
+			changeQuery('')
 		}
-	}, [open])
+	}, [open, changeQuery])
 
-	// query 变化时重置选中
-	// biome-ignore  lint/correctness/useExhaustiveDependencies: need
-	useEffect(() => {
-		setSelectedIndex(0)
-	}, [query])
-
-	// 打开当前选中站点
+	// 统一执行站点、页面操作与面板内部操作。
 	const openSelected = useCallback(
 		(index: number) => {
-			const site = results[index]
-			if (site) {
-				window.open(site.url, '_blank', 'noopener,noreferrer')
-				onClose()
+			const entry = results[index]
+			if (entry) {
+				if (!entry.keepOpen) onClose()
+				entry.run()
 			}
 		},
 		[results, onClose],
@@ -287,18 +472,22 @@ export function CommandPalette({ open, onClose, sites }: CommandPaletteProps) {
 	// 键盘事件
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
+			// Some IMEs report Enter with keyCode 229 after compositionend.
+			if (e.nativeEvent.isComposing || e.keyCode === 229) return
 			switch (e.key) {
 				case 'ArrowDown':
 					e.preventDefault()
-					setSelectedIndex((i) => Math.min(i + 1, results.length - 1))
+					setSelectedIndex(
+						Math.min(activeIndex + 1, Math.max(0, results.length - 1)),
+					)
 					break
 				case 'ArrowUp':
 					e.preventDefault()
-					setSelectedIndex((i) => Math.max(i - 1, 0))
+					setSelectedIndex(Math.max(activeIndex - 1, 0))
 					break
 				case 'Enter':
 					e.preventDefault()
-					openSelected(selectedIndex)
+					if (!e.repeat) openSelected(activeIndex)
 					break
 				case 'Escape':
 					e.preventDefault()
@@ -306,7 +495,7 @@ export function CommandPalette({ open, onClose, sites }: CommandPaletteProps) {
 					break
 			}
 		},
-		[results.length, selectedIndex, openSelected, onClose],
+		[results.length, activeIndex, openSelected, onClose],
 	)
 
 	if (!open) return null
@@ -340,9 +529,13 @@ export function CommandPalette({ open, onClose, sites }: CommandPaletteProps) {
 						aria-haspopup="listbox"
 						type="text"
 						value={query}
-						onChange={(e) => setQuery(e.target.value)}
+						onChange={(e) => changeQuery(e.target.value)}
 						onKeyDown={handleKeyDown}
-						placeholder="搜索站点..."
+						placeholder={
+							actionsOnly
+								? '输入操作 ID 或说明，如 theme / 切换主题'
+								: '搜索站点或操作，输入 > 查看命令'
+						}
 						autoComplete="off"
 						autoCorrect="off"
 						autoCapitalize="off"
@@ -353,8 +546,8 @@ export function CommandPalette({ open, onClose, sites }: CommandPaletteProps) {
 								<button
 									type="button"
 									onClick={() => {
-										setQuery('')
-										requestAnimationFrame(() => inputRef.current?.focus())
+										changeQuery('')
+										inputRef.current?.focus()
 									}}
 									className={buttonVariants({ variant: 'icon', size: 'sm' })}
 									aria-label="清除搜索"
@@ -363,12 +556,12 @@ export function CommandPalette({ open, onClose, sites }: CommandPaletteProps) {
 								</button>
 							) : null
 						}
-						aria-label="搜索站点"
+						aria-label="搜索站点或操作"
 						aria-autocomplete="list"
 						aria-controls="cmd-results"
 						aria-activedescendant={
-							results[selectedIndex]
-								? `cmd-item-${results[selectedIndex].source}-${results[selectedIndex].id}`
+							results[activeIndex]
+								? `cmd-item-${encodeURIComponent(results[activeIndex].id)}`
 								: undefined
 						}
 					/>
@@ -382,31 +575,42 @@ export function CommandPalette({ open, onClose, sites }: CommandPaletteProps) {
 					</button>
 				</div>
 
-				{/* 分组标题 */}
 				<div className="shrink-0 px-5 pt-3 pb-1">
-					<span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-						{query.trim() ? `搜索结果` : '最近添加 / 置顶'}
+					<span className="text-[11px] font-medium text-muted-foreground">
+						{actionsOnly
+							? '操作 · 输入英文 ID 或中文说明，Enter 执行'
+							: search
+								? '搜索结果'
+								: '快速访问 · 输入 > 查看命令'}
 					</span>
 				</div>
 
 				{/* 结果列表 */}
 				<div
-					ref={listRef}
 					id="cmd-results"
 					role="listbox"
-					aria-label="站点搜索结果"
+					aria-label="命令搜索结果"
 					className="min-h-0 flex-1 px-1.5 pb-1.5 max-h-80 overflow-y-auto overscroll-contain scrollbar-thin"
 				>
 					{results.length > 0 ? (
-						results.map((site, index) => (
-							<ResultItem
-								key={`${site.source}:${site.id}`}
-								site={site}
-								query={query}
-								selected={index === selectedIndex}
-								onMouseEnter={() => setSelectedIndex(index)}
-								onClick={() => openSelected(index)}
-							/>
+						results.map((entry, index) => (
+							<div key={entry.id} role="presentation">
+								{results[index - 1]?.group !== entry.group && (
+									<div
+										role="presentation"
+										className="px-3 pt-3 pb-1 text-[11px] font-medium text-muted-foreground"
+									>
+										{entry.group}
+									</div>
+								)}
+								<ResultItem
+									entry={entry}
+									query={siteAction ? siteQuery : search}
+									selected={index === activeIndex}
+									onMouseEnter={() => setSelectedIndex(index)}
+									onClick={() => openSelected(index)}
+								/>
+							</div>
 						))
 					) : (
 						<EmptyState query={query} />
@@ -415,6 +619,11 @@ export function CommandPalette({ open, onClose, sites }: CommandPaletteProps) {
 
 				{/* 页脚 */}
 				<div className="dialog-footer shrink-0">
+					{historyError && (
+						<p role="alert" className="mb-2 text-xs text-error">
+							{historyError}
+						</p>
+					)}
 					<Footer resultCount={results.length} />
 				</div>
 			</div>

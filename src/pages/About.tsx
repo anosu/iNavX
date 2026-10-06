@@ -19,7 +19,11 @@ export default function About() {
 		],
 		[
 			'键盘操作',
-			'Ctrl / ⌘ + K 打开命令面板，方向键选择，Enter 打开，Esc 关闭。搜索时按 Ctrl / ⌘ + 1～9 打开对应结果。',
+			'Ctrl / ⌘ + K 打开或关闭命令面板，方向键选择，Enter 执行，Esc 关闭。首页搜索时按 Ctrl / ⌘ + 1～9 打开对应结果。',
+		],
+		[
+			'命令面板',
+			'快速打开最近访问和置顶站点，搜索分类、标签并跳转筛选，或选择搜索引擎检索。输入 > 查看可用操作及英文 ID，例如 >add 添加站点、>theme 切换主题、>copy github 复制站点链接。支持英文 ID 和中文说明搜索，方向键选择后按 Enter 执行。最近记录仅保存在本浏览器，可用 >clear-history 清空。',
 		],
 	]
 	if (engines.some((engine) => engine.enabled))

@@ -1,24 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-
-function copySynchronously(value: string): boolean {
-	const previousFocus = document.activeElement
-	const input = document.createElement('textarea')
-	input.value = value
-	input.style.cssText =
-		'position:fixed;top:0;left:0;opacity:0;pointer-events:none'
-	document.body.appendChild(input)
-	try {
-		input.focus()
-		input.select()
-		return document.execCommand('copy')
-	} catch {
-		return false
-	} finally {
-		input.remove()
-		if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
-			previousFocus.focus({ preventScroll: true })
-	}
-}
+import { copyText } from '@/utils/clipboard'
 
 export function useCopyLink(url: string) {
 	const [result, setResult] = useState<{
@@ -35,11 +16,7 @@ export function useCopyLink(url: string) {
 	}, [result])
 	const copyLink = useCallback(async () => {
 		try {
-			// iOS requires the synchronous attempt within the original user gesture.
-			if (!copySynchronously(url)) {
-				if (!navigator.clipboard) throw new Error('Clipboard unavailable')
-				await navigator.clipboard.writeText(url)
-			}
+			await copyText(url)
 			setResult({ url, status: 'copied' })
 		} catch {
 			setResult({ url, status: 'error' })

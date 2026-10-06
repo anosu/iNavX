@@ -3,6 +3,7 @@ import type { ThemeMode, UseThemeReturn } from '@/types'
 import { usePublicCatalog } from './usePublicCatalog'
 
 const STORAGE_KEY = 'inav-theme'
+const CHANGE_EVENT = 'inav-theme-change'
 let themeTransitionTimer: number | undefined
 
 function getSystemTheme(): 'light' | 'dark' {
@@ -57,6 +58,9 @@ function saveMode(mode: ThemeMode): void {
 	} catch {
 		/* The selected theme still applies for this visit when storage is unavailable. */
 	}
+	window.dispatchEvent(
+		new CustomEvent<ThemeMode>(CHANGE_EVENT, { detail: mode }),
+	)
 }
 
 export function useTheme(): UseThemeReturn {
@@ -65,6 +69,12 @@ export function useTheme(): UseThemeReturn {
 		() => getStoredMode() ?? settings.defaultTheme,
 	)
 	const [systemTheme, setSystemTheme] = useState(getSystemTheme)
+	useEffect(() => {
+		const sync = (event: Event) =>
+			setModeState((event as CustomEvent<ThemeMode>).detail)
+		window.addEventListener(CHANGE_EVENT, sync)
+		return () => window.removeEventListener(CHANGE_EVENT, sync)
+	}, [])
 	useEffect(() => {
 		if (!getStoredMode()) setModeState(settings.defaultTheme)
 	}, [settings.defaultTheme])
@@ -93,13 +103,10 @@ export function useTheme(): UseThemeReturn {
 	}, [])
 
 	const toggleTheme = useCallback(() => {
-		setModeState((prevMode) => {
-			const prevResolved = resolveTheme(prevMode)
-			const next = prevResolved === 'dark' ? 'light' : 'dark'
-			saveMode(next)
-			return next
-		})
-	}, [])
+		const next = resolveTheme(mode) === 'dark' ? 'light' : 'dark'
+		saveMode(next)
+		setModeState(next)
+	}, [mode])
 
 	return {
 		mode,

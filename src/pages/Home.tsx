@@ -8,7 +8,7 @@ import {
 	useRef,
 	useState,
 } from 'react'
-import { NavLink } from 'react-router'
+import { NavLink, useNavigate } from 'react-router'
 import { Button } from '@/components/atoms/Button'
 import { Dialog } from '@/components/atoms/Dialog'
 import { XIcon } from '@/components/atoms/Icons'
@@ -30,17 +30,25 @@ const SiteFormModal = lazy(() =>
 	})),
 )
 
+import type {
+	CommandAction,
+	SiteCommandAction,
+} from '@/components/organisms/CommandPalette'
 import { useBookmarks } from '@/hooks/useBookmarks'
+import { useCommandShortcut } from '@/hooks/useCommandShortcut'
 import { useEngineOrder } from '@/hooks/useEngineOrder'
 import {
 	useCatalogAvailability,
 	usePublicCatalog,
 } from '@/hooks/usePublicCatalog'
 import { type SitePayload, useSiteManager } from '@/hooks/useSiteManager'
+import { useTheme } from '@/hooks/useTheme'
 import type { Site, SiteCategory } from '@/types'
+import { copyText } from '@/utils/clipboard'
 import { filterSites } from '@/utils/filterSites'
 import { mergeSites } from '@/utils/mergeSites'
 import { exportPersonalData } from '@/utils/personalData'
+import { recordSiteOpen } from '@/utils/recentSites'
 
 /* ============================================================
    Toast 通知（轻量内部实现）
@@ -139,6 +147,8 @@ function DeleteConfirm({ site, onConfirm, onCancel }: DeleteConfirmProps) {
    Home 页面主组件
    ============================================================ */
 export default function Home() {
+	const navigate = useNavigate()
+	const { toggleTheme } = useTheme()
 	const publicCatalog = usePublicCatalog()
 	const unavailable = useCatalogAvailability()
 	const {
@@ -175,6 +185,8 @@ export default function Home() {
 
 	// ---- 命令面板 ----
 	const [cmdOpen, setCmdOpen] = useState(false)
+	const toggleCommand = useCallback(() => setCmdOpen((value) => !value), [])
+	useCommandShortcut(cmdOpen, toggleCommand)
 
 	// ---- 站点管理（自定义站点 + 内置隐藏） ----
 	const {
@@ -322,12 +334,6 @@ export default function Home() {
 					focused.isContentEditable)
 			)
 				return
-			// ⌘K / Ctrl+K 打开命令面板
-			if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-				e.preventDefault()
-				setCmdOpen(true)
-				return
-			}
 
 			// Ctrl/⌘+1~9：打开第 N 个条目（站点 + 引擎卡片统一编号）
 			if ((e.ctrlKey || e.metaKey) && /^[1-9]$/.test(e.key)) {
@@ -338,6 +344,7 @@ export default function Home() {
 				const item = list[idx]
 				if (item) {
 					e.preventDefault()
+					if (idx < filteredSitesRef.current.length) recordSiteOpen(item.url)
 					window.open(item.url, '_blank', 'noopener,noreferrer')
 				}
 				return
@@ -352,6 +359,7 @@ export default function Home() {
 					e.preventDefault()
 					const list = buildOpenableList(q)
 					if (list.length > 0) {
+						if (filteredSitesRef.current.length > 0) recordSiteOpen(list[0].url)
 						window.open(list[0].url, '_blank', 'noopener,noreferrer')
 					}
 				}
@@ -445,6 +453,80 @@ export default function Home() {
 		},
 		[togglePin, showToast],
 	)
+
+	const siteCommands: SiteCommandAction[] = [
+		{
+			id: 'copy',
+			label: '复制链接',
+			detail: '输入 copy + 站点名称，复制网站地址',
+			isAvailable: () => true,
+			run: (site) => {
+				void copyText(site.url).then(
+					() => showToast(`已复制「${site.name}」的链接`),
+					() => showToast('复制失败，请检查浏览器剪贴板权限后重试', 'error'),
+				)
+			},
+		},
+	]
+	if (ALLOW_HIDE_BUILTIN)
+		siteCommands.push({
+			id: 'hide',
+			label: '本地隐藏',
+			detail: '输入 hide + 站点名称，仅在本浏览器隐藏公共站点',
+			isAvailable: (site) => site.source === 'builtin',
+			run: handleDelete,
+		})
+	const commandActions: CommandAction[] = [
+		{
+			id: 'theme',
+			label: '切换主题',
+			detail: '在亮色和暗色之间切换',
+			run: toggleTheme,
+		},
+		{
+			id: 'help',
+			label: '使用说明',
+			detail: '查看使用方法与快捷键',
+			run: () => navigate('/about'),
+		},
+	]
+	if (ALLOW_CUSTOM_SITES)
+		commandActions.unshift({
+			id: 'add',
+			label: '添加站点',
+			detail: '添加到个人收藏',
+			run: () => {
+				setEditingSite(undefined)
+				setFormOpen(true)
+			},
+		})
+	if (hasFilter)
+		commandActions.push({
+			id: 'reset',
+			label: '清除首页筛选',
+			detail: '显示全部站点',
+			run: () => {
+				setQuery('')
+				setActiveCategory(null)
+				setActiveTag(null)
+			},
+		})
+	if (import.meta.env.VITE_STATIC_MODE !== 'true') {
+		if (window.__INAV_BACKEND__ || import.meta.env.DEV)
+			commandActions.push({
+				id: 'admin',
+				label: '进入后台管理',
+				detail: '管理公共目录',
+				run: () => navigate('/admin'),
+			})
+		if (publicCatalog.settings.applicationsEnabled)
+			commandActions.push({
+				id: 'submit',
+				label: '申请收录',
+				detail: '提交网站收录申请',
+				run: () => navigate('/submit'),
+			})
+	}
 
 	return (
 		<div className="min-h-screen flex flex-col bg-background">
@@ -682,6 +764,19 @@ export default function Home() {
 					open={cmdOpen}
 					onClose={() => setCmdOpen(false)}
 					sites={allSites}
+					actions={commandActions}
+					siteActions={siteCommands}
+					engines={engineOrder.enabledEngines}
+					onCategorySelect={(category) => {
+						setQuery('')
+						setActiveTag(null)
+						setActiveCategory(category)
+					}}
+					onTagSelect={(tag) => {
+						setQuery('')
+						setActiveCategory(null)
+						setActiveTag(tag)
+					}}
 				/>
 			</Suspense>
 

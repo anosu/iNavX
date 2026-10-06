@@ -554,27 +554,29 @@ export function ApplicationsPanel({
 										{item.suggestedCategory || '未指定分类'}
 									</p>
 								</div>
-								<button
-									type="button"
-									disabled={busy}
-									className={
-										item.status === 'pending' ? primaryClass : buttonClass
-									}
-									onClick={() => setSelected(item)}
-								>
-									{item.status === 'pending' ? '审核申请' : '查看详情'}
-								</button>
-								<button
-									type="button"
-									disabled={busy}
-									className={dangerClass}
-									onClick={() => {
-										setDeleteError('')
-										setDeleting(item)
-									}}
-								>
-									永久删除
-								</button>
+								<div className="ml-auto flex w-full flex-wrap justify-end gap-2 sm:w-auto">
+									<button
+										type="button"
+										disabled={busy}
+										className={
+											item.status === 'pending' ? primaryClass : buttonClass
+										}
+										onClick={() => setSelected(item)}
+									>
+										{item.status === 'pending' ? '审核申请' : '查看详情'}
+									</button>
+									<button
+										type="button"
+										disabled={busy}
+										className={dangerClass}
+										onClick={() => {
+											setDeleteError('')
+											setDeleting(item)
+										}}
+									>
+										永久删除
+									</button>
+								</div>
 							</article>
 						))}
 					</div>

@@ -11,6 +11,7 @@ for (const [key, value] of Object.entries({
 	localStorage: browser.localStorage,
 	Node: browser.Node,
 	Event: browser.Event,
+	CustomEvent: browser.CustomEvent,
 	KeyboardEvent: browser.KeyboardEvent,
 	DOMParser: browser.DOMParser,
 	HTMLElement: browser.HTMLElement,
@@ -32,6 +33,429 @@ const { SiteFormModal } = await import('../components/organisms/SiteFormModal')
 const { useSiteManager } = await import('../hooks/useSiteManager')
 const { useSiteMetadata } = await import('../hooks/useSiteMetadata')
 const { useCopyLink } = await import('../hooks/useCopyLink')
+const { CommandPalette } = await import(
+	'../components/organisms/CommandPalette'
+)
+const { useCommandShortcut } = await import('../hooks/useCommandShortcut')
+const { useTheme } = await import('../hooks/useTheme')
+const { searchCommandSites } = await import('../utils/commandSearch')
+const { readRecentSites, recordSiteOpen, clearRecentSites } = await import(
+	'../utils/recentSites'
+)
+
+test('command search excludes unrelated pins and recent history is bounded, deduplicated and removable', () => {
+	const sites = [
+		{
+			id: 'pin',
+			name: 'Unrelated',
+			url: 'https://pin.test',
+			description: '',
+			category: 'Other',
+			pinned: true,
+		},
+		{
+			id: 'match',
+			name: 'Example',
+			url: 'https://example.test',
+			description: '',
+			category: 'Tools',
+		},
+	]
+	assert.deepEqual(
+		searchCommandSites(sites, 'example').map((site) => site.id),
+		['match'],
+	)
+	assert.deepEqual(searchCommandSites(sites, 'missing'), [])
+	localStorage.setItem('inav-recent-sites', 'invalid json')
+	assert.deepEqual(readRecentSites(), [])
+	for (let i = 0; i < 25; i++) recordSiteOpen(`https://site${i}.test`)
+	recordSiteOpen('https://site0.test')
+	recordSiteOpen('https://site0.test')
+	assert.equal(readRecentSites().length, 20)
+	assert.equal(readRecentSites()[0], 'https://site0.test')
+	clearRecentSites()
+	assert.deepEqual(readRecentSites(), [])
+})
+
+test('command shortcut toggles from its input, ignores repeats and protects other dialogs', async (t) => {
+	function Harness() {
+		const [open, setOpen] = useState(false)
+		useCommandShortcut(open, () => setOpen((value) => !value))
+		return (
+			<>
+				<button type="button">Trigger</button>
+				<CommandPalette
+					open={open}
+					onClose={() => setOpen(false)}
+					sites={[]}
+					actions={[]}
+					engines={[]}
+					onCategorySelect={() => {}}
+					onTagSelect={() => {}}
+				/>
+			</>
+		)
+	}
+	const view = await mount(<Harness />)
+	t.after(view.dispose)
+	const trigger = view.container.querySelector('button')
+	assert.ok(trigger)
+	trigger.focus()
+	const press = async (target: EventTarget, repeat = false, meta = false) => {
+		const event = new KeyboardEvent('keydown', {
+			key: 'k',
+			ctrlKey: !meta,
+			metaKey: meta,
+			repeat,
+			bubbles: true,
+			cancelable: true,
+		})
+		await act(() => target.dispatchEvent(event))
+		return event
+	}
+	assert.equal((await press(trigger)).defaultPrevented, true)
+	const input = view.container.querySelector('input')
+	assert.ok(input)
+	assert.ok(input)
+	await press(input, true)
+	assert.ok(view.container.querySelector('dialog'))
+	assert.equal((await press(input, false, true)).defaultPrevented, true)
+	assert.equal(view.container.querySelector('dialog'), null)
+	assert.equal(document.activeElement, trigger)
+	const editor = document.createElement('dialog')
+	editor.setAttribute('open', '')
+	document.body.appendChild(editor)
+	assert.equal((await press(editor)).defaultPrevented, true)
+	assert.equal(view.container.querySelector('dialog'), null)
+	editor.remove()
+})
+
+test('command groups support actions, filters, engines, history clearing and IME input', async (t) => {
+	localStorage.clear()
+	recordSiteOpen('https://visible.test')
+	recordSiteOpen('https://hidden.test')
+	let selected = ''
+	let opened = ''
+	let closed = 0
+	const originalOpen = window.open
+	window.open = ((url: string) => {
+		opened = url
+		return null
+	}) as typeof window.open
+	t.after(() => {
+		window.open = originalOpen
+	})
+	const view = await mount(
+		<CommandPalette
+			open
+			onClose={() => {
+				closed++
+			}}
+			sites={[
+				{
+					id: 'visible',
+					source: 'builtin',
+					name: 'Visible',
+					url: 'https://visible.test',
+					description: 'Useful',
+					category: 'Long category',
+					tags: ['Long tag'],
+				},
+				{
+					id: 'personal',
+					name: 'Personal',
+					url: 'https://personal.test',
+					description: '',
+					category: 'Other',
+					source: 'custom',
+				},
+			]}
+			siteActions={[
+				{
+					id: 'copy',
+					label: '复制链接',
+					detail: '复制网站地址',
+					isAvailable: () => true,
+					run: (site) => {
+						selected = `copy:${site.id}`
+					},
+				},
+				{
+					id: 'hide',
+					label: '本地隐藏',
+					detail: '仅隐藏公共站点',
+					isAvailable: (site) => site.source === 'builtin',
+					run: (site) => {
+						selected = `hide:${site.id}`
+					},
+				},
+			]}
+			actions={[
+				{
+					id: 'add',
+					label: '添加站点',
+					detail: '个人收藏',
+					run: () => {
+						selected = 'add'
+					},
+				},
+			]}
+			engines={[
+				{
+					id: 'search',
+					name: 'Search',
+					searchUrl: 'https://search.test/?q={q}',
+					enabled: true,
+					iconUrl: '',
+				},
+			]}
+			onCategorySelect={(category) => {
+				selected = category
+			}}
+			onTagSelect={(tag) => {
+				selected = tag
+			}}
+		/>,
+	)
+	t.after(view.dispose)
+	assert.ok(view.container.textContent?.includes('最近打开'))
+	assert.ok(!view.container.textContent?.includes('hidden.test'))
+	const input = view.container.querySelector('input')
+	assert.ok(input)
+	const type = async (value: string) => {
+		await act(() => {
+			const setValue = Object.getOwnPropertyDescriptor(
+				browser.HTMLInputElement.prototype,
+				'value',
+			)?.set
+			assert.ok(setValue)
+			setValue.call(input, value)
+			input.dispatchEvent(new Event('input', { bubbles: true }))
+		})
+	}
+	const choose = async (text: string) => {
+		const button = [
+			...view.container.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+		].find((item) => item.textContent?.includes(text))
+		assert.ok(button, text)
+		await act(() => button.click())
+	}
+	await type('>clear-history')
+	assert.equal(view.container.querySelectorAll('[role="option"]').length, 1)
+	const removeItem = browser.localStorage.removeItem.bind(browser.localStorage)
+	Object.defineProperty(browser.localStorage, 'removeItem', {
+		configurable: true,
+		value: () => {
+			throw new Error('Storage blocked')
+		},
+	})
+	try {
+		await choose('清空最近打开记录')
+		assert.ok(
+			view.container
+				.querySelector('[role="alert"]')
+				?.textContent?.includes('清除失败'),
+		)
+		assert.equal(readRecentSites().length, 2)
+		assert.equal(closed, 0)
+	} finally {
+		Object.defineProperty(browser.localStorage, 'removeItem', {
+			configurable: true,
+			value: removeItem,
+		})
+	}
+	await choose('清空最近打开记录')
+	assert.deepEqual(readRecentSites(), [])
+	assert.equal(closed, 0)
+	await type('Long')
+	await choose('查看此分类的站点')
+	assert.equal(selected, 'Long category')
+	await choose('按此标签筛选站点')
+	assert.equal(selected, 'Long tag')
+	await type('hello & world')
+	await choose('用 Search 搜索')
+	assert.equal(opened, 'https://search.test/?q=hello%20%26%20world')
+	await type('>添加')
+	assert.equal(view.container.querySelectorAll('[role="option"]').length, 1)
+	await act(() =>
+		input.dispatchEvent(
+			new KeyboardEvent('keydown', {
+				key: 'Enter',
+				isComposing: true,
+				bubbles: true,
+				cancelable: true,
+			}),
+		),
+	)
+	assert.equal(selected, 'Long tag')
+	await act(() =>
+		input.dispatchEvent(
+			new KeyboardEvent('keydown', {
+				key: 'Enter',
+				keyCode: 229,
+				bubbles: true,
+				cancelable: true,
+			}),
+		),
+	)
+	assert.equal(selected, 'Long tag')
+	await act(() =>
+		input.dispatchEvent(
+			new KeyboardEvent('keydown', {
+				key: 'Enter',
+				bubbles: true,
+				cancelable: true,
+			}),
+		),
+	)
+	assert.equal(selected, 'add')
+	selected = ''
+	await type('>ADD')
+	assert.equal(view.container.querySelectorAll('[role="option"]').length, 1)
+	assert.equal(
+		view.container.querySelector('[role="option"] .font-mono')?.textContent,
+		'add',
+	)
+	await act(() =>
+		input.dispatchEvent(
+			new KeyboardEvent('keydown', {
+				key: 'Enter',
+				bubbles: true,
+				cancelable: true,
+			}),
+		),
+	)
+	assert.equal(selected, 'add')
+	await type('add')
+	assert.ok(
+		view.container
+			.querySelector('[role="option"]')
+			?.textContent?.includes('添加站点'),
+	)
+	await type('>missing')
+	await act(() =>
+		input.dispatchEvent(
+			new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+		),
+	)
+	assert.equal(input.getAttribute('aria-activedescendant'), null)
+	await type('Visible')
+	await choose('Visible')
+	assert.equal(readRecentSites()[0], 'https://visible.test')
+	clearRecentSites()
+	await type('>copy Personal')
+	assert.equal(view.container.querySelectorAll('[role="option"]').length, 1)
+	await act(() =>
+		input.dispatchEvent(
+			new KeyboardEvent('keydown', {
+				key: 'Enter',
+				bubbles: true,
+				cancelable: true,
+			}),
+		),
+	)
+	assert.equal(selected, 'copy:personal')
+	assert.deepEqual(readRecentSites(), [])
+	await type('>hide Personal')
+	assert.equal(view.container.querySelectorAll('[role="option"]').length, 0)
+	await type('>hide')
+	assert.equal(view.container.querySelectorAll('[role="option"]').length, 1)
+	await act(() =>
+		input.dispatchEvent(
+			new KeyboardEvent('keydown', {
+				key: 'Enter',
+				bubbles: true,
+				cancelable: true,
+			}),
+		),
+	)
+	assert.equal(selected, 'hide:visible')
+	await type('>复制链接')
+	assert.equal(view.container.querySelectorAll('[role="option"]').length, 2)
+	await type('>cop')
+	const previousClosed = closed
+	await act(() =>
+		input.dispatchEvent(
+			new KeyboardEvent('keydown', {
+				key: 'Enter',
+				bubbles: true,
+				cancelable: true,
+			}),
+		),
+	)
+	assert.equal(input.value, '>copy ')
+	assert.equal(closed, previousClosed)
+	assert.equal(document.activeElement, input)
+	await act(() =>
+		input.dispatchEvent(
+			new KeyboardEvent('keydown', {
+				key: 'Enter',
+				repeat: true,
+				bubbles: true,
+				cancelable: true,
+			}),
+		),
+	)
+	assert.equal(closed, previousClosed)
+	assert.equal(selected, 'hide:visible')
+})
+
+test('clipboard fallback copies inside the active dialog and restores focus', async (t) => {
+	const { copyText } = await import('../utils/clipboard')
+	const dialog = document.createElement('dialog')
+	dialog.setAttribute('open', '')
+	const input = document.createElement('input')
+	dialog.appendChild(input)
+	document.body.appendChild(dialog)
+	input.focus()
+	const originalExec = document.execCommand
+	t.after(() => {
+		document.execCommand = originalExec
+		dialog.remove()
+	})
+	let copied = ''
+	document.execCommand = () => {
+		const temporary = dialog.querySelector('textarea')
+		assert.ok(temporary)
+		assert.equal(document.activeElement, temporary)
+		copied = temporary.value
+		return true
+	}
+	await copyText('https://example.test')
+	assert.equal(copied, 'https://example.test')
+	assert.equal(dialog.querySelector('textarea'), null)
+	assert.equal(document.activeElement, input)
+})
+
+test('theme commands and header toggles stay synchronized', async (t) => {
+	localStorage.setItem('inav-theme', 'light')
+	function Toggle() {
+		const { isDark, toggleTheme } = useTheme()
+		return (
+			<button type="button" onClick={toggleTheme}>
+				{isDark ? 'dark' : 'light'}
+			</button>
+		)
+	}
+	const view = await mount(
+		<>
+			<Toggle />
+			<Toggle />
+		</>,
+	)
+	t.after(view.dispose)
+	const buttons = view.container.querySelectorAll('button')
+	await act(() => buttons[0].click())
+	assert.deepEqual(
+		[...buttons].map((button) => button.textContent),
+		['dark', 'dark'],
+	)
+	await act(() => buttons[1].click())
+	assert.deepEqual(
+		[...buttons].map((button) => button.textContent),
+		['light', 'light'],
+	)
+})
 
 async function mount(content: ReactNode) {
 	const container = document.createElement('div')

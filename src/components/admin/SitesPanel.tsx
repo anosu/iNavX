@@ -293,7 +293,7 @@ export function SitesPanel({
 		currentPage * ADMIN_PAGE_SIZE,
 	)
 	const actions = (site: PublicSite) => (
-		<div className="flex gap-2">
+		<div className="flex flex-wrap justify-end gap-2">
 			<button
 				type="button"
 				disabled={busy}
@@ -466,7 +466,7 @@ export function SitesPanel({
 								<th className="py-3">站点</th>
 								<th>分类</th>
 								<th>排序</th>
-								<th className="min-w-40">操作</th>
+								<th className="min-w-40 text-right">操作</th>
 							</tr>
 						</thead>
 						<tbody>

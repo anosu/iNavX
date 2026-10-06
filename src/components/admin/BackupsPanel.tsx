@@ -110,7 +110,7 @@ export function BackupsPanel({
 									{(backup.size / 1024).toFixed(1)} KB
 								</p>
 							</div>
-							<div className="flex gap-2">
+							<div className="ml-auto flex w-full flex-wrap justify-end gap-2 sm:w-auto">
 								<a
 									className={buttonClass}
 									href={`/api/admin/backups/${encodeURIComponent(backup.name)}`}
