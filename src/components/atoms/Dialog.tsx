@@ -1,4 +1,5 @@
 import { type ReactNode, useId } from 'react'
+import { useDialogBackdropClose } from '@/hooks/useDialogBackdropClose'
 import { useDialogLifecycle } from '@/hooks/useDialogLifecycle'
 import { buttonVariants } from './Button'
 import { XIcon } from './Icons'
@@ -12,6 +13,7 @@ export function Dialog({
 	footer,
 	onClose,
 	busy = false,
+	closeOnBackdrop = false,
 	size = 'md',
 	role,
 }: {
@@ -21,17 +23,22 @@ export function Dialog({
 	footer?: ReactNode
 	onClose: () => void
 	busy?: boolean
+	closeOnBackdrop?: boolean
 	size?: keyof typeof widths
 	role?: 'dialog' | 'alertdialog'
 }) {
 	const ref = useDialogLifecycle()
 	const titleId = useId()
+	const backdropHandlers = useDialogBackdropClose(
+		closeOnBackdrop && !busy ? onClose : undefined,
+	)
 	return (
 		<dialog
 			ref={ref}
 			role={role}
 			aria-labelledby={titleId}
 			aria-describedby={description ? `${titleId}-description` : undefined}
+			{...backdropHandlers}
 			onCancel={(event) => {
 				event.preventDefault()
 				if (!busy) onClose()

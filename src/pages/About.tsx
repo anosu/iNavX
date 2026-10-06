@@ -30,7 +30,16 @@ export default function About() {
 	if (features.customSites)
 		guides.push([
 			'整理个人收藏',
-			'点击「添加」保存常用链接，可选择已有分类或新建个人分类；在个人卡片上右键或长按，可以编辑、置顶或删除。个人分类随站点保存，只影响你的浏览器。',
+			'点击「添加」保存常用链接，可选择已有分类或新建个人分类；在个人卡片上右键或长按，可以编辑、置顶或删除。关闭表单时，有未保存的内容会提醒确认。个人分类随站点保存，只影响你的浏览器。',
+		])
+	if (
+		features.customSites ||
+		(settings.applicationsEnabled &&
+			import.meta.env.VITE_STATIC_MODE !== 'true')
+	)
+		guides.push([
+			'填写标签',
+			'输入一个标签后按 Enter 添加，逗号可以保留在标签中。点标签上的 × 删除；输入框为空时，第一次按 Backspace 选中最后一个标签，再按一次才删除。保存或提交会包含尚未按 Enter 的标签。',
 		])
 	if (features.bookmarkImport)
 		guides.push([

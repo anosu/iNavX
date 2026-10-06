@@ -46,6 +46,7 @@ function CategoryEditor({
 			title={category ? `编辑分类：${category.name}` : '新增分类'}
 			description="分类名称与排序保存后立即生效，数字越小越靠前。"
 			onClose={cancel}
+			closeOnBackdrop={!dirty}
 			busy={busy}
 			footer={
 				<div className="space-y-3">
@@ -106,6 +107,7 @@ function CategoryEditor({
 				id={formId}
 				onSubmit={(event) => {
 					event.preventDefault()
+					if (busy || discard) return
 					if (!name.trim()) {
 						setError('请输入分类名称')
 						return

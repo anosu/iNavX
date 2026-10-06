@@ -44,7 +44,10 @@ export default function Submit() {
 				tags.tags.length ||
 				tags.draft,
 		)
-	const blocker = useBlocker(dirty && !busy)
+	const blocker = useBlocker(dirty || busy)
+	useEffect(() => {
+		if (received && blocker.state === 'blocked') blocker.reset()
+	}, [received, blocker])
 	// biome-ignore lint/correctness/useExhaustiveDependencies: retry explicitly reloads service configuration.
 	useEffect(() => {
 		if (import.meta.env.VITE_STATIC_MODE === 'true') {
@@ -144,6 +147,7 @@ export default function Submit() {
 						<form
 							onSubmit={(event) => {
 								event.preventDefault()
+								if (busy) return
 								const parsed = submissionSchema.safeParse({
 									...value,
 									tags: readTagInput(tags),
@@ -293,8 +297,12 @@ export default function Submit() {
 			</div>
 			{blocker.state === 'blocked' && (
 				<Dialog
-					title="放弃填写？"
-					description="申请尚未提交，离开后填写的内容会丢失。"
+					title={busy ? '正在提交申请' : '放弃填写？'}
+					description={
+						busy
+							? '请等待提交完成后再离开，填写内容仍保留在当前页面。'
+							: '申请尚未提交，离开后填写的内容会丢失。'
+					}
 					onClose={() => blocker.reset()}
 					footer={
 						<div className="flex flex-wrap justify-end gap-2">
@@ -303,11 +311,12 @@ export default function Submit() {
 								className={buttonClass}
 								onClick={() => blocker.reset()}
 							>
-								继续填写
+								{busy ? '留在此页' : '继续填写'}
 							</button>
 							<button
 								type="button"
 								className={primaryClass}
+								disabled={busy}
 								onClick={() => blocker.proceed()}
 							>
 								放弃并离开

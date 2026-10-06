@@ -4,6 +4,7 @@ import { ExternalLinkIcon, SearchIcon, XIcon } from '@/components/atoms/Icons'
 import { Input } from '@/components/atoms/Input'
 import { ResourceImage } from '@/components/atoms/ResourceImage'
 import { getCategoryColor } from '@/data/categories'
+import { useDialogBackdropClose } from '@/hooks/useDialogBackdropClose'
 import { useDialogLifecycle } from '@/hooks/useDialogLifecycle'
 import { useSiteIconUrl } from '@/hooks/useImageUrl'
 import type { Site, SiteCategory } from '@/types'
@@ -249,6 +250,7 @@ export function CommandPalette({ open, onClose, sites }: CommandPaletteProps) {
 	const [selectedIndex, setSelectedIndex] = useState(0)
 	const inputRef = useRef<HTMLInputElement>(null)
 	const listRef = useRef<HTMLDivElement>(null)
+	const backdropHandlers = useDialogBackdropClose(onClose)
 
 	const results = useMemo(() => searchSites(sites, query), [sites, query])
 
@@ -318,10 +320,7 @@ export function CommandPalette({ open, onClose, sites }: CommandPaletteProps) {
 				event.preventDefault()
 				onClose()
 			}}
-			onClick={(event) => {
-				if (event.target === event.currentTarget) onClose()
-				event.stopPropagation()
-			}}
+			{...backdropHandlers}
 			onKeyDown={(e) => {
 				e.stopPropagation()
 			}}

@@ -11,12 +11,7 @@ import {
 } from '../src/utils/personalData.js'
 import { migrationSchema, normalizeUrl, submissionSchema } from './catalog.js'
 import { DEFAULT_SETTINGS } from './defaults.js'
-import {
-	createTagInput,
-	parseTagInput,
-	readTagInput,
-	tagsSchema,
-} from './tags.js'
+import { createTagInput, readTagInput, tagsSchema } from './tags.js'
 
 test('tag input includes unfinished text and preserves spaces while trimming and deduplicating', () => {
 	assert.deepEqual(
@@ -29,13 +24,15 @@ test('tag input includes unfinished text and preserves spaces while trimming and
 	assert.deepEqual(readTagInput(createTagInput(['保留'])), ['保留'])
 	assert.deepEqual(readTagInput({ tags: ['C, C++'], draft: 'Go，最后一个' }), [
 		'C, C++',
-		'Go',
-		'最后一个',
+		'Go，最后一个',
 	])
-	assert.deepEqual(
-		parseTagInput(' 开源，开发工具, 开源, Visual Studio\n最后一个'),
-		['开源', '开发工具', 'Visual Studio', '最后一个'],
-	)
+	assert.deepEqual(readTagInput({ tags: [], draft: ' C, C++，开发工具 ' }), [
+		'C, C++，开发工具',
+	])
+	assert.deepEqual(readTagInput({ tags: ['C, C++'], draft: ' C, C++ ' }), [
+		'C, C++',
+	])
+	assert.deepEqual(readTagInput({ tags: [], draft: '   ' }), [])
 	assert.deepEqual(tagsSchema.parse([' 开源 ', '开源']), ['开源'])
 	assert.deepEqual(
 		submissionSchema.parse({ name: 'Test', url: 'https://test.example' }).tags,

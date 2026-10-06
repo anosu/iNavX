@@ -1,9 +1,8 @@
-import { useId, useRef } from 'react'
+import { useId, useRef, useState } from 'react'
 import { XIcon } from '@/components/atoms/Icons'
 import { inputVariants } from '@/components/atoms/Input'
 import {
 	MAX_TAGS,
-	parseTagInput,
 	readTagInput,
 	type TagInputDraft,
 	tagsSchema,
@@ -27,22 +26,24 @@ export function TagInput({
 	const hintId = `${inputId}-hint`
 	const { tags, draft } = value
 	const inputRef = useRef<HTMLInputElement>(null)
+	const [deleteCandidate, setDeleteCandidate] = useState<TagInputDraft | null>(
+		null,
+	)
+	const selectedTag = deleteCandidate === value ? tags.at(-1) : undefined
 	const current = readTagInput(value)
 	const parsed = tagsSchema.safeParse(current)
 	const error = parsed.success ? '' : parsed.error.issues[0].message
 	const publish = (nextTags: string[], nextDraft: string) => {
+		setDeleteCandidate(null)
 		onChange({ tags: nextTags, draft: nextDraft })
 	}
 	const commit = () => {
 		if (parsed.success) publish(parsed.data, '')
 	}
 	const remove = (tag: string) => {
-		const pending = parseTagInput(draft)
 		publish(
 			tags.filter((value) => value !== tag),
-			pending.includes(tag)
-				? pending.filter((value) => value !== tag).join(', ')
-				: draft,
+			draft.trim() === tag ? '' : draft,
 		)
 		inputRef.current?.focus()
 	}
@@ -54,7 +55,10 @@ export function TagInput({
 			{tags.length > 0 && (
 				<div className="flex min-w-0 flex-wrap gap-1.5">
 					{tags.map((tag) => (
-						<span key={tag} className="badge badge-primary max-w-full gap-1">
+						<span
+							key={tag}
+							className={`badge badge-primary max-w-full gap-1 ${selectedTag === tag ? 'ring-2 ring-primary' : ''}`}
+						>
 							<span className="truncate" title={tag}>
 								{tag}
 							</span>
@@ -76,32 +80,30 @@ export function TagInput({
 				className={inputVariants({ error: Boolean(error) })}
 				value={draft}
 				onChange={(event) => {
-					const text = event.target.value
-					if (
-						!(event.nativeEvent as InputEvent).isComposing &&
-						/[,，]/.test(text)
-					) {
-						const parts = text.split(/[,，]/)
-						const tail = parts.pop() ?? ''
-						publish(
-							[...new Set([...tags, ...parseTagInput(parts.join(','))])],
-							tail,
-						)
-					} else publish(tags, text)
+					publish(tags, event.target.value)
 				}}
+				onBlur={() => setDeleteCandidate(null)}
+				onPointerDown={() => setDeleteCandidate(null)}
+				onCompositionStart={() => setDeleteCandidate(null)}
 				onKeyDown={(event) => {
-					if (event.nativeEvent.isComposing) return
 					if (
-						event.key === 'Enter' ||
-						event.key === ',' ||
-						event.key === '，'
+						event.nativeEvent.isComposing ||
+						event.ctrlKey ||
+						event.metaKey ||
+						event.altKey
 					) {
+						setDeleteCandidate(null)
+						return
+					}
+					if (event.key === 'Enter') {
 						event.preventDefault()
 						commit()
 					} else if (event.key === 'Backspace' && !draft && tags.length) {
 						event.preventDefault()
-						remove(tags[tags.length - 1])
-					}
+						if (event.repeat) return
+						if (selectedTag) remove(selectedTag)
+						else setDeleteCandidate(value)
+					} else setDeleteCandidate(null)
 				}}
 				placeholder="输入标签后按 Enter"
 				autoComplete="off"
@@ -110,10 +112,13 @@ export function TagInput({
 			/>
 			<p
 				id={hintId}
+				aria-live="polite"
 				className={`text-xs leading-relaxed ${error ? 'text-error' : 'text-muted-foreground'}`}
 			>
 				{error ||
-					`Enter 或中英文逗号添加，点 × 删除。${current.length}/${MAX_TAGS}，每个最多 100 个字符。`}
+					(selectedTag
+						? `已选中标签“${selectedTag}”，再按一次 Backspace 删除。`
+						: `Enter 添加，逗号可用于标签内容，点 × 删除。空输入时连按两次 Backspace 删除最后一项。${current.length}/${MAX_TAGS}，每个最多 100 个字符。`)}
 			</p>
 			{hint && (
 				<p className="text-xs text-muted-foreground leading-relaxed">{hint}</p>

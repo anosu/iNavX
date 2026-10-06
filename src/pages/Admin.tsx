@@ -74,10 +74,13 @@ export default function Admin() {
 	const current = tabs.find((item) => item.id === params.get('tab')) ?? tabs[0]
 	const tab = current.id
 	const [dirty, setDirty] = useState(false)
-	const blocker = useBlocker(dirty)
 	const [pendingCount, setPendingCount] = useState(0)
 	const [confirmLogout, setConfirmLogout] = useState(false)
 	const [busy, setBusy] = useState(false)
+	const blocker = useBlocker(dirty || busy)
+	useEffect(() => {
+		if (!dirty && !busy && blocker.state === 'blocked') blocker.reset()
+	}, [dirty, busy, blocker])
 	const [notice, setNotice] = useState<{
 		message: string
 		error: boolean
@@ -107,14 +110,14 @@ export default function Admin() {
 	}, [load])
 	useEffect(() => {
 		const warn = (event: BeforeUnloadEvent) => {
-			if (dirty) {
+			if (dirty || busy) {
 				event.preventDefault()
 				event.returnValue = ''
 			}
 		}
 		window.addEventListener('beforeunload', warn)
 		return () => window.removeEventListener('beforeunload', warn)
-	}, [dirty])
+	}, [dirty, busy])
 	const runAction: RunAdminAction = async (work, success) => {
 		setBusy(true)
 		setNotice(null)
@@ -523,7 +526,11 @@ export default function Admin() {
 				{blocker.state === 'blocked' && (
 					<Dialog
 						title="离开当前页面？"
-						description="你有未保存的修改，离开后需要重新填写。"
+						description={
+							busy
+								? '操作正在进行，请等待完成后再离开。'
+								: '你有未保存的修改，离开后需要重新填写。'
+						}
 						onClose={() => blocker.reset()}
 						footer={
 							<div className="flex flex-wrap justify-end gap-2">
@@ -532,11 +539,12 @@ export default function Admin() {
 									className={buttonClass}
 									onClick={() => blocker.reset()}
 								>
-									继续编辑
+									{busy ? '留在此页' : '继续编辑'}
 								</button>
 								<button
 									type="button"
 									className={primaryClass}
+									disabled={busy}
 									onClick={() => {
 										setDirty(false)
 										blocker.proceed()

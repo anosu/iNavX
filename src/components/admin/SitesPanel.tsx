@@ -85,6 +85,7 @@ function SiteEditor({
 					: '保存后立即展示在公共目录中。'
 			}
 			onClose={onClose}
+			closeOnBackdrop={!dirty}
 			busy={busy}
 			footer={
 				<div className="space-y-3">
@@ -152,6 +153,7 @@ function SiteEditor({
 				id={formId}
 				onSubmit={(event) => {
 					event.preventDefault()
+					if (busy || discard) return
 					const parsed = siteInputSchema.safeParse({
 						...value,
 						tags: readTagInput(tags),

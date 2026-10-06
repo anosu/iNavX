@@ -15,18 +15,6 @@ export const tagsSchema = z
 	.transform((tags) => [...new Set(tags)])
 	.default([])
 
-/** Commas separate tags; spaces inside a tag are preserved. */
-export function parseTagInput(value: string): string[] {
-	return [
-		...new Set(
-			value
-				.split(/[,，\n]/)
-				.map((tag) => tag.trim())
-				.filter(Boolean),
-		),
-	]
-}
-
 export interface TagInputDraft {
 	tags: string[]
 	draft: string
@@ -37,10 +25,11 @@ export function createTagInput(tags: readonly string[] = []): TagInputDraft {
 }
 
 export function readTagInput(value: TagInputDraft): string[] {
+	const draft = value.draft.trim()
 	return [
 		...new Set([
 			...value.tags.map((tag) => tag.trim()),
-			...parseTagInput(value.draft),
+			...(draft ? [draft] : []),
 		]),
 	]
 }

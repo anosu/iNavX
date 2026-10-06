@@ -98,6 +98,7 @@ function ReviewDialog({
 			title={item.status === 'pending' ? '审核收录申请' : '申请详情'}
 			description={`提交于 ${date(item.createdAt)}`}
 			onClose={cancel}
+			closeOnBackdrop={!dirty}
 			busy={busy}
 			footer={
 				item.status === 'pending' ? (
@@ -214,6 +215,7 @@ function ReviewDialog({
 					id={formId}
 					onSubmit={(event) => {
 						event.preventDefault()
+						if (busy || discard) return
 						const value = reviewSchema.safeParse({
 							action,
 							expectedUpdatedAt: item.updatedAt,

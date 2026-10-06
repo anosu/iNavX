@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Button, buttonVariants } from '@/components/atoms/Button'
 import {
 	CheckIcon,
@@ -11,6 +11,7 @@ import { ResourceImage } from '@/components/atoms/ResourceImage'
 import { Switch } from '@/components/atoms/Switch'
 import { TagInput } from '@/components/molecules/TagInput'
 import { SITE_CATEGORIES } from '@/data/categories'
+import { useDialogBackdropClose } from '@/hooks/useDialogBackdropClose'
 import { useDialogLifecycle } from '@/hooks/useDialogLifecycle'
 import { useImageUrl, useSiteIconUrl } from '@/hooks/useImageUrl'
 import { usePublicCatalog } from '@/hooks/usePublicCatalog'
@@ -428,12 +429,26 @@ export function SiteFormModal({
 	const [form, setForm] = useState<SitePayload>(
 		editSite ? siteToPayload(editSite) : EMPTY_FORM,
 	)
+	const formId = useId()
+	const initialForm = useRef(form)
+	const [discardAction, setDiscardAction] = useState<'close' | 'delete' | null>(
+		null,
+	)
 	const [errors, setErrors] = useState<ValidationError[]>([])
 	const [submitted, setSubmitted] = useState(false)
 	const [tags, setTags] = useState(createTagInput(editSite?.tags ?? []))
 	const [creatingCategory, setCreatingCategory] = useState(false)
 	const [categoryInput, setCategoryInput] = useState('')
 	const [categoryError, setCategoryError] = useState('')
+	const dirty =
+		JSON.stringify({ ...form, tags: readTagInput(tags) }) !==
+			JSON.stringify(initialForm.current) ||
+		Boolean(tags.draft || categoryInput)
+	const requestClose = () => {
+		if (dirty) setDiscardAction('close')
+		else onClose()
+	}
+	const backdropHandlers = useDialogBackdropClose(dirty ? undefined : onClose)
 	const firstInputRef = useRef<HTMLInputElement>(null)
 
 	// ---- 自动获取元数据状态 ----
@@ -467,7 +482,9 @@ export function SiteFormModal({
 							? EMPTY_FORM.category
 							: currentCategories[0] || '其他',
 					}
+			initialForm.current = initial
 			setForm(initial)
+			setDiscardAction(null)
 			setErrors([])
 			setSubmitted(false)
 			setTags(createTagInput(initial.tags ?? []))
@@ -479,6 +496,15 @@ export function SiteFormModal({
 			requestAnimationFrame(() => firstInputRef.current?.focus())
 		}
 	}, [open, editSite, cancelMetadata])
+	useEffect(() => {
+		if (!open || !dirty) return
+		const warn = (event: BeforeUnloadEvent) => {
+			event.preventDefault()
+			event.returnValue = ''
+		}
+		window.addEventListener('beforeunload', warn)
+		return () => window.removeEventListener('beforeunload', warn)
+	}, [open, dirty])
 
 	// 表单变更
 	const setField = useCallback(
@@ -595,6 +621,7 @@ export function SiteFormModal({
 	const handleSubmit = useCallback(
 		(e: React.FormEvent) => {
 			e.preventDefault()
+			if (discardAction) return
 			setSubmitted(true)
 
 			const payload = { ...form, tags: readTagInput(tags) }
@@ -615,7 +642,7 @@ export function SiteFormModal({
 			onSubmit(payload, editSite?.id)
 			onClose()
 		},
-		[form, tags, editSite, isUrlDuplicate, onSubmit, onClose],
+		[form, tags, editSite, isUrlDuplicate, onSubmit, onClose, discardAction],
 	)
 
 	const canDelete = isEdit && Boolean(onDelete) && Boolean(editSite)
@@ -630,17 +657,10 @@ export function SiteFormModal({
 			className="dialog-panel max-w-lg animate-scale-up"
 			onCancel={(e) => {
 				e.preventDefault()
-				onClose()
+				requestClose()
 			}}
-			onClick={(e) => {
-				if (e.target === e.currentTarget) onClose()
-				e.stopPropagation()
-			}}
+			{...backdropHandlers}
 			onKeyDown={(e) => {
-				if (e.key === 'Escape') {
-					e.preventDefault()
-					onClose()
-				}
 				e.stopPropagation()
 			}}
 			tabIndex={-1}
@@ -667,7 +687,7 @@ export function SiteFormModal({
 					</div>
 					<button
 						type="button"
-						onClick={onClose}
+						onClick={requestClose}
 						className={buttonVariants({ variant: 'icon' })}
 						aria-label="关闭"
 					>
@@ -677,6 +697,7 @@ export function SiteFormModal({
 
 				{/* 表单体 */}
 				<form
+					id={formId}
 					onSubmit={handleSubmit}
 					noValidate
 					className="dialog-body min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-4"
@@ -958,50 +979,88 @@ export function SiteFormModal({
 
 				{/* Footer */}
 				<div className="dialog-footer flex flex-wrap items-center justify-between gap-2 shrink-0">
-					{/* 左侧：删除按钮（仅编辑 custom/imported 时出现） */}
-					{canDelete ? (
-						<button
-							type="button"
-							onClick={handleDelete}
-							className={buttonVariants({ variant: 'danger' })}
-							aria-label="删除此站点"
-						>
-							<svg
-								width="13"
-								height="13"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								aria-hidden="true"
+					{discardAction ? (
+						<>
+							<p role="alert" className="mr-auto text-sm">
+								放弃未保存的修改？
+							</p>
+							<Button
+								variant="secondary"
+								type="button"
+								onClick={(event) => {
+									event.preventDefault()
+									setDiscardAction(null)
+								}}
 							>
-								<polyline points="3 6 5 6 21 6" />
-								<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-								<path d="M10 11v6M14 11v6" />
-								<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-							</svg>
-							删除
-						</button>
-					) : (
-						<Button variant="secondary" type="button" onClick={onClose}>
-							取消
-						</Button>
-					)}
-
-					{/* 右侧：取消（删除模式下）+ 保存/添加 */}
-					<div className="ml-auto flex items-center gap-2">
-						{canDelete && (
-							<Button variant="secondary" type="button" onClick={onClose}>
-								取消
+								继续编辑
 							</Button>
-						)}
-						<Button variant="primary" type="submit" onClick={handleSubmit}>
-							<CheckIcon size={14} />
-							{isEdit ? '保存更改' : '添加站点'}
-						</Button>
-					</div>
+							<Button
+								variant="danger"
+								type="button"
+								onClick={discardAction === 'delete' ? handleDelete : onClose}
+							>
+								放弃修改
+							</Button>
+						</>
+					) : (
+						<>
+							{/* 左侧：删除按钮（仅编辑 custom/imported 时出现） */}
+							{canDelete ? (
+								<button
+									type="button"
+									onClick={() => {
+										if (dirty) setDiscardAction('delete')
+										else handleDelete()
+									}}
+									className={buttonVariants({ variant: 'danger' })}
+									aria-label="删除此站点"
+								>
+									<svg
+										width="13"
+										height="13"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										aria-hidden="true"
+									>
+										<polyline points="3 6 5 6 21 6" />
+										<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+										<path d="M10 11v6M14 11v6" />
+										<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+									</svg>
+									删除
+								</button>
+							) : (
+								<Button
+									variant="secondary"
+									type="button"
+									onClick={requestClose}
+								>
+									取消
+								</Button>
+							)}
+
+							{/* 右侧：取消（删除模式下）+ 保存/添加 */}
+							<div className="ml-auto flex items-center gap-2">
+								{canDelete && (
+									<Button
+										variant="secondary"
+										type="button"
+										onClick={requestClose}
+									>
+										取消
+									</Button>
+								)}
+								<Button variant="primary" type="submit" form={formId}>
+									<CheckIcon size={14} />
+									{isEdit ? '保存更改' : '添加站点'}
+								</Button>
+							</div>
+						</>
+					)}
 				</div>
 			</div>
 		</dialog>
