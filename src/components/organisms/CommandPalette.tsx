@@ -199,7 +199,13 @@ function EmptyState({ query }: { query: string }) {
 
 // ---- 页脚提示 ----
 
-function Footer({ resultCount }: { resultCount: number }) {
+function Footer({
+	resultCount,
+	visibleCount,
+}: {
+	resultCount: number
+	visibleCount: number
+}) {
 	return (
 		<div className="flex flex-wrap items-center justify-between gap-2">
 			<div className="flex items-center gap-3">
@@ -219,7 +225,7 @@ function Footer({ resultCount }: { resultCount: number }) {
 			</div>
 			{resultCount > 0 && (
 				<span className="text-[11px] text-muted-foreground tabular-nums">
-					{resultCount} 个结果
+					已展示 {visibleCount} / 共 {resultCount} 条
 				</span>
 			)}
 		</div>
@@ -252,6 +258,7 @@ export interface SiteCommandAction extends Omit<CommandAction, 'run'> {
 }
 
 const NO_SITE_ACTIONS: SiteCommandAction[] = []
+const RESULT_BATCH_SIZE = 30
 
 interface CommandEntry extends CommandAction {
 	group: string
@@ -273,11 +280,15 @@ export function CommandPalette({
 	const dialogRef = useDialogLifecycle(open)
 	const [query, setQuery] = useState('')
 	const [selectedIndex, setSelectedIndex] = useState(0)
+	const [visibleLimit, setVisibleLimit] = useState(RESULT_BATCH_SIZE)
 	const inputRef = useRef<HTMLInputElement>(null)
+	const listRef = useRef<HTMLDivElement>(null)
 	const backdropHandlers = useDialogBackdropClose(onClose)
 	const changeQuery = useCallback((value: string) => {
 		setQuery(value)
 		setSelectedIndex(0)
+		setVisibleLimit(RESULT_BATCH_SIZE)
+		if (listRef.current) listRef.current.scrollTop = 0
 	}, [])
 
 	const [recentUrls, setRecentUrls] = useState<string[]>([])
@@ -299,7 +310,7 @@ export function CommandPalette({
 			const eligible = sites.filter(siteAction.isAvailable)
 			const targets = siteQuery
 				? searchCommandSites(eligible, siteQuery)
-				: eligible.slice(0, 12)
+				: eligible
 			return targets.map(
 				(site): CommandEntry => ({
 					id: `${siteAction.id}-${site.source}-${site.id}`,
@@ -387,9 +398,9 @@ export function CommandPalette({
 				})
 		}
 		if (search && !actionsOnly) {
-			for (const category of [...new Set(sites.map((site) => site.category))]
-				.filter(matches)
-				.slice(0, 8)) {
+			for (const category of [
+				...new Set(sites.map((site) => site.category)),
+			].filter(matches)) {
 				entries.push({
 					id: `category-${category}`,
 					label: category,
@@ -398,9 +409,9 @@ export function CommandPalette({
 					run: () => onCategorySelect(category),
 				})
 			}
-			for (const tag of [...new Set(sites.flatMap((site) => site.tags ?? []))]
-				.filter(matches)
-				.slice(0, 8)) {
+			for (const tag of [
+				...new Set(sites.flatMap((site) => site.tags ?? [])),
+			].filter(matches)) {
 				entries.push({
 					id: `tag-${tag}`,
 					label: tag,
@@ -446,7 +457,11 @@ export function CommandPalette({
 		onCategorySelect,
 		onTagSelect,
 	])
-	const activeIndex = Math.min(selectedIndex, Math.max(0, results.length - 1))
+	const visibleResults = results.slice(0, visibleLimit)
+	const activeIndex = Math.min(
+		selectedIndex,
+		Math.max(0, visibleResults.length - 1),
+	)
 
 	// 焦点由共享的原生弹窗生命周期管理。
 	useEffect(() => {
@@ -475,12 +490,19 @@ export function CommandPalette({
 			// Some IMEs report Enter with keyCode 229 after compositionend.
 			if (e.nativeEvent.isComposing || e.keyCode === 229) return
 			switch (e.key) {
-				case 'ArrowDown':
+				case 'ArrowDown': {
 					e.preventDefault()
-					setSelectedIndex(
-						Math.min(activeIndex + 1, Math.max(0, results.length - 1)),
+					const next = Math.min(
+						activeIndex + 1,
+						Math.max(0, results.length - 1),
 					)
+					if (next >= visibleLimit)
+						setVisibleLimit((limit) =>
+							Math.min(limit + RESULT_BATCH_SIZE, results.length),
+						)
+					setSelectedIndex(next)
 					break
+				}
 				case 'ArrowUp':
 					e.preventDefault()
 					setSelectedIndex(Math.max(activeIndex - 1, 0))
@@ -495,7 +517,7 @@ export function CommandPalette({
 					break
 			}
 		},
-		[results.length, activeIndex, openSelected, onClose],
+		[results.length, visibleLimit, activeIndex, openSelected, onClose],
 	)
 
 	if (!open) return null
@@ -587,13 +609,26 @@ export function CommandPalette({
 
 				{/* 结果列表 */}
 				<div
+					ref={listRef}
 					id="cmd-results"
 					role="listbox"
 					aria-label="命令搜索结果"
+					onScroll={(event) => {
+						const list = event.currentTarget
+						if (
+							visibleLimit < results.length &&
+							list.clientHeight > 0 &&
+							list.scrollHeight - list.scrollTop - list.clientHeight <= 48
+						) {
+							setVisibleLimit((limit) =>
+								Math.min(limit + RESULT_BATCH_SIZE, results.length),
+							)
+						}
+					}}
 					className="min-h-0 flex-1 px-1.5 pb-1.5 max-h-80 overflow-y-auto overscroll-contain scrollbar-thin"
 				>
 					{results.length > 0 ? (
-						results.map((entry, index) => (
+						visibleResults.map((entry, index) => (
 							<div key={entry.id} role="presentation">
 								{results[index - 1]?.group !== entry.group && (
 									<div
@@ -624,7 +659,10 @@ export function CommandPalette({
 							{historyError}
 						</p>
 					)}
-					<Footer resultCount={results.length} />
+					<Footer
+						resultCount={results.length}
+						visibleCount={visibleResults.length}
+					/>
 				</div>
 			</div>
 		</dialog>

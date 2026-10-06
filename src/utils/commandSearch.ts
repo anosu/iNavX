@@ -15,6 +15,5 @@ export function searchCommandSites(sites: Site[], query: string): Site[] {
 		})
 		.filter(({ score }) => score > 0)
 		.sort((a, b) => b.score - a.score)
-		.slice(0, 12)
 		.map(({ site }) => site)
 }

@@ -400,6 +400,117 @@ test('command groups support actions, filters, engines, history clearing and IME
 	assert.equal(selected, 'hide:visible')
 })
 
+test('command results load in batches while queries search every eligible site', async (t) => {
+	const sites = Array.from({ length: 95 }, (_, index) => ({
+		id: String(index),
+		name: `Site ${String(index).padStart(3, '0')}`,
+		url: `https://site${index}.test`,
+		description: '',
+		category: 'Tools',
+		source: index < 90 ? ('builtin' as const) : ('custom' as const),
+	}))
+	assert.equal(searchCommandSites(sites, 'Site').length, 95)
+	let selected = ''
+	const view = await mount(
+		<CommandPalette
+			open
+			onClose={() => {}}
+			sites={sites}
+			actions={[]}
+			engines={[]}
+			siteActions={[
+				{
+					id: 'copy',
+					label: '复制链接',
+					detail: '',
+					isAvailable: () => true,
+					run: (site) => {
+						selected = site.id
+					},
+				},
+				{
+					id: 'hide',
+					label: '本地隐藏',
+					detail: '',
+					isAvailable: (site) => site.source === 'builtin',
+					run: () => {},
+				},
+			]}
+			onCategorySelect={() => {}}
+			onTagSelect={() => {}}
+		/>,
+	)
+	t.after(view.dispose)
+	const input = view.container.querySelector('input')
+	const list = view.container.querySelector('[role="listbox"]')
+	assert.ok(input)
+	assert.ok(list)
+	const type = async (value: string) => {
+		await act(() => {
+			const setter = Object.getOwnPropertyDescriptor(
+				browser.HTMLInputElement.prototype,
+				'value',
+			)?.set
+			assert.ok(setter)
+			setter.call(input, value)
+			input.dispatchEvent(new Event('input', { bubbles: true }))
+		})
+	}
+	const count = () => view.container.querySelectorAll('[role="option"]').length
+	await type('>copy')
+	assert.equal(count(), 30)
+	assert.ok(view.container.textContent?.includes('已展示 30 / 共 95 条'))
+	for (let i = 0; i < 30; i++) {
+		await act(() =>
+			input.dispatchEvent(
+				new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+			),
+		)
+	}
+	assert.equal(count(), 60)
+	const activeId = input.getAttribute('aria-activedescendant')
+	assert.ok(activeId)
+	assert.ok(
+		document.getElementById(activeId)?.textContent?.includes('Site 030'),
+	)
+	for (const [name, value] of Object.entries({
+		clientHeight: 100,
+		scrollHeight: 1000,
+		scrollTop: 900,
+	}))
+		Object.defineProperty(list, name, {
+			configurable: true,
+			writable: true,
+			value,
+		})
+	await act(() => list.dispatchEvent(new Event('scroll')))
+	assert.equal(count(), 90)
+	await act(() => list.dispatchEvent(new Event('scroll')))
+	assert.equal(count(), 95)
+	await act(() => list.dispatchEvent(new Event('scroll')))
+	assert.equal(count(), 95)
+	await type('>copy Site 094')
+	assert.equal(list.scrollTop, 0)
+	assert.equal(count(), 1)
+	await act(() =>
+		input.dispatchEvent(
+			new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+		),
+	)
+	assert.equal(selected, '94')
+	await type('>copy Site')
+	assert.equal(count(), 30)
+	assert.ok(view.container.textContent?.includes('已展示 30 / 共 95 条'))
+	await type('>hide')
+	assert.equal(count(), 30)
+	assert.ok(view.container.textContent?.includes('已展示 30 / 共 90 条'))
+	await type('>hide Site 094')
+	assert.equal(count(), 0)
+	await type('Site')
+	assert.equal(count(), 30)
+	assert.ok(view.container.textContent?.includes('共 95 条'))
+})
+
 test('clipboard fallback copies inside the active dialog and restores focus', async (t) => {
 	const { copyText } = await import('../utils/clipboard')
 	const dialog = document.createElement('dialog')
