@@ -89,6 +89,9 @@ func transaction(db *sql.DB, fn func(*sql.Tx) error) error {
 	return tx.Commit()
 }
 func openStore(c Config) (*Store, error) {
+	if err := recoverFullRestore(c); err != nil {
+		return nil, fmt.Errorf("恢复未完成，拒绝启动：%w", err)
+	}
 	for _, dir := range []string{c.DataDir, c.BackupDir} {
 		if err := os.MkdirAll(dir, 0700); err != nil {
 			return nil, err
@@ -338,6 +341,15 @@ func touch(q queryer) error {
 	return err
 }
 func (s *Store) snapshot(q queryer, includeDeleted bool) (Catalog, error) {
+	if db, ok := q.(*sql.DB); ok {
+		var result Catalog
+		err := transaction(db, func(tx *sql.Tx) error {
+			var err error
+			result, err = s.snapshot(tx, includeDeleted)
+			return err
+		})
+		return result, err
+	}
 	if db, ok := q.(*sql.DB); ok {
 		var value Catalog
 		err := transaction(db, func(tx *sql.Tx) error { var err error; value, err = s.snapshot(tx, includeDeleted); return err })

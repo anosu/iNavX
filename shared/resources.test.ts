@@ -92,7 +92,7 @@ test('fresh defaults and seed entries have no external image or metadata service
 	assert.equal(DEFAULT_SETTINGS.metadataProxyTemplate, '')
 	assert.ok(DEFAULT_ENGINES.every((engine) => engine.iconUrl === ''))
 	const seed = JSON.parse(
-		readFileSync(new URL('../src/data/sites.json', import.meta.url), 'utf8'),
+		readFileSync(new URL('../seed/sites.json', import.meta.url), 'utf8'),
 	) as { iconUrl: string }[]
 	assert.ok(seed.every((site) => site.iconUrl === ''))
 	const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')

@@ -84,6 +84,7 @@ export default function Admin() {
 	const [notice, setNotice] = useState<{
 		message: string
 		error: boolean
+		conflict?: boolean
 	} | null>(null)
 	const refresh = useCallback(async () => {
 		setData(await requestAdminData('admin/catalog', catalogSchema))
@@ -145,6 +146,7 @@ export default function Admin() {
 			setNotice({
 				message: error instanceof Error ? error.message : '操作失败',
 				error: true,
+				conflict: error instanceof ApiError && error.status === 409,
 			})
 			return false
 		} finally {
@@ -249,6 +251,16 @@ export default function Admin() {
 							}
 						>
 							{notice.message}
+							{notice.conflict && (
+								<a
+									className="shrink-0 underline"
+									href={window.location.href}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									另页查看最新内容
+								</a>
+							)}
 							<button
 								type="button"
 								className={buttonVariants({
@@ -498,6 +510,7 @@ export default function Admin() {
 										<SettingsPanel
 											key={data.revision}
 											settings={data.settings}
+											revision={data.revision}
 											csrf={status.csrf}
 											runAction={runAction}
 											busy={busy}
@@ -507,6 +520,7 @@ export default function Admin() {
 										<EnginesPanel
 											key={data.revision}
 											engines={data.engines}
+											revision={data.revision}
 											csrf={status.csrf}
 											runAction={runAction}
 											busy={busy}

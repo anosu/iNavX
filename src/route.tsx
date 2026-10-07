@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Outlet, ScrollRestoration } from 'react-router'
 import { PublicCatalogProvider } from '@/hooks/usePublicCatalog'
 import Home from '@/pages/Home'
+import { isChunkLoadError } from '@/utils/runtimeErrors'
 
 const About = lazy(() => import('@/pages/About'))
 const Admin = lazy(() => import('@/pages/Admin'))
@@ -64,6 +65,7 @@ import { isRouteErrorResponse, Link, useRouteError } from 'react-router'
 function ErrorPage() {
 	const error = useRouteError()
 	const is404 = isRouteErrorResponse(error) && error.status === 404
+	const resourceError = isChunkLoadError(error)
 
 	return (
 		<main
@@ -71,13 +73,19 @@ function ErrorPage() {
 			aria-label="错误页面"
 		>
 			<h1 className="text-2xl font-bold text-foreground mb-2">
-				{is404 ? '页面未找到' : '出现了一些问题'}
+				{is404
+					? '页面未找到'
+					: resourceError
+						? '页面资源需要重新加载'
+						: '出现了一些问题'}
 			</h1>
 
 			<p className="text-muted-foreground mb-6 max-w-sm">
 				{is404
 					? '你访问的页面不存在，可能已被移除或链接有误'
-					: '应用发生了未知错误，请刷新页面重试'}
+					: resourceError
+						? '网站可能已更新，或网络暂时不可用。确认已保留需要的内容后，刷新页面重试。'
+						: '应用发生了未知错误，请刷新页面重试'}
 			</p>
 
 			{import.meta.env.DEV && !is404 && (
@@ -104,6 +112,15 @@ function ErrorPage() {
 			>
 				返回首页
 			</Link>
+			{!is404 && (
+				<button
+					type="button"
+					className="mt-3 rounded-lg border border-border px-4 py-2 text-sm"
+					onClick={() => window.location.reload()}
+				>
+					刷新页面
+				</button>
+			)}
 		</main>
 	)
 }

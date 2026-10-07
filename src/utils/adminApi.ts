@@ -18,11 +18,13 @@ export async function requestAdminApi(
 	csrfToken?: string,
 	requestBody?: unknown,
 	method?: HttpMethod,
+	revision?: string,
 ): Promise<unknown> {
 	const response = await fetch(`/api/${path}`, {
 		method: method ?? (requestBody === undefined ? 'GET' : 'POST'),
 		credentials: 'same-origin',
 		headers: {
+			...(revision ? { 'If-Match': JSON.stringify(revision) } : {}),
 			...(requestBody !== undefined
 				? { 'Content-Type': 'application/json' }
 				: {}),

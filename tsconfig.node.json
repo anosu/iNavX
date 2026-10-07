@@ -28,7 +28,8 @@
 	},
 	"include": [
 		"vite.config.ts",
-		"scripts/export-runtime.ts",
-		"scripts/backend.ts"
+		"scripts/**/*.ts",
+		"playwright.config.ts",
+		"tests/e2e/**/*.ts"
 	]
 }

@@ -197,6 +197,22 @@ func (a *App) mutate(fn func(*sql.Tx) error) error {
 	}
 	return transaction(a.Store.DB, fn)
 }
+func (a *App) catalogMutation(r *http.Request, fn func(*sql.Tx) error) error {
+	expected := r.Header.Get("If-Match")
+	if expected == "" {
+		return fail(428, "页面版本信息缺失，请刷新页面后重试")
+	}
+	return a.mutate(func(tx *sql.Tx) error {
+		var revision string
+		if err := tx.QueryRow("SELECT revision FROM configuration WHERE id=1").Scan(&revision); err != nil {
+			return err
+		}
+		if expected != `"`+revision+`"` {
+			return fail(409, "内容已在其他页面修改，当前草稿已保留；请查看最新内容后重新编辑")
+		}
+		return fn(tx)
+	})
+}
 func (a *App) routes() {
 	s := a.Store
 	a.mediaRoutes()
@@ -208,11 +224,11 @@ func (a *App) routes() {
 		return jsonResponse(w, 200, map[string]bool{"ok": true})
 	})
 	a.route("GET /api/public/settings", func(w http.ResponseWriter, r *http.Request) error {
-		c, err := s.snapshot(s.DB, false)
+		settings, revision, err := s.settings(s.DB)
 		if err != nil {
 			return err
 		}
-		return jsonResponse(w, 200, map[string]any{"settings": c.Settings, "revision": c.Revision})
+		return jsonResponse(w, 200, map[string]any{"settings": settings, "revision": revision})
 	})
 	a.route("GET /api/public/catalog", func(w http.ResponseWriter, r *http.Request) error {
 		c, err := s.snapshot(s.DB, false)
@@ -291,7 +307,7 @@ func (a *App) routes() {
 			return err
 		}
 		var value Site
-		err := a.mutate(func(tx *sql.Tx) error { var err error; value, err = s.saveSite(tx, input, ""); return err })
+		err := a.catalogMutation(r, func(tx *sql.Tx) error { var err error; value, err = s.saveSite(tx, input, ""); return err })
 		if err != nil {
 			return err
 		}
@@ -303,7 +319,7 @@ func (a *App) routes() {
 			return err
 		}
 		var value Site
-		err := a.mutate(func(tx *sql.Tx) error {
+		err := a.catalogMutation(r, func(tx *sql.Tx) error {
 			var err error
 			value, err = s.saveSite(tx, input, r.PathValue("id"))
 			return err
@@ -314,13 +330,13 @@ func (a *App) routes() {
 		return jsonResponse(w, 200, value)
 	})
 	a.route("DELETE /api/admin/sites/{id}", func(w http.ResponseWriter, r *http.Request) error {
-		if err := a.mutate(func(tx *sql.Tx) error { return s.setDeleted(tx, r.PathValue("id"), true) }); err != nil {
+		if err := a.catalogMutation(r, func(tx *sql.Tx) error { return s.setDeleted(tx, r.PathValue("id"), true) }); err != nil {
 			return err
 		}
 		return jsonResponse(w, 200, map[string]bool{"ok": true})
 	})
 	a.route("POST /api/admin/sites/{id}/restore", func(w http.ResponseWriter, r *http.Request) error {
-		if err := a.mutate(func(tx *sql.Tx) error { return s.setDeleted(tx, r.PathValue("id"), false) }); err != nil {
+		if err := a.catalogMutation(r, func(tx *sql.Tx) error { return s.setDeleted(tx, r.PathValue("id"), false) }); err != nil {
 			return err
 		}
 		return jsonResponse(w, 200, map[string]bool{"ok": true})
@@ -332,7 +348,7 @@ func (a *App) routes() {
 		if err := readJSON(r, &input); err != nil {
 			return err
 		}
-		if err := a.mutate(func(tx *sql.Tx) error { return s.permanentSite(tx, r.PathValue("id"), input.ExpectedUpdatedAt) }); err != nil {
+		if err := a.catalogMutation(r, func(tx *sql.Tx) error { return s.permanentSite(tx, r.PathValue("id"), input.ExpectedUpdatedAt) }); err != nil {
 			return err
 		}
 		return jsonResponse(w, 200, map[string]bool{"ok": true})
@@ -344,7 +360,7 @@ func (a *App) routes() {
 				return err
 			}
 			var value Category
-			err := a.mutate(func(tx *sql.Tx) error {
+			err := a.catalogMutation(r, func(tx *sql.Tx) error {
 				var err error
 				value, err = s.saveCategory(tx, input, r.PathValue("id"))
 				return err
@@ -367,7 +383,7 @@ func (a *App) routes() {
 		if err := readJSON(r, &input); err != nil {
 			return err
 		}
-		if err := a.mutate(func(tx *sql.Tx) error {
+		if err := a.catalogMutation(r, func(tx *sql.Tx) error {
 			return s.deleteCategory(tx, r.PathValue("id"), input.TargetID, input.DeleteSites)
 		}); err != nil {
 			return err
@@ -382,7 +398,7 @@ func (a *App) routes() {
 		if err := input.validate(); err != nil {
 			return err
 		}
-		if err := a.mutate(func(tx *sql.Tx) error {
+		if err := a.catalogMutation(r, func(tx *sql.Tx) error {
 			if _, err := tx.Exec("UPDATE configuration SET settings=? WHERE id=1", marshal(input)); err != nil {
 				return err
 			}
@@ -400,7 +416,7 @@ func (a *App) routes() {
 		if err := validateEngines(input, s.Defaults.Limits.Engines); err != nil {
 			return err
 		}
-		if err := a.mutate(func(tx *sql.Tx) error {
+		if err := a.catalogMutation(r, func(tx *sql.Tx) error {
 			if _, err := tx.Exec("UPDATE configuration SET engines=? WHERE id=1", marshal(input)); err != nil {
 				return err
 			}
@@ -469,10 +485,21 @@ func (a *App) routes() {
 		}
 		return jsonResponse(w, 200, value)
 	})
-	a.route("POST /api/admin/backups", func(w http.ResponseWriter, r *http.Request) error {
+	a.route("GET /api/admin/operations", func(w http.ResponseWriter, r *http.Request) error {
 		a.backupMu.Lock()
 		defer a.backupMu.Unlock()
-		name, err := s.backup()
+		status, err := s.backupStatus()
+		if err != nil {
+			return err
+		}
+		return jsonResponse(w, 200, map[string]any{"commit": buildCommit, "backup": status})
+	})
+	a.route("POST /api/admin/backups", func(w http.ResponseWriter, r *http.Request) error {
+		a.writeMu.Lock()
+		defer a.writeMu.Unlock()
+		a.backupMu.Lock()
+		defer a.backupMu.Unlock()
+		name, err := s.fullBackup()
 		if err != nil {
 			return err
 		}
@@ -493,9 +520,30 @@ func (a *App) routes() {
 			return err
 		}
 		w.Header().Set("Content-Disposition", "attachment; filename=\""+info.Name()+"\"")
-		w.Header().Set("Content-Type", "application/vnd.sqlite3")
+		contentType := "application/vnd.sqlite3"
+		if strings.HasSuffix(info.Name(), ".zip") {
+			contentType = "application/zip"
+		}
+		w.Header().Set("Content-Type", contentType)
 		http.ServeContent(w, r, info.Name(), info.ModTime(), file)
 		return nil
+	})
+	a.route("POST /api/admin/backups/{name}/verify", func(w http.ResponseWriter, r *http.Request) error {
+		a.backupMu.Lock()
+		defer a.backupMu.Unlock()
+		path, err := s.backupPath(r.PathValue("name"))
+		if err != nil {
+			return err
+		}
+		if !strings.HasSuffix(path, ".zip") {
+			return fail(400, "在线校验仅支持完整 ZIP 备份")
+		}
+		stage, manifest, err := unpackFullBackup(s.Config, path)
+		if err != nil {
+			return fail(400, "备份校验失败，请保留文件并检查备份来源")
+		}
+		defer os.RemoveAll(stage)
+		return jsonResponse(w, 200, map[string]any{"verified": true, "files": len(manifest.Files), "createdAt": manifest.CreatedAt})
 	})
 	a.route("DELETE /api/admin/backups/{name}", func(w http.ResponseWriter, r *http.Request) error {
 		a.backupMu.Lock()
@@ -703,7 +751,7 @@ func (a *App) importHandler(w http.ResponseWriter, r *http.Request) error {
 	defer a.maintenance.Store(false)
 	a.backupMu.Lock()
 	defer a.backupMu.Unlock()
-	backup, err := a.Store.backup()
+	backup, err := a.Store.fullBackup()
 	if err != nil {
 		return err
 	}
@@ -721,11 +769,13 @@ func (a *App) importHandler(w http.ResponseWriter, r *http.Request) error {
 }
 func (a *App) scheduler(ctx context.Context) {
 	tick := func() {
+		a.writeMu.Lock()
+		defer a.writeMu.Unlock()
 		a.backupMu.Lock()
 		defer a.backupMu.Unlock()
 		due, err := a.Store.backupDue()
 		if err == nil && due {
-			_, err = a.Store.backup()
+			_, err = a.Store.fullBackup()
 		}
 		if err != nil {
 			log.Printf("自动备份失败：%v", err)

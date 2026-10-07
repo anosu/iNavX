@@ -25,26 +25,30 @@ for (const [key, value] of Object.entries({
 	Object.defineProperty(globalThis, key, { configurable: true, value })
 
 const { createRoot } = await import('react-dom/client')
-const { NavCard } = await import('../components/molecules/NavCard')
-const { SiteTags } = await import('../components/molecules/SiteTags')
+const { NavCard } = await import('../../src/components/molecules/NavCard')
+const { SiteTags } = await import('../../src/components/molecules/SiteTags')
 const { CategoryFilter } = await import(
-	'../components/molecules/CategoryFilter'
+	'../../src/components/molecules/CategoryFilter'
 )
-const { SiteFormModal } = await import('../components/organisms/SiteFormModal')
-const { useSiteManager } = await import('../hooks/useSiteManager')
-const { useSiteMetadata } = await import('../hooks/useSiteMetadata')
-const { useCopyLink } = await import('../hooks/useCopyLink')
+const { SiteFormModal } = await import(
+	'../../src/components/organisms/SiteFormModal'
+)
+const { useSiteManager } = await import('../../src/hooks/useSiteManager')
+const { useSiteMetadata } = await import('../../src/hooks/useSiteMetadata')
+const { useCopyLink } = await import('../../src/hooks/useCopyLink')
 const { CommandPalette } = await import(
-	'../components/organisms/CommandPalette'
+	'../../src/components/organisms/CommandPalette'
 )
-const { useCommandShortcut } = await import('../hooks/useCommandShortcut')
-const { useTheme } = await import('../hooks/useTheme')
-const { searchCommandSites } = await import('../utils/commandSearch')
+const { useCommandShortcut } = await import(
+	'../../src/hooks/useCommandShortcut'
+)
+const { useTheme } = await import('../../src/hooks/useTheme')
+const { searchCommandSites } = await import('../../src/utils/commandSearch')
 const { readRecentSites, recordSiteOpen, clearRecentSites } = await import(
-	'../utils/recentSites'
+	'../../src/utils/recentSites'
 )
 const { PublicCatalogProvider, usePublicCatalog, useCatalogStatus } =
-	await import('../hooks/usePublicCatalog')
+	await import('../../src/hooks/usePublicCatalog')
 
 async function enterInput(input: HTMLInputElement, value: string) {
 	await act(() => {
@@ -60,9 +64,9 @@ async function enterInput(input: HTMLInputElement, value: string) {
 
 test('category editor saves color and command results follow category ID after rename', async (t) => {
 	const { CategoriesPanel } = await import(
-		'../components/admin/CategoriesPanel'
+		'../../src/components/admin/CategoriesPanel'
 	)
-	const { staticCatalog } = await import('../data/staticCatalog')
+	const { staticCatalog } = await import('../../src/data/staticCatalog')
 	const { getCategoryColor } = await import('../../shared/categories')
 	let catalog = {
 		...staticCatalog,
@@ -164,9 +168,9 @@ test('category editor saves color and command results follow category ID after r
 
 test('personal automatic icons follow live templates without persisting generated URLs and exports use the site name', async (t) => {
 	localStorage.clear()
-	const { useBookmarks } = await import('../hooks/useBookmarks')
-	const { useSiteIconUrl } = await import('../hooks/useImageUrl')
-	const { staticCatalog } = await import('../data/staticCatalog')
+	const { useBookmarks } = await import('../../src/hooks/useBookmarks')
+	const { useSiteIconUrl } = await import('../../src/hooks/useImageUrl')
+	const { staticCatalog } = await import('../../src/data/staticCatalog')
 	let catalog = {
 		...staticCatalog,
 		settings: {
@@ -198,7 +202,7 @@ test('personal automatic icons follow live templates without persisting generate
 	globalThis.fetch = async () => Response.json(catalog)
 	let manager: ReturnType<typeof useSiteManager> | undefined
 	let bookmarks: ReturnType<typeof useBookmarks> | undefined
-	function Icon({ site }: { site: import('../types').Site }) {
+	function Icon({ site }: { site: import('../../src/types').Site }) {
 		return <output>{useSiteIconUrl(site.iconUrl, site.url)}</output>
 	}
 	function Harness() {
@@ -285,7 +289,7 @@ test('full-stack catalog never renders bundled seed sites while its first reques
 })
 
 test('catalog startup waits for the server even with a cache, accepts empty data and ignores superseded requests', async (t) => {
-	const { staticCatalog } = await import('../data/staticCatalog')
+	const { staticCatalog } = await import('../../src/data/staticCatalog')
 	const cached = {
 		...staticCatalog,
 		revision: 'cached',
@@ -343,7 +347,7 @@ test('catalog startup waits for the server even with a cache, accepts empty data
 })
 
 test('catalog failures use only validated server cache and can recover on retry', async (t) => {
-	const { staticCatalog } = await import('../data/staticCatalog')
+	const { staticCatalog } = await import('../../src/data/staticCatalog')
 	const cached = {
 		...staticCatalog,
 		revision: 'cached',
@@ -396,7 +400,7 @@ test('catalog failures use only validated server cache and can recover on retry'
 })
 
 test('image fields upload file contents through authenticated JSON and apply the returned URL', async (t) => {
-	const { ImageField } = await import('../components/admin/ImageField')
+	const { ImageField } = await import('../../src/components/admin/ImageField')
 	const originalFetch = globalThis.fetch
 	t.after(() => {
 		globalThis.fetch = originalFetch
@@ -449,7 +453,9 @@ test('image fields upload file contents through authenticated JSON and apply the
 })
 
 test('settings cannot save while an image upload is pending', async (t) => {
-	const { SettingsPanel } = await import('../components/admin/SettingsPanel')
+	const { SettingsPanel } = await import(
+		'../../src/components/admin/SettingsPanel'
+	)
 	const { DEFAULT_SETTINGS } = await import('../../shared/defaults')
 	const originalFetch = globalThis.fetch
 	t.after(() => {
@@ -469,6 +475,7 @@ test('settings cannot save while an image upload is pending', async (t) => {
 	const view = await mount(
 		<SettingsPanel
 			settings={DEFAULT_SETTINGS}
+			revision="1"
 			csrf="csrf"
 			busy={false}
 			runAction={async () => {
@@ -515,7 +522,7 @@ test('settings cannot save while an image upload is pending', async (t) => {
 })
 
 test('site metadata updates icons, share information and respects the remote image setting', async (t) => {
-	const { applySiteMetadata } = await import('../utils/siteMetadata')
+	const { applySiteMetadata } = await import('../../src/utils/siteMetadata')
 	const { DEFAULT_SETTINGS } = await import('../../shared/defaults')
 	const previous = document.head.innerHTML
 	t.after(() => {
@@ -1041,7 +1048,7 @@ test('command results load in batches while queries search every eligible site',
 })
 
 test('clipboard fallback copies inside the active dialog and restores focus', async (t) => {
-	const { copyText } = await import('../utils/clipboard')
+	const { copyText } = await import('../../src/utils/clipboard')
 	const dialog = document.createElement('dialog')
 	dialog.setAttribute('open', '')
 	const input = document.createElement('input')

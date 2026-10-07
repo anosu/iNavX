@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import { requestAdminApi } from '@/utils/adminApi'
+import { ApiError, requestAdminApi } from '@/utils/adminApi'
 import type { Catalog, Category } from '../../../shared/catalog'
 import { getCategoryColor } from '../../../shared/categories'
 import {
@@ -16,6 +16,7 @@ import {
 
 function CategoryEditor({
 	category,
+	revision,
 	order,
 	csrf,
 	runAction,
@@ -23,6 +24,7 @@ function CategoryEditor({
 	onClose,
 }: {
 	category?: Category
+	revision: string
 	order: number
 	csrf: string
 	runAction: RunAdminAction
@@ -33,6 +35,7 @@ function CategoryEditor({
 	const [name, setName] = useState(category?.name || '')
 	const [sortOrder, setOrder] = useState(category?.sortOrder ?? order)
 	const [color, setColor] = useState(category?.color || '')
+	const [conflict, setConflict] = useState(false)
 	const [error, setError] = useState('')
 	const [discard, setDiscard] = useState(false)
 	const dirty =
@@ -56,6 +59,16 @@ function CategoryEditor({
 					{error && (
 						<p role="alert" className="text-sm text-error">
 							{error}
+							{conflict && (
+								<a
+									className="ml-2 underline"
+									href={window.location.href}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									另页查看最新内容
+								</a>
+							)}
 						</p>
 					)}
 					{discard ? (
@@ -116,6 +129,7 @@ function CategoryEditor({
 						return
 					}
 					setError('')
+					setConflict(false)
 					void runAction(async () => {
 						try {
 							await requestAdminApi(
@@ -123,8 +137,10 @@ function CategoryEditor({
 								csrf,
 								{ name: name.trim(), sortOrder, color },
 								category ? 'PUT' : 'POST',
+								revision,
 							)
 						} catch (error) {
+							setConflict(error instanceof ApiError && error.status === 409)
 							setError(error instanceof Error ? error.message : '分类保存失败')
 							throw error
 						}
@@ -264,6 +280,7 @@ function DeleteCategoryDialog({
 										? { targetId: target }
 										: {},
 								'DELETE',
+								data.revision,
 							)
 						} catch (error) {
 							setError(error instanceof Error ? error.message : '分类删除失败')
@@ -400,6 +417,7 @@ export function CategoriesPanel({
 			{editing && (
 				<CategoryEditor
 					category={editing === 'new' ? undefined : editing}
+					revision={data.revision}
 					order={Math.min(
 						1000000,
 						Math.max(

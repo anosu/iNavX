@@ -51,17 +51,37 @@ func run() error {
 		}
 		return nil
 	}
-	lock, err := instanceLock(c, command == "restore" || command == "migrate" || command == "reset-admin")
+	lock, err := instanceLock(c, command == "restore" || command == "backup" || command == "verify-backup" || command == "migrate" || command == "reset-admin")
 	if err != nil {
 		return err
 	}
 	defer lock.Close()
+	if command == "verify-backup" {
+		if len(os.Args) != 3 {
+			return fmt.Errorf("用法：verify-backup /path/to/backup.zip")
+		}
+		if err = os.MkdirAll(c.BackupDir, 0700); err != nil {
+			return err
+		}
+		stage, manifest, err := unpackFullBackup(c, os.Args[2])
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(stage)
+		fmt.Printf("完整备份校验通过：%d 个文件，创建于 %s\n", len(manifest.Files), manifest.CreatedAt)
+		return nil
+	}
 	if command == "restore" {
 		path := ""
 		if len(os.Args) > 2 {
 			path = os.Args[2]
 		}
-		if err = restoreNative(c, path); err != nil {
+		if filepath.Ext(path) == ".zip" {
+			err = restoreFullBackup(c, path)
+		} else {
+			err = restoreNative(c, path)
+		}
+		if err != nil {
 			return err
 		}
 		fmt.Println("数据库已恢复，历史会话已失效。请启动服务。")
@@ -99,7 +119,7 @@ func run() error {
 		fmt.Println(value)
 		return nil
 	case "backup":
-		value, err := s.backup()
+		value, err := s.fullBackup()
 		if err != nil {
 			return err
 		}

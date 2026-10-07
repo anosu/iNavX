@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -19,6 +20,49 @@ type MediaFile struct {
 	Name string `json:"name"`
 	URL  string `json:"url"`
 	Size int64  `json:"size"`
+}
+type MediaLibraryItem struct {
+	MediaFile
+	UsedBy     []string `json:"usedBy"`
+	ModifiedAt string   `json:"modifiedAt"`
+}
+
+func (s *Store) mediaReferences(c Catalog) map[string][]string {
+	refs := map[string][]string{}
+	add := func(value, label string) {
+		u, err := url.Parse(value)
+		if err != nil {
+			return
+		}
+		if u.IsAbs() && u.Scheme+"://"+u.Host != s.Config.Origin && u.Scheme+"://"+u.Host != s.Config.PublicOrigin {
+			return
+		}
+		if !strings.HasPrefix(u.Path, "/media/") {
+			return
+		}
+		name := strings.TrimPrefix(u.Path, "/media/")
+		if mediaNamePattern.MatchString(name) {
+			refs[name] = append(refs[name], label)
+		}
+	}
+	for _, site := range c.Sites {
+		label := "站点：" + site.Name
+		if site.DeletedAt != nil {
+			label = "回收站：" + site.Name
+		}
+		add(site.IconURL, label)
+	}
+	for _, engine := range c.Engines {
+		add(engine.IconURL, "搜索引擎："+engine.Name)
+	}
+	p := c.Settings.Presentation
+	for _, field := range []struct{ value, label string }{{c.Settings.LogoURL, "Logo"}, {p.LogoDarkURL, "深色 Logo"}, {p.FaviconURL, "浏览器图标"}, {p.TouchIconURL, "移动端图标"}, {p.ShareImageURL, "分享封面"}} {
+		add(field.value, "站点设置："+field.label)
+	}
+	for _, link := range p.FooterLinks {
+		add(link.URL, "页脚链接："+link.Label)
+	}
+	return refs
 }
 
 func imageExtension(data []byte, maxMediaBytes int) (string, error) {
@@ -91,11 +135,16 @@ func imageExtension(data []byte, maxMediaBytes int) (string, error) {
 func (a *App) mediaRoutes() {
 	dir := filepath.Join(a.Store.Config.DataDir, "media")
 	a.route("GET /api/admin/media", func(w http.ResponseWriter, r *http.Request) error {
+		catalog, err := a.Store.snapshot(a.Store.DB, true)
+		if err != nil {
+			return err
+		}
+		refs := a.Store.mediaReferences(catalog)
 		entries, err := os.ReadDir(dir)
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
-		items := []MediaFile{}
+		items := []MediaLibraryItem{}
 		for _, entry := range entries {
 			if !mediaNamePattern.MatchString(entry.Name()) || entry.Type()&os.ModeSymlink != 0 || entry.IsDir() {
 				continue
@@ -107,10 +156,19 @@ func (a *App) mediaRoutes() {
 			if err != nil {
 				return err
 			}
-			items = append(items, MediaFile{entry.Name(), "/media/" + entry.Name(), info.Size()})
+			usedBy := refs[entry.Name()]
+			if usedBy == nil {
+				usedBy = []string{}
+			}
+			items = append(items, MediaLibraryItem{MediaFile{entry.Name(), "/media/" + entry.Name(), info.Size()}, usedBy, info.ModTime().UTC().Format("2006-01-02T15:04:05.000Z")})
 		}
-		sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
-		return jsonResponse(w, 200, map[string]any{"items": items})
+		sort.Slice(items, func(i, j int) bool {
+			if items[i].ModifiedAt == items[j].ModifiedAt {
+				return items[i].Name < items[j].Name
+			}
+			return items[i].ModifiedAt > items[j].ModifiedAt
+		})
+		return jsonResponse(w, 200, map[string]any{"items": items, "revision": catalog.Revision})
 	})
 	a.route("POST /api/admin/media", func(w http.ResponseWriter, r *http.Request) error {
 		var input struct {
@@ -163,6 +221,12 @@ func (a *App) mediaRoutes() {
 		return jsonResponse(w, 201, MediaFile{name, "/media/" + name, int64(len(data))})
 	})
 	a.route("DELETE /api/admin/media/{name}", func(w http.ResponseWriter, r *http.Request) error {
+		var input struct {
+			AllowReferenced bool `json:"allowReferenced"`
+		}
+		if err := readJSON(r, &input); err != nil {
+			return err
+		}
 		name := r.PathValue("name")
 		if !mediaNamePattern.MatchString(name) {
 			return fail(404, "图片不存在")
@@ -171,6 +235,16 @@ func (a *App) mediaRoutes() {
 		defer a.writeMu.Unlock()
 		if a.maintenance.Load() {
 			return fail(503, "正在恢复数据，请稍后重试")
+		}
+		catalog, err := a.Store.snapshot(a.Store.DB, true)
+		if err != nil {
+			return err
+		}
+		if r.Header.Get("If-Match") != `"`+catalog.Revision+`"` {
+			return fail(409, "图片引用已变化，请刷新图片库后重新确认")
+		}
+		if len(a.Store.mediaReferences(catalog)[name]) > 0 && !input.AllowReferenced {
+			return fail(409, "图片仍被引用，请确认影响后删除")
 		}
 		if err := os.Remove(filepath.Join(dir, name)); err != nil {
 			if os.IsNotExist(err) {

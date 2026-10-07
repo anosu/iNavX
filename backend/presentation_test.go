@@ -61,6 +61,13 @@ func TestMediaAuthenticationUploadReadDelete(t *testing.T) {
 		r.Header.Set("Content-Type", "application/json")
 		r.Header.Set("Origin", s.Config.Origin)
 		r.Header.Set("X-CSRF-Token", csrf)
+		_, revision, revisionErr := s.settings(s.DB)
+		if revisionErr != nil {
+			t.Fatal(revisionErr)
+		}
+		if method != "GET" {
+			r.Header.Set("If-Match", `"`+revision+`"`)
+		}
 		if cookie != nil {
 			r.AddCookie(cookie)
 		}
@@ -123,7 +130,13 @@ func TestMediaAuthenticationUploadReadDelete(t *testing.T) {
 	if w.Code != 200 || !strings.Contains(w.Body.String(), item.Name) {
 		t.Fatal(w.Body.String())
 	}
-	if w = request("DELETE", "/api/admin/media/"+item.Name, "{}", session.CSRF, cookie); w.Code != 200 {
+	if !strings.Contains(w.Body.String(), "浏览器图标") || !strings.Contains(w.Body.String(), "分享封面") {
+		t.Fatal("missing media references", w.Body.String())
+	}
+	if w = request("DELETE", "/api/admin/media/"+item.Name, "{}", session.CSRF, cookie); w.Code != 409 {
+		t.Fatal("referenced media deleted without acknowledgement", w.Body.String())
+	}
+	if w = request("DELETE", "/api/admin/media/"+item.Name, `{"allowReferenced":true}`, session.CSRF, cookie); w.Code != 200 {
 		t.Fatal(w.Body.String())
 	}
 	if w = request("GET", item.URL, "", "", nil); w.Code != 404 {

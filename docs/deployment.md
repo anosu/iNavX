@@ -1,12 +1,12 @@
 # 运行、部署与恢复
 
-当前交付包含单管理员核心后台与第二阶段匿名收录申请、审核。完整云平台后端部署尚未实现。操作流程见[后台使用指南](admin-guide.md)。
+本项目提供单管理员后台与匿名收录申请、审核。操作流程见[后台使用指南](admin-guide.md)，目录与数据归属见[项目结构](project-structure.md)。
 
 后端以单实例 Go / SQLite 运行，生产容器没有 Node、Bun 或 npm 运行时依赖。公共前台支持静态或分离托管；完整 Workers / D1 与 Vercel Functions 后端尚未适配。
 
 ## 本地开发
 
-使用 Bun 1.3.12 安装前端依赖，后端需要 Go 1.27.1 与 C 编译器（SQLite 使用 CGO）。Linux 安装 gcc，macOS 安装命令行开发工具；Windows 建议在 WSL 中运行后端，或使用 Docker Compose。Node 22.18+ 仅用于前端测试工具。
+使用 Bun 1.3.12 安装前端依赖，后端需要 Go 1.27.1 与 C 编译器（SQLite 使用 CGO）。Linux 安装 gcc，macOS 安装命令行开发工具；Windows 可使用 MinGW-w64，将其 bin 目录加入 PATH，也可使用 WSL 或 Docker Compose。Node 22.18+ 仅用于前端测试工具。下文环境变量命令使用 Bash 语法；PowerShell 可改用 `.env` 与 Bun 脚本。
 
 ```bash
 bun install --frozen-lockfile
@@ -25,7 +25,7 @@ bun dev
 获取一次性初始化凭据：
 
 ```bash
-go run ./backend setup-token
+bun run dev:server setup-token
 ```
 
 在后台输入凭据并设置唯一管理员账号，密码至少 12 个字符。凭据在初始化后失效。凭据文件和数据库位于 DATA_DIR，访客个人数据仍位于各浏览器。
@@ -45,7 +45,7 @@ bun start
 
 `bun run lint:fix` 自动修复安全的格式与 lint 问题；修复后仍需审查差异并运行上述检查。模块职责、命名和校验约定见[代码规范](code-quality.md)。
 
-生产运行默认地址 `http://localhost:3000`。直接运行 `./bin/inav serve` 即可，不需要 JavaScript 运行时；保留 `runtime/defaults.json`、`package.json`、`dist/`、`migrations/` 和种子文件。CLI 与服务使用相同工作目录、DATA_DIR 和 BACKUP_DIR。Windows 的 Go 构建和测试命令在 WSL 中执行。
+生产运行默认地址 `http://localhost:3000`。直接运行 `./bin/inav serve`（Windows 为 `./bin/inav.exe serve`）即可，不需要 JavaScript 运行时；保留 `runtime/defaults.json`、`package.json`、`dist/`、`migrations/` 和 `seed/sites.json`。CLI 与服务使用相同工作目录、DATA_DIR 和 BACKUP_DIR。Bun 脚本支持原生 Windows 的 Go 构建和测试。
 
 ## Docker Compose
 
@@ -61,11 +61,11 @@ PORT 是 Compose 的宿主机映射端口，容器内监听端口固定为 3000�
 
 首次启动会执行 SQL 迁移、导入内置站点并生成初始化凭据。种子内容只导入一次，升级不会覆盖后台编辑。
 
-`src/data/sites.json` 保留用于新数据库初始化和显式纯静态部署，不包含在全栈浏览器构建中。全栈首页先等待公共目录接口；缓存仅在读取失败时兜底并显示提示，无缓存时显示错误与重试入口。空目录是有效响应，不恢复示例内容。
+`seed/sites.json` 保留用于新数据库初始化和显式纯静态部署，不包含在全栈浏览器构建中。全栈首页先等待公共目录接口；缓存仅在读取失败时兜底并显示提示，无缓存时显示错误与重试入口。空目录是有效响应，不恢复示例内容。
 
 原始种子数据中的 DeepSeek 与 DeepSeek 文档指向同一 URL。初始化保留两个原 ID，将重复项移入回收站；可在回收站编辑正确地址后恢复。
 
-后台保存站点、分类、设置和引擎立即生效。已打开的公共页面重新加载后读取最新内容。主题和排序保留个人选择，后台停用的公共功能及引擎不再提供。
+后台保存站点、分类、设置和引擎立即生效。同一浏览器跨页通知、重新联网或切回页面会触发公共目录刷新；其他浏览器持续停留的页面不使用实时推送，可手动刷新。主题和排序保留个人选择，后台停用的公共功能及引擎不再提供。
 
 Linux / amd64 的生产镜像实测：小目录进程 RSS 约 14 MiB；1000 条目录预热空闲约 19 MiB，200 次读取、并发 4 峰值约 23 MiB；单次密码登录约 45 MiB，10000 条导入/导出/合并/备份约 53 MiB，原生恢复约 33 MiB。约每 5 ms 采样，数值受字段长度和负载影响。Compose 的 128 MiB 是保护上限，GOMEMLIMIT=64MiB 是 Go 软限制，两者都不代表常驻占用；Docker stats 与 RSS 的缓存统计口径也不同。
 
@@ -81,29 +81,31 @@ Linux / amd64 的生产镜像实测：小目录进程 RSS 约 14 MiB；1000 条�
 
 ## 备份
 
-后台“备份与迁移”提供迁移包导出、数据库备份生成、下载和永久删除。
+后台“备份与迁移”提供迁移包导出、完整备份生成、校验、下载和永久删除；同时显示运行版本与最近备份状态。
 
 - 迁移包包含公共内容、分类、配置、引擎、回收站及申请审核记录，不含管理员凭据与会话。Turnstile 和受信代理环境配置由部署端维护，不写入迁移包。
-- 原生 SQLite 备份包含管理员配置，用于完整实例恢复。
+- 完整 ZIP 备份包含 `inav.sqlite`、`media/` 和 `manifest.json`（格式 `inav-backup`、版本 1、每个文件的大小和 SHA-256）。SQLite 与媒体在应用写锁保护下采集，文件以流式方式写入，不将整库或图库加载进内存。数据库文件上限 512 MiB，媒体沿用图片库容量限制。
 - 访客个人备份由首页“导出”菜单生成，包含个人条目、隐藏和偏好；不属于服务器备份。
 - 外部图片仍使用 URL，远程资源不随迁移包复制。
-- 上传图片保存在 `DATA_DIR/media/`（默认 `data/media/`），由同一数据卷持久化。原生 SQLite 备份与 JSON 迁移包仅包含图片地址；迁移和异机备份需同时保留该目录，保持文件名不变。只复制 SQLite 文件不会包含上传图片。旧程序不支持新增的 `presentation` 配置，回退到旧程序前需恢复升级前数据库，不能只切换镜像。
+- 上传图片保存在 `DATA_DIR/media/`（默认 `data/media/`），完整 ZIP 已包含该目录；历史 SQLite 文件和 JSON 迁移包仍只包含图片地址。部署 `.env`、反向代理配置和访客个人数据不在 ZIP 中，应分别安全保存。
 
-也可以通过命令生成数据库备份：
+运行中的实例可通过后台创建完整备份。CLI 完整备份要求先停站，以独占实例锁阻止其他进程修改媒体：
 
 ```bash
-docker compose exec app inav backup
+docker compose stop app </dev/null
+docker compose run --rm -T app backup </dev/null
+docker compose up -d --no-build --wait app </dev/null
 ```
 
 命令输出备份文件名，可复制到宿主机：
 
 ```bash
-docker compose cp app:/app/backups/实际备份文件名.sqlite ./inav-backup.sqlite
+docker compose cp app:/app/backups/实际备份文件名.zip ./inav-backup.zip
 ```
 
 自动备份的间隔和保留份数在后台设置，间隔为 0 时关闭自动备份。应用每分钟检查是否到期，重启时也会检查并补做一次到期备份；停机期间不会执行任务，也不会补齐每一个历史周期。备份使用 SQLite 一致性备份接口，不直接复制活跃主文件。删除数据不会修改旧备份，需要时可分别删除备份文件。
 
-命名卷内的备份可定期复制到其他存储位置。保留策略只清理应用生成的 `inav-*.sqlite` 备份。
+日常自动备份统一生成 ZIP；迁移保护仍可生成 SQLite 快照。两类文件分别按后台保留份数清理，升级前独立回退目录不受该策略影响。自动备份失败写入日志与后台状态。异机存储的目标由部署者指定，本项目不内置云存储凭据或擅自上传备份。
 
 ## 迁移包导入与恢复
 
@@ -122,15 +124,16 @@ docker compose cp app:/app/backups/实际备份文件名.sqlite ./inav-backup.sq
 
 站点 JSON、个人备份、Netscape 书签 HTML 只用于合并公共条目。它们不能覆盖整站设置，个人备份中的偏好不会被上传。
 
-## 原生 SQLite 恢复
+## 完整备份恢复
 
-必须先停止服务，避免其他进程访问目标数据库。恢复检查文件完整性与数据模型，保存当前数据库备份，替换目标文件，并清除历史会话。
+必须先停止服务。先完整检查 ZIP 路径、数量、大小、校验清单及解包后数据库的数据模型、迁移版本、完整性和外键。验证发生在临时目录；不通过时不替换当前内容。已有实例恢复前再生成完整备份。数据库与媒体统一恢复，并清除历史会话。
 
 ```bash
-docker compose stop app
-docker compose run --rm -T --entrypoint sh app -c 'umask 077; cat > /app/backups/restore.sqlite' < ./inav-backup.sqlite
-docker compose run --rm app restore /app/backups/restore.sqlite
-docker compose up -d app
+docker compose stop app </dev/null
+docker compose run --rm -T --entrypoint sh app -c 'umask 077; cat > /app/backups/restore.zip' < ./inav-backup.zip
+docker compose run --rm -T app verify-backup /app/backups/restore.zip </dev/null
+docker compose run --rm -T app restore /app/backups/restore.zip </dev/null
+docker compose up -d --no-build --wait app </dev/null
 ```
 
 该上传方式让恢复文件由容器用户创建，避免下载文件的宿主 UID 和权限导致无法读取。新服务器先创建数据卷，再上传文件和执行恢复命令。恢复后使用备份中的管理员账号登录。备份的数据库版本高于目标镜像时拒绝恢复，应使用匹配的镜像。
@@ -138,10 +141,24 @@ docker compose up -d app
 本地二进制的对应命令：
 
 ```bash
-./bin/inav restore /absolute/path/to/backup.sqlite
+./bin/inav verify-backup /absolute/path/to/backup.zip
+./bin/inav restore /absolute/path/to/backup.zip
 ```
 
 ## 升级与回滚
+
+如果进程在完整恢复期间中断，下一次启动先根据 `.restore-recovery/state.json` 回退到恢复前的数据库和媒体，不提供半恢复服务。不要手动删除仍含状态标记的恢复目录。文件校验用于发现损坏，不替代备份来源信任或加密。历史 `.sqlite` 可继续传给 `restore`，仅恢复数据库，媒体须另行匹配。
+
+已有按提交保存源码的实例可使用部署脚本：
+
+```bash
+bash scripts/deploy.sh your-ssh-host /opt/stacks/inavx 完整40位提交哈希 --check
+bash scripts/deploy.sh your-ssh-host /opt/stacks/inavx 完整40位提交哈希
+```
+
+脚本要求 Compose 的 app 镜像为 `inavx:<版本>`、build context 为 `./releases/<40位提交>`，数据路径为 `data/inav.sqlite`、`data/media` 与 `backups`。先只读预检，再上传已提交源码、构建、停站备份、迁移并核对原有字段及媒体、等待健康并写入 `deployment.json`。失败保存新数据副本并恢复匹配的旧 Compose/数据库。涉及删除或重写业务列的迁移需单独制定核对策略，默认脚本会拒绝不一致。脚本不会展开 `.env`、部署未提交文件或清理其他项目；旧发布与回退数据由部署者按已验证的恢复需求保留，不自动删除。
+
+浏览器不维护多代旧资源。旧页面资源失效时显示明确的刷新入口，不自动刷新或尝试兼容旧管理写入。站点、分类、设置和引擎修改请求必须提供 `If-Match: "目录版本"`，缺少版本返回 428，版本过期返回 409；图片删除也检查图片库读取时的目录版本。认证、图片上传、备份等操作不使用该目录前置条件。
 
 升级允许短暂停站：
 

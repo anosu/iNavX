@@ -4,13 +4,15 @@
 .vscode
 .idea
 docs
-preview
 node_modules
 dist
 dist-ssr
 dist-server
 runtime
 bin
+test-results
+playwright-report
+coverage
 data
 backups
 .env

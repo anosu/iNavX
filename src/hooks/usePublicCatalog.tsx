@@ -64,7 +64,13 @@ export function PublicCatalogProvider({ children }: { children: ReactNode }) {
 	}))
 	useEffect(() => {
 		let active: AbortController | undefined
+		let lastRefresh = 0
+		const channel =
+			typeof window.BroadcastChannel === 'function'
+				? new window.BroadcastChannel(`inav-catalog:${publicApiUrl}`)
+				: undefined
 		const refresh = async () => {
+			lastRefresh = Date.now()
 			active?.abort()
 			const controller = new AbortController()
 			active = controller
@@ -79,7 +85,10 @@ export function PublicCatalogProvider({ children }: { children: ReactNode }) {
 					next = (await import('@/data/staticCatalog')).staticCatalog
 				} else {
 					const response = await fetch(`${publicApiUrl}/api/public/catalog`, {
-						signal: controller.signal,
+						signal: AbortSignal.any([
+							controller.signal,
+							AbortSignal.timeout(12000),
+						]),
 						credentials: 'omit',
 					})
 					if (!response.ok) throw new Error('公开目录不可用')
@@ -113,11 +122,27 @@ export function PublicCatalogProvider({ children }: { children: ReactNode }) {
 		void refresh()
 		const handleChange = () => {
 			void refresh()
+			channel?.postMessage('changed')
 		}
+		const handleVisible = () => {
+			if (!document.hidden && Date.now() - lastRefresh > 15000) void refresh()
+		}
+		const handleOnline = () => {
+			void refresh()
+		}
+		if (channel)
+			channel.onmessage = () => {
+				void refresh()
+			}
 		window.addEventListener('inav:catalog-changed', handleChange)
+		window.addEventListener('online', handleOnline)
+		document.addEventListener('visibilitychange', handleVisible)
 		return () => {
 			active?.abort()
 			window.removeEventListener('inav:catalog-changed', handleChange)
+			window.removeEventListener('online', handleOnline)
+			document.removeEventListener('visibilitychange', handleVisible)
+			channel?.close()
 		}
 	}, [])
 	useEffect(() => {

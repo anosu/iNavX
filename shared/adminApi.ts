@@ -22,10 +22,17 @@ export const mediaSchema = z
 		(item) => item.url === `/media/${item.name}`,
 		'图片地址与文件名不一致',
 	)
+const mediaLibraryItemSchema = mediaSchema.safeExtend({
+	usedBy: z.array(z.string()),
+	modifiedAt: z.iso.datetime(),
+})
 export const mediaListSchema = z
-	.object({ items: z.array(mediaSchema).max(MAX_MEDIA_FILES) })
+	.object({
+		items: z.array(mediaLibraryItemSchema).max(MAX_MEDIA_FILES),
+		revision: z.string().min(1),
+	})
 	.strict()
-export type MediaFile = z.infer<typeof mediaSchema>
+export type MediaLibraryItem = z.infer<typeof mediaLibraryItemSchema>
 
 const count = z.number().int().nonnegative()
 export const authResultSchema = z
@@ -60,6 +67,26 @@ export const applicationListSchema = z
 export const databaseBackupsSchema = z.array(
 	z.object({ name: z.string().min(1), size: count }).strict(),
 )
+export const backupVerificationSchema = z
+	.object({
+		verified: z.literal(true),
+		files: count.positive(),
+		createdAt: z.iso.datetime(),
+	})
+	.strict()
+export const operationsSchema = z
+	.object({
+		commit: z.string(),
+		backup: z
+			.object({
+				lastAttempt: z.string(),
+				lastSuccess: z.string(),
+				lastError: z.string(),
+				name: z.string(),
+			})
+			.strict(),
+	})
+	.strict()
 export const importPreviewSchema = z
 	.object({
 		categories: count,

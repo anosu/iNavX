@@ -10,7 +10,8 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY backend ./backend
-RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /inav ./backend
+ARG BUILD_COMMIT=development
+RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X main.buildCommit=${BUILD_COMMIT}" -o /inav ./backend
 
 FROM debian:bookworm-slim
 WORKDIR /app
@@ -21,7 +22,7 @@ COPY --from=frontend /app/dist ./dist
 COPY --from=frontend /app/runtime ./runtime
 COPY package.json ./
 COPY migrations ./migrations
-COPY src/data/sites.json ./src/data/sites.json
+COPY seed/sites.json ./seed/sites.json
 USER inav
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD ["inav", "health"]

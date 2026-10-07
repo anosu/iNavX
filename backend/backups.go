@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var backupPattern = regexp.MustCompile(`^inav-[\w.-]+\.sqlite$`)
+var backupPattern = regexp.MustCompile(`^inav-[\w.-]+\.(sqlite|zip)$`)
 
 type DatabaseBackup struct {
 	Name string `json:"name"`
@@ -61,30 +61,31 @@ func (s *Store) listBackups() ([]DatabaseBackup, error) {
 	sort.Slice(values, func(i, j int) bool { return values[i].Name > values[j].Name })
 	return values, nil
 }
-func (s *Store) backup() (string, error) {
-	name := "inav-" + time.Now().UTC().Format("2006-01-02T15-04-05.000Z") + "-" + uuid()[:8] + ".sqlite"
-	path := filepath.Join(s.Config.BackupDir, name)
-	if err := backupDatabase(s.DB, path); err != nil {
-		return "", err
-	}
+func (s *Store) pruneBackups() error {
 	backups, err := s.listBackups()
 	if err != nil {
-		return "", err
+		return err
 	}
 	var settingsRaw string
 	if err = s.DB.QueryRow("SELECT settings FROM configuration WHERE id=1").Scan(&settingsRaw); err != nil {
-		return "", err
+		return err
 	}
 	var settings Settings
 	if err = json.Unmarshal([]byte(settingsRaw), &settings); err != nil {
-		return "", err
+		return err
 	}
-	for _, old := range backups[min(settings.BackupKeep, len(backups)):] {
+	retained := map[string]int{}
+	for _, old := range backups {
+		extension := filepath.Ext(old.Name)
+		retained[extension]++
+		if retained[extension] <= settings.BackupKeep {
+			continue
+		}
 		if err = os.Remove(filepath.Join(s.Config.BackupDir, old.Name)); err != nil {
-			return "", err
+			return err
 		}
 	}
-	return name, nil
+	return nil
 }
 func (s *Store) backupPath(name string) (string, error) {
 	if !backupPattern.MatchString(name) || filepath.Base(name) != name {
@@ -98,6 +99,9 @@ func (s *Store) backupPath(name string) (string, error) {
 	return path, nil
 }
 func restoreNative(c Config, sourcePath string) error {
+	if err := recoverFullRestore(c); err != nil {
+		return err
+	}
 	if sourcePath == "" {
 		return fmt.Errorf("用法：restore /path/to/backup.sqlite；操作前必须停止服务")
 	}
@@ -196,6 +200,13 @@ func (s *Store) backupDue() (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	complete := backups[:0]
+	for _, backup := range backups {
+		if filepath.Ext(backup.Name) == ".zip" {
+			complete = append(complete, backup)
+		}
+	}
+	backups = complete
 	var raw string
 	if err = s.DB.QueryRow("SELECT settings FROM configuration WHERE id=1").Scan(&raw); err != nil {
 		return false, err

@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { requestAdminApi, requestAdminData } from '@/utils/adminApi'
 import { parseCatalogImport } from '@/utils/catalogImport'
 import {
+	backupVerificationSchema,
 	type DatabaseBackup,
 	databaseBackupsSchema,
 	type ImportPreview,
 	importPreviewSchema,
 	importResultSchema,
+	operationsSchema,
 } from '../../../shared/adminApi'
 import type { Catalog, MigrationPackage } from '../../../shared/catalog'
 import { MAX_API_BODY_BYTES } from '../../../shared/limits'
@@ -36,6 +38,8 @@ export function BackupsPanel({
 	const [deleteError, setDeleteError] = useState('')
 	const [error, setError] = useState('')
 	const [backupError, setBackupError] = useState('')
+	const [operations, setOperations] =
+		useState<import('zod').infer<typeof operationsSchema>>()
 	const [previewing, setPreviewing] = useState(false)
 	const previewGeneration = useRef(0)
 	const [report, setReport] = useState('')
@@ -48,6 +52,9 @@ export function BackupsPanel({
 	const [mode, setMode] = useState<'merge' | 'replace'>('merge')
 	const [confirmation, setConfirmation] = useState('')
 	const load = useCallback(() => {
+		void requestAdminData('admin/operations', operationsSchema)
+			.then(setOperations)
+			.catch(() => setOperations(undefined))
 		requestAdminData('admin/backups', databaseBackupsSchema)
 			.then((next) => {
 				setBackups(next)
@@ -70,7 +77,7 @@ export function BackupsPanel({
 		<div className="space-y-4">
 			<Panel title="导出与备份">
 				<p className="text-sm text-muted-foreground">
-					迁移包包含公共内容、配置和申请审核记录，排除管理员凭据和会话。数据库备份用于同类实例完整恢复，包含管理员配置。
+					迁移包包含公共内容、配置和申请审核记录，排除管理员凭据和会话。完整备份包含数据库、上传图片和校验清单，用于整站恢复；请下载并另存一份到其他设备。
 				</p>
 				<div className="flex flex-wrap gap-2">
 					<a className={buttonClass} href="/api/admin/export" download>
@@ -84,10 +91,10 @@ export function BackupsPanel({
 							void runAction(async () => {
 								await requestAdminApi('admin/backups', csrf, {})
 								load()
-							}, '数据库备份已生成')
+							}, '完整备份已生成')
 						}
 					>
-						备份数据库
+						完整备份
 					</button>
 					<button type="button" className={buttonClass} onClick={load}>
 						刷新列表
@@ -98,6 +105,21 @@ export function BackupsPanel({
 						{backupError}
 					</p>
 				)}
+				{operations && (
+					<div className="text-xs text-muted-foreground space-y-1">
+						<p>
+							运行版本：{operations.commit.slice(0, 12)} · 最近成功备份：
+							{operations.backup.lastSuccess
+								? new Date(operations.backup.lastSuccess).toLocaleString()
+								: '尚无完整备份记录'}
+						</p>
+						{operations.backup.lastError && (
+							<p role="alert" className="text-error">
+								最近备份失败：{operations.backup.lastError}
+							</p>
+						)}
+					</div>
+				)}
 				<ul className="divide-y divide-border">
 					{backups.map((backup) => (
 						<li
@@ -107,10 +129,33 @@ export function BackupsPanel({
 							<div className="min-w-0">
 								<p className="text-sm break-all">{backup.name}</p>
 								<p className="text-xs text-muted-foreground">
-									{(backup.size / 1024).toFixed(1)} KB
+									{(backup.size / 1024).toFixed(1)} KB ·{' '}
+									{backup.name.endsWith('.zip')
+										? '数据库与图片'
+										: '历史数据库备份（不含图片）'}
 								</p>
 							</div>
 							<div className="ml-auto flex w-full flex-wrap justify-end gap-2 sm:w-auto">
+								{backup.name.endsWith('.zip') && (
+									<button
+										type="button"
+										className={buttonClass}
+										disabled={busy}
+										onClick={() =>
+											void runAction(async () => {
+												await requestAdminData(
+													`admin/backups/${encodeURIComponent(backup.name)}/verify`,
+													backupVerificationSchema,
+													csrf,
+													{},
+													'POST',
+												)
+											}, '备份文件、校验清单及数据库检查通过')
+										}
+									>
+										校验
+									</button>
+								)}
 								<a
 									className={buttonClass}
 									href={`/api/admin/backups/${encodeURIComponent(backup.name)}`}
@@ -134,7 +179,9 @@ export function BackupsPanel({
 					))}
 				</ul>
 				<p className="text-xs text-muted-foreground">
-					原生数据库恢复需要停站后执行容器 restore 命令，操作步骤见部署文档。
+					恢复需要停站后执行 restore
+					命令，完整备份会先核对文件和数据库，再恢复图片与内容；历史 SQLite
+					备份不含图片。
 				</p>
 			</Panel>
 			<Panel title="导入与恢复">

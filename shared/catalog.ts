@@ -77,7 +77,7 @@ export const siteInputSchema = z
 		sortOrder: z.number().int().min(0).max(1000000).default(0),
 	})
 	.strict()
-export const siteSchema = siteInputSchema
+const siteSchema = siteInputSchema
 	.extend({
 		id,
 		createdAt: z.iso.datetime(),
@@ -176,7 +176,7 @@ const applicationInputSchema = z
 		tags: tagsSchema,
 	})
 	.strict()
-export const applicationStatusSchema = z.enum([
+const applicationStatusSchema = z.enum([
 	'pending',
 	'approved',
 	'rejected',
@@ -247,8 +247,6 @@ export const reviewSchema = z.discriminatedUnion('action', [
 		.strict(),
 ])
 export type Application = z.infer<typeof applicationSchema>
-export type ApplicationInput = z.infer<typeof applicationInputSchema>
-export type ReviewInput = z.infer<typeof reviewSchema>
 export const migrationSchema = z
 	.object({
 		format: z.literal('inav-catalog'),
@@ -335,12 +333,6 @@ export const migrationSchema = z
 			}
 		}
 	})
-export const credentialsSchema = z
-	.object({
-		username: z.string().trim().min(1).max(100),
-		password: z.string().min(12).max(256),
-	})
-	.strict()
 export type Catalog = z.infer<typeof catalogSchema>
 export type Category = z.infer<typeof categorySchema>
 export type PublicSite = z.infer<typeof siteSchema>

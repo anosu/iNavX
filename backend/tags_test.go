@@ -45,7 +45,7 @@ func TestApplicationTagsReviewAndRoundTrip(t *testing.T) {
 	if _, err = s.importMigration(pkg, "merge"); err != nil {
 		t.Fatal(err)
 	}
-	backup, err := s.backup()
+	backup, err := nativeBackupForTest(s)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -127,7 +127,7 @@ func testStore(t *testing.T) *Store {
 	}
 	t.Cleanup(func() { os.Chdir(filepath.Join(root, "backend")) })
 	dir := t.TempDir()
-	c := Config{DataDir: dir, BackupDir: filepath.Join(dir, "backups"), DatabasePath: filepath.Join(dir, "inav.sqlite"), MigrationsDir: filepath.Join(root, "migrations"), SeedPath: filepath.Join(root, "src/data/sites.json"), DefaultsPath: filepath.Join(root, "runtime/defaults.json"), DistDir: filepath.Join(root, "dist"), Origin: "http://localhost:3000", TrustedProxies: map[string]bool{}}
+	c := Config{DataDir: dir, BackupDir: filepath.Join(dir, "backups"), DatabasePath: filepath.Join(dir, "inav.sqlite"), MigrationsDir: filepath.Join(root, "migrations"), SeedPath: filepath.Join(root, "seed/sites.json"), DefaultsPath: filepath.Join(root, "runtime/defaults.json"), DistDir: filepath.Join(root, "dist"), Origin: "http://localhost:3000", TrustedProxies: map[string]bool{}}
 	s, err := openStore(c)
 	if err != nil {
 		t.Fatal(err)
@@ -140,6 +140,12 @@ func mustTx(t *testing.T, s *Store, fn func(*sql.Tx) error) {
 	if err := transaction(s.DB, fn); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// Historical SQLite backups remain a supported input, not a second daily backup mode.
+func nativeBackupForTest(s *Store) (string, error) {
+	name := "inav-legacy-" + uuid() + ".sqlite"
+	return name, backupDatabase(s.DB, filepath.Join(s.Config.BackupDir, name))
 }
 func status(t *testing.T, err error, want int) {
 	t.Helper()
@@ -249,6 +255,13 @@ func TestHTTPAuthenticationAndBackupRestore(t *testing.T) {
 		r.Header.Set("Content-Type", "application/json")
 		r.Header.Set("Origin", s.Config.Origin)
 		r.Header.Set("X-CSRF-Token", csrf)
+		_, revision, revisionErr := s.settings(s.DB)
+		if revisionErr != nil {
+			t.Fatal(revisionErr)
+		}
+		if method != "GET" {
+			r.Header.Set("If-Match", `"`+revision+`"`)
+		}
 		if cookie != nil {
 			r.AddCookie(cookie)
 		}
@@ -288,7 +301,7 @@ func TestHTTPAuthenticationAndBackupRestore(t *testing.T) {
 	if w = request("POST", "/api/public/applications", `{"name":"Test","url":"https://submission.example","description":null}`, "", nil); w.Code != 400 {
 		t.Fatalf("null accepted: %d %s", w.Code, w.Body)
 	}
-	name, err := s.backup()
+	name, err := nativeBackupForTest(s)
 	if err != nil {
 		t.Fatal(err)
 	}

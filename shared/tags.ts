@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const MAX_TAGS = 30
-export const MAX_TAG_LENGTH = 100
+const MAX_TAG_LENGTH = 100
 
 export const tagsSchema = z
 	.array(

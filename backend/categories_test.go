@@ -59,7 +59,7 @@ func TestCategoryColorRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	check(s)
-	backup, err := s.backup()
+	backup, err := nativeBackupForTest(s)
 	if err != nil {
 		t.Fatal(err)
 	}

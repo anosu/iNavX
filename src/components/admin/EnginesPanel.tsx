@@ -17,11 +17,13 @@ import {
 
 export function EnginesPanel({
 	engines,
+	revision,
 	csrf,
 	runAction,
 	busy: saving,
 }: {
 	engines: Engine[]
+	revision: string
 	csrf: string
 	runAction: RunAdminAction
 	busy: boolean
@@ -52,7 +54,8 @@ export function EnginesPanel({
 					e.preventDefault()
 					if (busy) return
 					void runAction(
-						() => requestAdminApi('admin/engines', csrf, items, 'PUT'),
+						() =>
+							requestAdminApi('admin/engines', csrf, items, 'PUT', revision),
 						'搜索引擎已保存',
 					)
 				}}

@@ -3,7 +3,7 @@ import { ResourceImage } from '@/components/atoms/ResourceImage'
 import { useImageUrl } from '@/hooks/useImageUrl'
 import { requestAdminApi, requestAdminData } from '@/utils/adminApi'
 import {
-	type MediaFile,
+	type MediaLibraryItem,
 	mediaListSchema,
 	mediaSchema,
 } from '../../../shared/adminApi'
@@ -26,12 +26,23 @@ export function ImageField({
 	const fileRef = useRef<HTMLInputElement>(null)
 	const active = useRef(true)
 	const [open, setOpen] = useState(false)
-	const [items, setItems] = useState<MediaFile[]>([])
+	const [items, setItems] = useState<MediaLibraryItem[]>([])
+	const [revision, setRevision] = useState('')
+	const [unusedOnly, setUnusedOnly] = useState(false)
+	const [filter, setFilter] = useState('')
+	const [allowReferenced, setAllowReferenced] = useState(false)
 	const [refresh, setRefresh] = useState(0)
 	const [busy, setBusy] = useState(false)
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState('')
-	const [deleting, setDeleting] = useState<MediaFile>()
+	const [deleting, setDeleting] = useState<MediaLibraryItem>()
+	const visibleItems = items.filter(
+		(item) =>
+			(!unusedOnly || item.usedBy.length === 0) &&
+			`${item.name} ${item.usedBy.join(' ')}`
+				.toLowerCase()
+				.includes(filter.trim().toLowerCase()),
+	)
 	const preview = useImageUrl(value)
 	useEffect(() => {
 		if (!busy) return
@@ -53,7 +64,10 @@ export function ImageField({
 		void requestAdminData('admin/media', mediaListSchema)
 			.then(
 				(data) => {
-					if (!cancelled) setItems(data.items)
+					if (!cancelled) {
+						setItems(data.items)
+						setRevision(data.revision)
+					}
 				},
 				(reason: unknown) => {
 					if (!cancelled)
@@ -167,6 +181,26 @@ export function ImageField({
 					}}
 					busy={busy}
 				>
+					<div className="mb-3 flex flex-wrap items-center gap-3">
+						<input
+							className={inputClass}
+							aria-label="搜索图片或引用内容"
+							placeholder="搜索图片或引用内容"
+							value={filter}
+							onChange={(event) => setFilter(event.target.value)}
+						/>
+						<label className="flex items-center gap-2 text-sm">
+							<input
+								type="checkbox"
+								checked={unusedOnly}
+								onChange={(event) => setUnusedOnly(event.target.checked)}
+							/>
+							仅显示未使用图片
+						</label>
+						<span className="text-xs text-muted-foreground">
+							按上传时间倒序 · {visibleItems.length} / {items.length} 张
+						</span>
+					</div>
 					{error && (
 						<p role="alert" className="text-sm text-error">
 							{error}
@@ -181,13 +215,15 @@ export function ImageField({
 					)}
 					{loading ? (
 						<output>正在加载图片…</output>
-					) : items.length === 0 ? (
+					) : visibleItems.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
-							图片库为空，请先上传图片。
+							{items.length
+								? '没有符合条件的图片。'
+								: '图片库为空，请先上传图片。'}
 						</p>
 					) : (
 						<div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-							{items.map((item) => (
+							{visibleItems.map((item) => (
 								<div
 									key={item.name}
 									className="min-w-0 rounded-md border border-border p-3 space-y-2"
@@ -208,6 +244,11 @@ export function ImageField({
 									<p className="text-xs text-muted-foreground">
 										{Math.ceil(item.size / 1024)} KiB
 									</p>
+									<p className="text-xs text-muted-foreground break-words">
+										{item.usedBy.length
+											? item.usedBy.join('；')
+											: '尚未被公共内容引用'}
+									</p>
 									<div className="flex flex-wrap justify-end gap-2">
 										<button
 											type="button"
@@ -224,7 +265,10 @@ export function ImageField({
 											type="button"
 											className={dangerClass}
 											disabled={busy}
-											onClick={() => setDeleting(item)}
+											onClick={() => {
+												setAllowReferenced(false)
+												setDeleting(item)
+											}}
 										>
 											删除
 										</button>
@@ -256,7 +300,9 @@ export function ImageField({
 							<button
 								type="button"
 								className={dangerClass}
-								disabled={busy}
+								disabled={
+									busy || (deleting.usedBy.length > 0 && !allowReferenced)
+								}
 								onClick={async () => {
 									setBusy(true)
 									setError('')
@@ -264,8 +310,9 @@ export function ImageField({
 										await requestAdminApi(
 											`admin/media/${deleting.name}`,
 											csrf,
-											{},
+											{ allowReferenced },
 											'DELETE',
+											revision,
 										)
 										if (active.current) {
 											if (value === deleting.url) onChange('')
@@ -288,7 +335,26 @@ export function ImageField({
 							</button>
 						</div>
 					}
-				/>
+				>
+					<p className="text-sm break-words">
+						{deleting.usedBy.length
+							? `引用位置：${deleting.usedBy.join('；')}`
+							: '没有已保存的公共内容引用此图片。'}
+					</p>
+					<p className="mt-2 text-xs text-muted-foreground">
+						统计不包含尚未保存的表单、访客个人收藏或外部网站。
+					</p>
+					{deleting.usedBy.length > 0 && (
+						<label className="mt-3 flex items-center gap-2 text-sm">
+							<input
+								type="checkbox"
+								checked={allowReferenced}
+								onChange={(event) => setAllowReferenced(event.target.checked)}
+							/>
+							确认删除并使以上引用失效
+						</label>
+					)}
+				</Dialog>
 			)}
 		</div>
 	)

@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from 'react'
 import { TagInput } from '@/components/molecules/TagInput'
 import { useMediaActivity } from '@/hooks/useMediaActivity'
-import { requestAdminApi } from '@/utils/adminApi'
+import { ApiError, requestAdminApi } from '@/utils/adminApi'
 import {
 	type Catalog,
 	type PublicSite,
@@ -34,6 +34,7 @@ function SiteEditor({
 	cancel,
 	busy: saving,
 	serverError,
+	serverConflict,
 }: {
 	site?: PublicSite
 	data: Catalog
@@ -41,6 +42,7 @@ function SiteEditor({
 	cancel: () => void
 	busy: boolean
 	serverError: string
+	serverConflict: boolean
 	csrf: string
 }) {
 	const formId = useId()
@@ -99,6 +101,16 @@ function SiteEditor({
 					{(error || serverError) && (
 						<p role="alert" className="text-error text-sm">
 							{error || serverError}
+							{serverConflict && (
+								<a
+									className="ml-2 underline"
+									href={window.location.href}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									另页查看最新内容
+								</a>
+							)}
 						</p>
 					)}
 					{discard ? (
@@ -284,6 +296,7 @@ export function SitesPanel({
 	const [page, setPage] = useState(1)
 	const [deleting, setDeleting] = useState<PublicSite | null>(null)
 	const [saveError, setSaveError] = useState('')
+	const [saveConflict, setSaveConflict] = useState(false)
 	const [deleteError, setDeleteError] = useState('')
 	const selected = data.sites.filter(
 		(site) =>
@@ -321,7 +334,14 @@ export function SitesPanel({
 					className={buttonClass}
 					onClick={() =>
 						void runAction(
-							() => requestAdminApi(`admin/sites/${site.id}/restore`, csrf, {}),
+							() =>
+								requestAdminApi(
+									`admin/sites/${site.id}/restore`,
+									csrf,
+									{},
+									'POST',
+									data.revision,
+								),
 							'站点已恢复',
 						)
 					}
@@ -352,9 +372,15 @@ export function SitesPanel({
 					data={data}
 					busy={busy}
 					serverError={saveError}
-					cancel={() => setEditing(null)}
+					serverConflict={saveConflict}
+					cancel={() => {
+						setEditing(null)
+						setSaveError('')
+						setSaveConflict(false)
+					}}
 					save={(input) => {
 						setSaveError('')
+						setSaveConflict(false)
 						void runAction(
 							() =>
 								requestAdminApi(
@@ -362,7 +388,11 @@ export function SitesPanel({
 									csrf,
 									input,
 									editing === 'new' ? 'POST' : 'PUT',
+									data.revision,
 								).catch((error: unknown) => {
+									setSaveConflict(
+										error instanceof ApiError && error.status === 409,
+									)
 									setSaveError(
 										error instanceof Error ? error.message : '保存失败',
 									)
@@ -586,6 +616,7 @@ export function SitesPanel({
 													? { expectedUpdatedAt: deleting.updatedAt }
 													: {},
 												'DELETE',
+												data.revision,
 											)
 										} catch (error) {
 											setDeleteError(

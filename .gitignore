@@ -15,7 +15,18 @@ dist-server
 /backups/
 /runtime/
 /bin/
+/test-results/
+/playwright-report/
+/.agents/
+/coverage/
+*.tsbuildinfo
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
 .env
+.env.*
+!.env.example
 *.local
 
 # Editor directories and files

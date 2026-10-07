@@ -23,11 +23,13 @@ const featureLabels: Record<keyof Settings['features'], string> = {
 }
 export function SettingsPanel({
 	settings,
+	revision,
 	csrf,
 	runAction,
 	busy: saving,
 }: {
 	settings: Settings
+	revision: string
 	csrf: string
 	runAction: RunAdminAction
 	busy: boolean
@@ -55,7 +57,14 @@ export function SettingsPanel({
 					else {
 						setError('')
 						void runAction(
-							() => requestAdminApi('admin/settings', csrf, parsed.data, 'PUT'),
+							() =>
+								requestAdminApi(
+									'admin/settings',
+									csrf,
+									parsed.data,
+									'PUT',
+									revision,
+								),
 							'设置已保存',
 						)
 					}

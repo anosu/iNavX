@@ -41,7 +41,7 @@ func origin(value string) (string, error) {
 	return u.Scheme + "://" + u.Host, nil
 }
 func loadConfig() (Config, error) {
-	c := Config{DataDir: absolute(env("DATA_DIR", "data")), BackupDir: absolute(env("BACKUP_DIR", "backups")), MigrationsDir: absolute("migrations"), SeedPath: absolute("src/data/sites.json"), DefaultsPath: absolute("runtime/defaults.json"), DistDir: absolute("dist"), Host: env("HOST", "0.0.0.0"), SiteKey: os.Getenv("TURNSTILE_SITE_KEY"), SecretKey: os.Getenv("TURNSTILE_SECRET_KEY"), TrustedProxies: map[string]bool{}}
+	c := Config{DataDir: absolute(env("DATA_DIR", "data")), BackupDir: absolute(env("BACKUP_DIR", "backups")), MigrationsDir: absolute("migrations"), SeedPath: absolute("seed/sites.json"), DefaultsPath: absolute("runtime/defaults.json"), DistDir: absolute("dist"), Host: env("HOST", "0.0.0.0"), SiteKey: os.Getenv("TURNSTILE_SITE_KEY"), SecretKey: os.Getenv("TURNSTILE_SECRET_KEY"), TrustedProxies: map[string]bool{}}
 	var err error
 	c.Port, err = strconv.Atoi(env("PORT", "3000"))
 	if err != nil || c.Port < 1 || c.Port > 65535 {

@@ -5,7 +5,7 @@ import {
 	ALLOW_CUSTOM_SITES,
 	ALLOW_HIDE_BUILTIN,
 } from '@/config/features'
-import sitesData from '@/data/sites.json'
+import sitesData from '../../seed/sites.json'
 import type { Catalog } from '../../shared/catalog'
 import {
 	DEFAULT_CATEGORIES,
