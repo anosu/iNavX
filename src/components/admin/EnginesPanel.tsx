@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useMediaActivity } from '@/hooks/useMediaActivity'
 import { requestAdminApi } from '@/utils/adminApi'
 import type { Engine } from '../../../shared/catalog'
+import { ImageField } from './ImageField'
 import {
 	buttonClass,
 	dangerClass,
@@ -17,7 +19,7 @@ export function EnginesPanel({
 	engines,
 	csrf,
 	runAction,
-	busy,
+	busy: saving,
 }: {
 	engines: Engine[]
 	csrf: string
@@ -25,8 +27,10 @@ export function EnginesPanel({
 	busy: boolean
 }) {
 	const [items, setItems] = useState(engines)
+	const { mediaBusy, onBusyChange } = useMediaActivity()
+	const busy = saving || mediaBusy
 	const dirty = JSON.stringify(items) !== JSON.stringify(engines)
-	useDirtyForm(dirty)
+	useDirtyForm(dirty || mediaBusy)
 	const update = (index: number, patch: Partial<Engine>) =>
 		setItems(
 			items.map((item, i) => (i === index ? { ...item, ...patch } : item)),
@@ -46,6 +50,7 @@ export function EnginesPanel({
 			<form
 				onSubmit={(e) => {
 					e.preventDefault()
+					if (busy) return
 					void runAction(
 						() => requestAdminApi('admin/engines', csrf, items, 'PUT'),
 						'搜索引擎已保存',
@@ -66,13 +71,19 @@ export function EnginesPanel({
 									onChange={(e) => update(index, { name: e.target.value })}
 								/>
 							</Field>
-							<Field label="图标 URL">
-								<input
-									className={inputClass}
-									value={engine.iconUrl}
-									onChange={(e) => update(index, { iconUrl: e.target.value })}
-								/>
-							</Field>
+							<ImageField
+								onBusyChange={onBusyChange}
+								label="搜索引擎图标"
+								csrf={csrf}
+								value={engine.iconUrl}
+								onChange={(url) =>
+									setItems((previous) =>
+										previous.map((item) =>
+											item.id === engine.id ? { ...item, iconUrl: url } : item,
+										),
+									)
+								}
+							/>
 							<div className="sm:col-span-2">
 								<Field label="搜索 URL 模板（必须包含 {q}）">
 									<input

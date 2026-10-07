@@ -13,6 +13,7 @@ import (
 var titlePattern = regexp.MustCompile(`(?s)<title>.*?</title>`)
 var metaPattern = regexp.MustCompile(`<meta\s+(?:name|property)="([^"]+)"\s+content="[^"]*"\s*/>`)
 var contentPattern = regexp.MustCompile(`content="[^"]*"`)
+var iconPattern = regexp.MustCompile(`<link\s+rel="icon"[^>]*>`)
 
 func validStaticPath(relative string) bool {
 	return relative != "" && filepath.IsLocal(relative) && path.Clean(relative) == relative &&
@@ -85,6 +86,14 @@ func (a *App) staticRoutes() {
 		}
 		page := titlePattern.ReplaceAllStringFunc(string(data), func(string) string { return "<title>" + html.EscapeString(settings.Name) + "</title>" })
 		values := map[string]string{"description": settings.Description, "author": settings.Name, "og:title": settings.Name, "og:site_name": settings.Name, "og:description": settings.Description, "twitter:title": settings.Name, "twitter:description": settings.Description}
+		values["keywords"] = settings.Presentation.Keywords
+		if settings.Presentation.Author != "" {
+			values["author"] = settings.Presentation.Author
+		}
+		values["twitter:card"] = "summary"
+		if presentationImage(settings.Presentation.ShareImageURL, settings, origin) != "" {
+			values["twitter:card"] = "summary_large_image"
+		}
 		page = metaPattern.ReplaceAllStringFunc(page, func(tag string) string {
 			key := metaPattern.FindStringSubmatch(tag)[1]
 			if value, ok := values[key]; ok {
@@ -92,7 +101,9 @@ func (a *App) staticRoutes() {
 			}
 			return tag
 		})
-		page = strings.Replace(page, "<head>", "<head><script>window.__INAV_BACKEND__=true;window.__INAV_SETTINGS__="+marshal(settings)+";</script>", 1)
+		icon, extra := presentationHead(settings, origin)
+		page = iconPattern.ReplaceAllStringFunc(page, func(string) string { return icon })
+		page = strings.Replace(page, "<head>", "<head>"+extra+"<script>window.__INAV_BACKEND__=true;window.__INAV_SETTINGS__="+marshal(settings)+";</script>", 1)
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 		w.Header().Set("Cache-Control", "no-cache, must-revalidate")
 		if strings.HasPrefix(r.URL.Path, "/admin") {

@@ -2,18 +2,22 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 
 const pkg = JSON.parse(
 	readFileSync(new URL('./package.json', import.meta.url), 'utf-8'),
 )
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
 	plugins: [react(), tailwindcss()],
 
 	define: {
 		// Injected at build time; access via import.meta.env.APP_VERSION
 		'import.meta.env.APP_VERSION': JSON.stringify(pkg.version),
+		// A literal default lets Rollup exclude the static seed module entirely.
+		'import.meta.env.VITE_STATIC_MODE': JSON.stringify(
+			loadEnv(mode, process.cwd(), 'VITE_').VITE_STATIC_MODE || 'false',
+		),
 	},
 
 	resolve: {
@@ -85,4 +89,4 @@ export default defineConfig({
 			],
 		},
 	},
-})
+}))

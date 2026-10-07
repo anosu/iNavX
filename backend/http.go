@@ -199,6 +199,7 @@ func (a *App) mutate(fn func(*sql.Tx) error) error {
 }
 func (a *App) routes() {
 	s := a.Store
+	a.mediaRoutes()
 	a.route("GET /api/health", func(w http.ResponseWriter, r *http.Request) error {
 		var value int
 		if err := s.DB.QueryRow("SELECT 1").Scan(&value); err != nil {

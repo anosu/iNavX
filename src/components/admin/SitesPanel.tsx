@@ -1,5 +1,6 @@
 import { useId, useRef, useState } from 'react'
 import { TagInput } from '@/components/molecules/TagInput'
+import { useMediaActivity } from '@/hooks/useMediaActivity'
 import { requestAdminApi } from '@/utils/adminApi'
 import {
 	type Catalog,
@@ -9,6 +10,7 @@ import {
 } from '../../../shared/catalog'
 import { ADMIN_PAGE_SIZE } from '../../../shared/limits'
 import { createTagInput, readTagInput } from '../../../shared/tags'
+import { ImageField } from './ImageField'
 import {
 	buttonClass,
 	Dialog,
@@ -25,11 +27,12 @@ import {
 } from './ui'
 
 function SiteEditor({
+	csrf,
 	site,
 	data,
 	save,
 	cancel,
-	busy,
+	busy: saving,
 	serverError,
 }: {
 	site?: PublicSite
@@ -38,8 +41,11 @@ function SiteEditor({
 	cancel: () => void
 	busy: boolean
 	serverError: string
+	csrf: string
 }) {
 	const formId = useId()
+	const { mediaBusy, onBusyChange } = useMediaActivity()
+	const busy = saving || mediaBusy
 	const [value, setValue] = useState<SiteInput>(() =>
 		site
 			? {
@@ -68,9 +74,10 @@ function SiteEditor({
 		JSON.stringify({ ...value, tags: createTagInput(value.tags) }),
 	)
 	const dirty = JSON.stringify({ ...value, tags }) !== initial.current
-	useDirtyForm(dirty)
+	useDirtyForm(dirty || mediaBusy)
 	const [discard, setDiscard] = useState(false)
 	const onClose = () => {
+		if (busy) return
 		if (dirty) setDiscard(true)
 		else cancel()
 	}
@@ -213,13 +220,15 @@ function SiteEditor({
 							))}
 						</select>
 					</Field>
-					<Field label="图标 URL（可留空）">
-						<input
-							className={inputClass}
-							value={value.iconUrl}
-							onChange={(e) => setValue({ ...value, iconUrl: e.target.value })}
-						/>
-					</Field>
+					<ImageField
+						onBusyChange={onBusyChange}
+						label="站点图标（可留空）"
+						csrf={csrf}
+						value={value.iconUrl}
+						onChange={(url) =>
+							setValue((previous) => ({ ...previous, iconUrl: url }))
+						}
+					/>
 					<Field label="描述">
 						<textarea
 							className={inputClass}
@@ -337,6 +346,7 @@ export function SitesPanel({
 		<div className="space-y-4">
 			{editing && (
 				<SiteEditor
+					csrf={csrf}
 					key={editing === 'new' ? 'new' : editing.id}
 					site={editing === 'new' ? undefined : editing}
 					data={data}

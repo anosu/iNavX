@@ -158,7 +158,7 @@ export default function Admin() {
 					<header className="flex flex-wrap justify-between items-center gap-4 pb-6 border-b border-border">
 						<div className="min-w-0">
 							<p className="text-[11px] font-semibold tracking-[0.2em] text-primary uppercase mb-2">
-								iNavX · 管理工作台
+								管理工作台
 							</p>
 							<h1 className="text-2xl font-semibold tracking-tight break-words">
 								{data?.settings.name || '管理后台'}

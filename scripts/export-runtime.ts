@@ -10,6 +10,8 @@ import {
 	MAX_APPLICATION_HISTORY,
 	MAX_CATALOG_CATEGORIES,
 	MAX_CATALOG_SITES,
+	MAX_MEDIA_BYTES,
+	MAX_MEDIA_FILES,
 	MAX_PENDING_APPLICATIONS,
 	MAX_SEARCH_ENGINES,
 } from '../shared/limits'
@@ -29,6 +31,8 @@ writeFileSync(
 			pending: MAX_PENDING_APPLICATIONS,
 			pageSize: ADMIN_PAGE_SIZE,
 			bodyBytes: MAX_API_BODY_BYTES,
+			mediaBytes: MAX_MEDIA_BYTES,
+			mediaFiles: MAX_MEDIA_FILES,
 		},
 	})}\n`,
 )

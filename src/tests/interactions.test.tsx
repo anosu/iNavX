@@ -16,6 +16,7 @@ for (const [key, value] of Object.entries({
 	DOMParser: browser.DOMParser,
 	HTMLElement: browser.HTMLElement,
 	HTMLInputElement: browser.HTMLInputElement,
+	FileReader: browser.FileReader,
 	getComputedStyle: browser.getComputedStyle.bind(browser),
 	requestAnimationFrame: browser.requestAnimationFrame.bind(browser),
 	cancelAnimationFrame: browser.cancelAnimationFrame.bind(browser),
@@ -42,6 +43,319 @@ const { searchCommandSites } = await import('../utils/commandSearch')
 const { readRecentSites, recordSiteOpen, clearRecentSites } = await import(
 	'../utils/recentSites'
 )
+const { PublicCatalogProvider, usePublicCatalog, useCatalogStatus } =
+	await import('../hooks/usePublicCatalog')
+
+test('full-stack catalog never renders bundled seed sites while its first request is pending', async (t) => {
+	localStorage.clear()
+	const originalFetch = globalThis.fetch
+	const originalSettings = window.__INAV_SETTINGS__
+	t.after(() => {
+		globalThis.fetch = originalFetch
+		window.__INAV_SETTINGS__ = originalSettings
+	})
+	globalThis.fetch = () => new Promise<Response>(() => {})
+	function CatalogProbe() {
+		const catalog = usePublicCatalog()
+		return <output>{catalog.sites.map((site) => site.name).join(',')}</output>
+	}
+	const view = await mount(
+		<PublicCatalogProvider>
+			<CatalogProbe />
+		</PublicCatalogProvider>,
+	)
+	t.after(view.dispose)
+	assert.equal(
+		view.container.textContent,
+		'',
+		'Bundled demo sites must not appear before the API response',
+	)
+})
+
+test('catalog startup waits for the server even with a cache, accepts empty data and ignores superseded requests', async (t) => {
+	const { staticCatalog } = await import('../data/staticCatalog')
+	const cached = {
+		...staticCatalog,
+		revision: 'cached',
+		sites: [staticCatalog.sites[0]],
+	}
+	localStorage.setItem('inav-public-catalog:', JSON.stringify(cached))
+	const originalFetch = globalThis.fetch
+	const originalSettings = window.__INAV_SETTINGS__
+	t.after(() => {
+		globalThis.fetch = originalFetch
+		window.__INAV_SETTINGS__ = originalSettings
+		localStorage.removeItem('inav-public-catalog:')
+	})
+	const requests: ((response: Response) => void)[] = []
+	globalThis.fetch = () =>
+		new Promise<Response>((resolve) => {
+			requests.push(resolve)
+		})
+	function Probe() {
+		const catalog = usePublicCatalog()
+		return (
+			<output>
+				{useCatalogStatus()}:{catalog.revision}:{catalog.sites.length}
+			</output>
+		)
+	}
+	const view = await mount(
+		<PublicCatalogProvider>
+			<Probe />
+		</PublicCatalogProvider>,
+	)
+	t.after(view.dispose)
+	assert.equal(view.container.textContent, 'loading:loading:0')
+	await act(() => window.dispatchEvent(new Event('inav:catalog-changed')))
+	await act(async () => {
+		requests[0](Response.json(cached))
+	})
+	assert.equal(view.container.textContent, 'loading:loading:0')
+	const live = {
+		...cached,
+		revision: 'live',
+		sites: [],
+		categories: [],
+		engines: [],
+	}
+	await act(async () => {
+		requests[1](Response.json(live))
+	})
+	assert.equal(view.container.textContent, 'ready:live:0')
+	await act(() => window.dispatchEvent(new Event('inav:catalog-changed')))
+	await act(async () => {
+		requests[2](new Response('', { status: 503 }))
+	})
+	assert.equal(view.container.textContent, 'stale:live:0')
+})
+
+test('catalog failures use only validated server cache and can recover on retry', async (t) => {
+	const { staticCatalog } = await import('../data/staticCatalog')
+	const cached = {
+		...staticCatalog,
+		revision: 'cached',
+		sites: [staticCatalog.sites[0]],
+	}
+	const originalFetch = globalThis.fetch
+	const originalSettings = window.__INAV_SETTINGS__
+	t.after(() => {
+		globalThis.fetch = originalFetch
+		window.__INAV_SETTINGS__ = originalSettings
+		localStorage.removeItem('inav-public-catalog:')
+	})
+	function Probe() {
+		const catalog = usePublicCatalog()
+		return (
+			<output>
+				{useCatalogStatus()}:{catalog.sites.length}
+			</output>
+		)
+	}
+	for (const value of ['broken JSON', JSON.stringify(cached)]) {
+		localStorage.setItem('inav-public-catalog:', value)
+		const requests: ((response: Response) => void)[] = []
+		globalThis.fetch = () =>
+			new Promise<Response>((resolve) => {
+				requests.push(resolve)
+			})
+		const view = await mount(
+			<PublicCatalogProvider>
+				<Probe />
+			</PublicCatalogProvider>,
+		)
+		try {
+			await act(async () => {
+				requests[0](new Response('', { status: 503 }))
+			})
+			assert.equal(
+				view.container.textContent,
+				value === 'broken JSON' ? 'error:0' : 'stale:1',
+			)
+			await act(() => window.dispatchEvent(new Event('inav:catalog-changed')))
+			await act(async () => {
+				requests[1](Response.json({ ...cached, sites: [] }))
+			})
+			assert.equal(view.container.textContent, 'ready:0')
+		} finally {
+			await view.dispose()
+		}
+	}
+})
+
+test('image fields upload file contents through authenticated JSON and apply the returned URL', async (t) => {
+	const { ImageField } = await import('../components/admin/ImageField')
+	const originalFetch = globalThis.fetch
+	t.after(() => {
+		globalThis.fetch = originalFetch
+	})
+	const name = '12345678-1234-1234-1234-123456789abc.svg'
+	const svg = '<svg xmlns="http://www.w3.org/2000/svg"/>'
+	let requests = 0
+	globalThis.fetch = async (_url, init) => {
+		requests++
+		assert.equal(new Headers(init?.headers).get('X-CSRF-Token'), 'test-csrf')
+		assert.equal(init?.credentials, 'same-origin')
+		assert.equal(
+			Buffer.from(JSON.parse(String(init?.body)).data, 'base64').toString(),
+			svg,
+		)
+		return Response.json(
+			{ name, url: `/media/${name}`, size: svg.length },
+			{ status: 201 },
+		)
+	}
+	let selected = ''
+	let complete: () => void = () => {}
+	const applied = new Promise<void>((resolve) => {
+		complete = resolve
+	})
+	const view = await mount(
+		<ImageField
+			csrf="test-csrf"
+			label="测试图标"
+			value=""
+			onChange={(url) => {
+				selected = url
+				complete()
+			}}
+		/>,
+	)
+	t.after(view.dispose)
+	const input = view.container.querySelector('input[type="file"]')
+	assert.ok(input)
+	Object.defineProperty(input, 'files', {
+		configurable: true,
+		value: [new browser.File([svg], 'icon.svg', { type: 'image/svg+xml' })],
+	})
+	await act(async () => {
+		input.dispatchEvent(new Event('change', { bubbles: true }))
+		await applied
+	})
+	assert.equal(requests, 1)
+	assert.equal(selected, `/media/${name}`)
+})
+
+test('settings cannot save while an image upload is pending', async (t) => {
+	const { SettingsPanel } = await import('../components/admin/SettingsPanel')
+	const { DEFAULT_SETTINGS } = await import('../../shared/defaults')
+	const originalFetch = globalThis.fetch
+	t.after(() => {
+		globalThis.fetch = originalFetch
+	})
+	let finish: (response: Response) => void = () => {}
+	let start: () => void = () => {}
+	const started = new Promise<void>((resolve) => {
+		start = resolve
+	})
+	globalThis.fetch = () =>
+		new Promise<Response>((resolve) => {
+			finish = resolve
+			start()
+		})
+	let saves = 0
+	const view = await mount(
+		<SettingsPanel
+			settings={DEFAULT_SETTINGS}
+			csrf="csrf"
+			busy={false}
+			runAction={async () => {
+				saves++
+				return true
+			}}
+		/>,
+	)
+	t.after(view.dispose)
+	const input = view.container.querySelector('input[type="file"]')
+	const fieldset = view.container.querySelector('fieldset')
+	const form = view.container.querySelector('form')
+	assert.ok(input)
+	assert.ok(fieldset)
+	assert.ok(form)
+	Object.defineProperty(input, 'files', {
+		configurable: true,
+		value: [
+			new browser.File(['<svg/>'], 'icon.svg', { type: 'image/svg+xml' }),
+		],
+	})
+	await act(async () => {
+		input.dispatchEvent(new Event('change', { bubbles: true }))
+		await started
+	})
+	assert.equal(fieldset.disabled, true)
+	await act(() =>
+		form.dispatchEvent(
+			new Event('submit', { bubbles: true, cancelable: true }),
+		),
+	)
+	assert.equal(saves, 0)
+	const name = '12345678-1234-1234-1234-123456789abc.svg'
+	await act(async () => {
+		finish(Response.json({ name, url: `/media/${name}`, size: 6 }))
+	})
+	assert.equal(fieldset.disabled, false)
+	await act(() =>
+		form.dispatchEvent(
+			new Event('submit', { bubbles: true, cancelable: true }),
+		),
+	)
+	assert.equal(saves, 1)
+})
+
+test('site metadata updates icons, share information and respects the remote image setting', async (t) => {
+	const { applySiteMetadata } = await import('../utils/siteMetadata')
+	const { DEFAULT_SETTINGS } = await import('../../shared/defaults')
+	const previous = document.head.innerHTML
+	t.after(() => {
+		document.head.innerHTML = previous
+	})
+	const settings = {
+		...DEFAULT_SETTINGS,
+		name: 'Custom site',
+		description: 'Custom description',
+		presentation: {
+			...DEFAULT_SETTINGS.presentation,
+			faviconUrl: '/media/icon.png',
+			touchIconUrl: '/media/touch.png',
+			shareImageUrl: 'https://external.test/share.png',
+			author: 'Owner',
+			keywords: 'custom,site',
+		},
+	}
+	applySiteMetadata(settings)
+	assert.equal(document.title, 'Custom site')
+	assert.equal(
+		document.querySelector('link[rel="icon"]')?.getAttribute('href'),
+		'/media/icon.png',
+	)
+	assert.equal(
+		document.querySelector('link[rel="icon"]')?.getAttribute('type'),
+		null,
+	)
+	assert.equal(
+		document
+			.querySelector('meta[property="og:image"]')
+			?.getAttribute('content'),
+		'',
+	)
+	applySiteMetadata({ ...settings, remoteImagesEnabled: true })
+	assert.equal(
+		document
+			.querySelector('meta[property="og:image"]')
+			?.getAttribute('content'),
+		settings.presentation.shareImageUrl,
+	)
+	assert.equal(
+		document.querySelector('meta[name="author"]')?.getAttribute('content'),
+		'Owner',
+	)
+	applySiteMetadata(DEFAULT_SETTINGS)
+	assert.equal(document.querySelector('link[rel="apple-touch-icon"]'), null)
+	assert.equal(
+		document.querySelector('link[rel="icon"]')?.getAttribute('href'),
+		'/favicon.svg',
+	)
+})
 
 test('command search excludes unrelated pins and recent history is bounded, deduplicated and removable', () => {
 	const sites = [

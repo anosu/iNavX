@@ -1,6 +1,9 @@
 import { useState } from 'react'
+import { useMediaActivity } from '@/hooks/useMediaActivity'
 import { requestAdminApi } from '@/utils/adminApi'
 import { type Settings, settingsSchema } from '../../../shared/catalog'
+import { ImageField } from './ImageField'
+import { PresentationFields } from './PresentationFields'
 import {
 	Field,
 	inputClass,
@@ -22,7 +25,7 @@ export function SettingsPanel({
 	settings,
 	csrf,
 	runAction,
-	busy,
+	busy: saving,
 }: {
 	settings: Settings
 	csrf: string
@@ -31,8 +34,10 @@ export function SettingsPanel({
 }) {
 	const [value, setValue] = useState(settings)
 	const [error, setError] = useState('')
+	const { mediaBusy, onBusyChange } = useMediaActivity()
+	const busy = saving || mediaBusy
 	const dirty = JSON.stringify(value) !== JSON.stringify(settings)
-	useDirtyForm(dirty)
+	useDirtyForm(dirty || mediaBusy)
 	return (
 		<Panel
 			title="外观与功能"
@@ -41,6 +46,7 @@ export function SettingsPanel({
 			<form
 				onSubmit={(e) => {
 					e.preventDefault()
+					if (busy) return
 					const parsed = settingsSchema.safeParse(value)
 					if (!parsed.success)
 						setError(
@@ -65,14 +71,15 @@ export function SettingsPanel({
 							onChange={(e) => setValue({ ...value, name: e.target.value })}
 						/>
 					</Field>
-					<Field label="Logo 地址（留空使用内置 Logo）">
-						<input
-							className={inputClass}
-							value={value.logoUrl}
-							placeholder="/logo.svg"
-							onChange={(e) => setValue({ ...value, logoUrl: e.target.value })}
-						/>
-					</Field>
+					<ImageField
+						label="Logo（留空使用内置 Logo）"
+						onBusyChange={onBusyChange}
+						csrf={csrf}
+						value={value.logoUrl}
+						onChange={(url) =>
+							setValue((previous) => ({ ...previous, logoUrl: url }))
+						}
+					/>
 					<Field label="站点描述">
 						<textarea
 							className={inputClass}
@@ -100,6 +107,17 @@ export function SettingsPanel({
 							<option value="dark">暗色</option>
 						</select>
 					</Field>
+					<PresentationFields
+						onBusyChange={onBusyChange}
+						csrf={csrf}
+						value={value.presentation}
+						onChange={(update) =>
+							setValue((previous) => ({
+								...previous,
+								presentation: update(previous.presentation),
+							}))
+						}
+					/>
 					<div className="sm:col-span-2 grid sm:grid-cols-2 gap-3">
 						<h3 className="sm:col-span-2 text-sm font-semibold border-t border-border pt-5">
 							访客功能

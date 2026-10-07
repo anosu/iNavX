@@ -98,3 +98,34 @@ test('fresh defaults and seed entries have no external image or metadata service
 	const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 	assert.doesNotMatch(html, /rel="(?:dns-prefetch|preconnect)"/)
 })
+
+test('presentation settings supply legacy defaults and reject unsafe links', () => {
+	const { presentation: _presentation, ...legacy } = DEFAULT_SETTINGS
+	const restored = settingsSchema.parse(legacy)
+	assert.equal(restored.presentation.showClock, true)
+	assert.equal(restored.presentation.faviconUrl, '')
+	assert.deepEqual(restored.presentation.footerLinks, [])
+	assert.equal(
+		settingsSchema.safeParse({
+			...legacy,
+			presentation: {
+				footerLinks: [{ label: 'unsafe', url: 'javascript:alert(1)' }],
+			},
+		}).success,
+		false,
+	)
+	assert.equal(
+		settingsSchema.safeParse({
+			...legacy,
+			presentation: { faviconUrl: '//unsafe.test/logo.svg' },
+		}).success,
+		false,
+	)
+	assert.equal(
+		settingsSchema.safeParse({
+			...legacy,
+			presentation: { searchPlaceholder: '' },
+		}).success,
+		false,
+	)
+})

@@ -1,16 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router'
 import { Button, buttonVariants } from '@/components/atoms/Button'
-import {
-	CommandIcon,
-	InfoIcon,
-	NavLogoIcon,
-	PlusIcon,
-} from '@/components/atoms/Icons'
-import { ResourceImage } from '@/components/atoms/ResourceImage'
+import { CommandIcon, InfoIcon, PlusIcon } from '@/components/atoms/Icons'
+import { SiteLogo } from '@/components/atoms/SiteLogo'
 import { SearchBar } from '@/components/molecules/SearchBar'
 import { ThemeToggle } from '@/components/molecules/ThemeToggle'
-import { useImageUrl } from '@/hooks/useImageUrl'
 import { usePublicCatalog } from '@/hooks/usePublicCatalog'
 
 /* ============================================================
@@ -34,9 +28,11 @@ function InfoPopover({ siteCount }: InfoPopoverProps) {
 
 	// 每秒更新时间
 	useEffect(() => {
+		if (!open || !settings.presentation.showClock) return
+		setTime(new Date())
 		const id = setInterval(() => setTime(new Date()), 1000)
 		return () => clearInterval(id)
-	}, [])
+	}, [open, settings.presentation.showClock])
 
 	// 点击外部关闭
 	useEffect(() => {
@@ -75,7 +71,7 @@ function InfoPopover({ siteCount }: InfoPopoverProps) {
 				<div
 					className="
 						absolute right-0 top-full mt-2 z-50
-						w-52
+						w-64 max-w-[calc(100vw_-_2rem)] max-h-[calc(100dvh_-_5rem)] overflow-y-auto overscroll-contain
 						popover
 						animate-in
 					"
@@ -83,22 +79,26 @@ function InfoPopover({ siteCount }: InfoPopoverProps) {
 					aria-label="信息面板"
 				>
 					{/* 时间 */}
-					<div className="px-4 py-3 border-b border-border">
-						<div className="font-mono text-xl font-semibold text-foreground tabular-nums tracking-tight">
-							{hours}:{minutes}:{seconds}
+					{settings.presentation.showClock && (
+						<div className="px-4 py-3 border-b border-border">
+							<div className="font-mono text-xl font-semibold text-foreground tabular-nums tracking-tight">
+								{hours}:{minutes}:{seconds}
+							</div>
+							<div className="text-xs text-muted-foreground mt-0.5">
+								{dateStr}
+							</div>
 						</div>
-						<div className="text-xs text-muted-foreground mt-0.5">
-							{dateStr}
-						</div>
-					</div>
+					)}
 
 					{/* 当前可见站点数量 */}
-					<div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
-						<span className="text-xs text-muted-foreground">可见站点</span>
-						<span className="text-sm font-semibold text-foreground tabular-nums">
-							{siteCount}
-						</span>
-					</div>
+					{settings.presentation.showStats && (
+						<div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
+							<span className="text-xs text-muted-foreground">可见站点</span>
+							<span className="text-sm font-semibold text-foreground tabular-nums">
+								{siteCount}
+							</span>
+						</div>
+					)}
 
 					{/* 快捷键说明 */}
 					<div className="px-4 py-2.5 border-b border-border space-y-1.5">
@@ -121,7 +121,11 @@ function InfoPopover({ siteCount }: InfoPopoverProps) {
 
 					{/* 使用说明 */}
 					<div className="px-4 py-3 space-y-2 text-[11px] text-muted-foreground">
-						<p>个人收藏保存在当前浏览器。公共目录由管理员维护。</p>
+						{settings.presentation.infoText && (
+							<p className="whitespace-pre-wrap break-words">
+								{settings.presentation.infoText}
+							</p>
+						)}
 						{import.meta.env.VITE_STATIC_MODE !== 'true' &&
 							settings.applicationsEnabled && (
 								<NavLink
@@ -150,29 +154,15 @@ function InfoPopover({ siteCount }: InfoPopoverProps) {
 
 function Logo() {
 	const { settings } = usePublicCatalog()
-	const logoUrl = useImageUrl(settings.logoUrl)
-	const [failedUrl, setFailedUrl] = useState<string>()
 	return (
 		<div className="flex items-center gap-2 shrink-0">
-			{logoUrl && logoUrl !== failedUrl ? (
-				<ResourceImage
-					key={logoUrl}
-					src={logoUrl}
-					onError={() => setFailedUrl(logoUrl)}
-					alt=""
-					width={26}
-					height={26}
-					className="rounded object-contain"
-				/>
-			) : (
-				<NavLogoIcon size={26} />
-			)}
+			<SiteLogo />
 			<div>
 				<p className="text-sm font-bold text-foreground leading-none tracking-tight truncate max-w-14 sm:max-w-44">
 					{settings.name}
 				</p>
 				<p className="text-[10px] text-muted-foreground leading-none mt-0.5 hidden sm:block truncate max-w-44">
-					{settings.description}
+					{settings.presentation.subtitle || settings.description}
 				</p>
 			</div>
 		</div>
@@ -249,7 +239,7 @@ export function Header({
 						value={searchValue}
 						onChange={onSearchChange}
 						inputRef={searchInputRef}
-						placeholder="搜索站点..."
+						placeholder={settings.presentation.searchPlaceholder}
 					/>
 				</div>
 
@@ -289,7 +279,9 @@ export function Header({
 					<ThemeToggle />
 
 					{/* 信息面板 */}
-					<InfoPopover siteCount={siteCount} />
+					{settings.presentation.showInfoPanel && (
+						<InfoPopover siteCount={siteCount} />
+					)}
 				</div>
 			</div>
 		</header>

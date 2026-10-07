@@ -11,6 +11,7 @@
 - 当前后端是一个应用包，同包的 `_test.go` 与源码放在同一目录，便于验证内部事务和边界。Go 以目录划分包；独立职责形成稳定接口后再拆包，不按实现与测试分别建目录。
 - `scripts/export-runtime.ts` 从共享默认配置和限制生成 Go 使用的 JSON，避免手工维护第二套默认值。Go 对网络 JSON 进行严格类型、字段和关联校验；契约变化须同步两端及兼容测试。
 - `src/components/admin/` 负责后台交互；`ui.tsx` 放共享界面控件。HTTP 请求在 `src/utils/adminApi.ts`，导入解析在 `src/utils/catalogImport.ts`。
+- 展示配置由 `shared/catalog.ts` 的 `presentationSchema` 与 `backend/presentation.go` 共同校验；旧设置补默认值。`SiteLogo` 和 `SiteFooterInfo` 统一使用配置，浏览器元信息与服务端 HTML 同步。图片库交互复用 `admin/ImageField.tsx`，上传/读取/删除边界集中在 `backend/media.go`，文件位于数据目录，不能将 SVG 作为 HTML 插入页面。
 - `src/utils/` 放可复用的解析、协调和数据转换；`src/hooks/` 管理 React 状态、订阅和副作用。全局浏览器类型声明集中在 `src/env.d.ts`。
 
 复用 `src/components/atoms/Icons.tsx` 中已有图标，调用方显式设置所需尺寸和线宽。符号仅在有跨文件调用方时导出，删除确认无引用的实现，不保留预备组件库。

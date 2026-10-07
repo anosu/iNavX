@@ -89,23 +89,24 @@ type Features struct {
 	HideBuiltin    bool `json:"hideBuiltin" required:"true"`
 }
 type Settings struct {
-	Name                  string   `json:"name" required:"true"`
-	Description           string   `json:"description" required:"true"`
-	LogoURL               string   `json:"logoUrl" required:"true"`
-	DefaultTheme          string   `json:"defaultTheme" required:"true"`
-	Features              Features `json:"features" required:"true"`
-	FaviconTemplate       string   `json:"faviconTemplate" required:"true"`
-	MetadataProxyTemplate string   `json:"metadataProxyTemplate" required:"true"`
-	RemoteImagesEnabled   bool     `json:"remoteImagesEnabled"`
-	MetadataFetchEnabled  bool     `json:"metadataFetchEnabled"`
-	BackupIntervalHours   int      `json:"backupIntervalHours" required:"true"`
-	BackupKeep            int      `json:"backupKeep" required:"true"`
-	ApplicationsEnabled   bool     `json:"applicationsEnabled"`
+	Name                  string       `json:"name" required:"true"`
+	Description           string       `json:"description" required:"true"`
+	LogoURL               string       `json:"logoUrl" required:"true"`
+	Presentation          Presentation `json:"presentation"`
+	DefaultTheme          string       `json:"defaultTheme" required:"true"`
+	Features              Features     `json:"features" required:"true"`
+	FaviconTemplate       string       `json:"faviconTemplate" required:"true"`
+	MetadataProxyTemplate string       `json:"metadataProxyTemplate" required:"true"`
+	RemoteImagesEnabled   bool         `json:"remoteImagesEnabled"`
+	MetadataFetchEnabled  bool         `json:"metadataFetchEnabled"`
+	BackupIntervalHours   int          `json:"backupIntervalHours" required:"true"`
+	BackupKeep            int          `json:"backupKeep" required:"true"`
+	ApplicationsEnabled   bool         `json:"applicationsEnabled"`
 }
 
 func (s *Settings) UnmarshalJSON(data []byte) error {
 	type plain Settings
-	value := plain{ApplicationsEnabled: true}
+	value := plain{ApplicationsEnabled: true, Presentation: defaultPresentation()}
 	if err := strictJSON(data, &value); err != nil {
 		return err
 	}
@@ -158,7 +159,7 @@ type Migration struct {
 	Data          Catalog       `json:"data" required:"true"`
 	Applications  []Application `json:"applications"`
 }
-type Limits struct{ Sites, Categories, Engines, Applications, Pending, PageSize, BodyBytes int }
+type Limits struct{ Sites, Categories, Engines, Applications, Pending, PageSize, BodyBytes, MediaBytes, MediaFiles int }
 type Defaults struct {
 	Categories []Category `json:"categories"`
 	Engines    []Engine   `json:"engines"`
@@ -297,7 +298,7 @@ func (v *Settings) validate() error {
 	if !text(v.Name, 100, true) || !text(v.Description, 1000, false) || !resourceURL(v.LogoURL) || v.DefaultTheme != "light" && v.DefaultTheme != "dark" && v.DefaultTheme != "system" || !validTemplate(v.FaviconTemplate, "{domain}") || !validTemplate(v.MetadataProxyTemplate, "{url}") || v.BackupIntervalHours < 0 || v.BackupIntervalHours > 8760 || v.BackupKeep < 1 || v.BackupKeep > 365 {
 		return fail(400, "站点设置无效")
 	}
-	return nil
+	return v.Presentation.validate()
 }
 func (v *ApplicationInput) validate() error {
 	v.Name = trim(v.Name)

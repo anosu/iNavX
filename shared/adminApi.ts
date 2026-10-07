@@ -1,6 +1,31 @@
 import { z } from 'zod'
 import { applicationSchema } from './catalog.js'
-import { ADMIN_PAGE_SIZE, MAX_APPLICATION_HISTORY } from './limits.js'
+import {
+	ADMIN_PAGE_SIZE,
+	MAX_APPLICATION_HISTORY,
+	MAX_MEDIA_BYTES,
+	MAX_MEDIA_FILES,
+} from './limits.js'
+
+export const mediaSchema = z
+	.object({
+		name: z
+			.string()
+			.regex(
+				/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.(png|jpg|gif|webp|ico|svg)$/,
+			),
+		url: z.string(),
+		size: z.number().int().positive().max(MAX_MEDIA_BYTES),
+	})
+	.strict()
+	.refine(
+		(item) => item.url === `/media/${item.name}`,
+		'图片地址与文件名不一致',
+	)
+export const mediaListSchema = z
+	.object({ items: z.array(mediaSchema).max(MAX_MEDIA_FILES) })
+	.strict()
+export type MediaFile = z.infer<typeof mediaSchema>
 
 const count = z.number().int().nonnegative()
 export const authResultSchema = z

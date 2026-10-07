@@ -15,6 +15,7 @@ import { XIcon } from '@/components/atoms/Icons'
 import { BookmarkIO } from '@/components/molecules/BookmarkIO'
 import { CategoryFilter } from '@/components/molecules/CategoryFilter'
 import { EngineSettings } from '@/components/molecules/EngineSettings'
+import { SiteFooterInfo } from '@/components/molecules/SiteFooterInfo'
 import { Header } from '@/components/organisms/Header'
 import { NavGrid } from '@/components/organisms/NavGrid'
 
@@ -37,10 +38,7 @@ import type {
 import { useBookmarks } from '@/hooks/useBookmarks'
 import { useCommandShortcut } from '@/hooks/useCommandShortcut'
 import { useEngineOrder } from '@/hooks/useEngineOrder'
-import {
-	useCatalogAvailability,
-	usePublicCatalog,
-} from '@/hooks/usePublicCatalog'
+import { useCatalogStatus, usePublicCatalog } from '@/hooks/usePublicCatalog'
 import { type SitePayload, useSiteManager } from '@/hooks/useSiteManager'
 import { useTheme } from '@/hooks/useTheme'
 import type { Site, SiteCategory } from '@/types'
@@ -150,7 +148,7 @@ export default function Home() {
 	const navigate = useNavigate()
 	const { toggleTheme } = useTheme()
 	const publicCatalog = usePublicCatalog()
-	const unavailable = useCatalogAvailability()
+	const catalogStatus = useCatalogStatus()
 	const {
 		bookmarkExport: ALLOW_BOOKMARK_EXPORT,
 		bookmarkImport: ALLOW_BOOKMARK_IMPORT,
@@ -560,9 +558,30 @@ export default function Home() {
 			>
 				{/* 视觉隐藏的页面级标题，供屏幕阅读器识别（标题层级从 h1 开始） */}
 				<h1 className="sr-only">{publicCatalog.settings.name}</h1>
-				{unavailable && (
-					<output className="text-xs text-muted-foreground">
-						公共目录暂时不可用，正在显示最近的可用内容。
+				{publicCatalog.settings.presentation.announcement && (
+					<aside
+						aria-label="站点公告"
+						className="rounded-md border border-border bg-surface px-4 py-3 text-sm whitespace-pre-wrap break-words"
+					>
+						{publicCatalog.settings.presentation.announcement}
+					</aside>
+				)}
+				{(catalogStatus === 'stale' || catalogStatus === 'error') && (
+					<output className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+						<span>
+							{catalogStatus === 'stale'
+								? '公共目录暂时不可用，正在显示上次成功加载的内容。'
+								: '公共目录加载失败，个人收藏仍可使用。'}
+						</span>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() =>
+								window.dispatchEvent(new Event('inav:catalog-changed'))
+							}
+						>
+							重试
+						</Button>
 					</output>
 				)}
 				{/* 工具栏：分类筛选 + 书签导入导出 */}
@@ -666,49 +685,60 @@ export default function Home() {
 
 				{/* 导航卡片网格 */}
 				<section aria-label="导航站点">
-					<NavGrid
-						sites={filteredSites}
-						searchQuery={deferredQuery}
-						activeTag={activeTag}
-						onTagSelect={setActiveTag}
-						enabledEngines={engineOrder.enabledEngines}
-						engineSettings={<EngineSettings engineOrder={engineOrder} />}
-						isStale={isStale}
-						hasFilter={hasFilter}
-						onEdit={ALLOW_CUSTOM_SITES ? handleEdit : undefined}
-						onDelete={
-							ALLOW_CUSTOM_SITES || ALLOW_HIDE_BUILTIN
-								? handleDelete
-								: undefined
-						}
-						onTogglePin={ALLOW_CUSTOM_SITES ? handleTogglePin : undefined}
-					/>
+					{catalogStatus === 'loading' && (
+						<output className="block py-6 text-center text-sm text-muted-foreground">
+							正在加载公共目录…
+						</output>
+					)}
+					{(allSites.length > 0 ||
+						catalogStatus === 'ready' ||
+						catalogStatus === 'stale') && (
+						<NavGrid
+							sites={filteredSites}
+							searchQuery={deferredQuery}
+							activeTag={activeTag}
+							onTagSelect={setActiveTag}
+							enabledEngines={engineOrder.enabledEngines}
+							engineSettings={<EngineSettings engineOrder={engineOrder} />}
+							isStale={isStale}
+							hasFilter={hasFilter}
+							onEdit={ALLOW_CUSTOM_SITES ? handleEdit : undefined}
+							onDelete={
+								ALLOW_CUSTOM_SITES || ALLOW_HIDE_BUILTIN
+									? handleDelete
+									: undefined
+							}
+							onTogglePin={ALLOW_CUSTOM_SITES ? handleTogglePin : undefined}
+						/>
+					)}
 				</section>
 			</main>
 
 			{/* ---- Footer ---- */}
 			<footer className="border-t border-border mt-auto">
 				<div className="mx-auto max-w-7xl px-4 sm:px-6 min-h-12 py-3 flex flex-wrap gap-3 items-center justify-between">
-					<span className="text-xs text-muted-foreground">
-						{allSites.length} 个站点
-						{customSites.length > 0 && (
-							<span className="ml-1 text-muted-foreground/60">
-								（{customSites.length} 自定义）
-							</span>
-						)}
-						{importedSites.length > 0 && (
-							<span className="ml-1 text-muted-foreground/60">
-								（{importedSites.length} 导入）
-							</span>
-						)}
-						{hiddenBuiltinIds.size > 0 && (
-							<span className="ml-1 text-muted-foreground/60">
-								（{hiddenBuiltinIds.size} 已隐藏）
-							</span>
-						)}
-						{' · '}
-						{categories.length} 个分类
-					</span>
+					{publicCatalog.settings.presentation.showStats && (
+						<span className="text-xs text-muted-foreground">
+							{allSites.length} 个站点
+							{customSites.length > 0 && (
+								<span className="ml-1 text-muted-foreground/60">
+									（{customSites.length} 自定义）
+								</span>
+							)}
+							{importedSites.length > 0 && (
+								<span className="ml-1 text-muted-foreground/60">
+									（{importedSites.length} 导入）
+								</span>
+							)}
+							{hiddenBuiltinIds.size > 0 && (
+								<span className="ml-1 text-muted-foreground/60">
+									（{hiddenBuiltinIds.size} 已隐藏）
+								</span>
+							)}
+							{' · '}
+							{categories.length} 个分类
+						</span>
+					)}
 					<nav aria-label="页脚导航" className="flex items-center gap-4">
 						{import.meta.env.VITE_STATIC_MODE !== 'true' &&
 							publicCatalog.settings.applicationsEnabled && (
@@ -755,6 +785,7 @@ export default function Home() {
 							使用说明
 						</NavLink>
 					</nav>
+					<SiteFooterInfo />
 				</div>
 			</footer>
 

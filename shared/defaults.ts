@@ -1,4 +1,9 @@
-import type { Category, Engine, Settings } from './catalog.js'
+import {
+	type Category,
+	type Engine,
+	presentationSchema,
+	type Settings,
+} from './catalog.js'
 
 export const DEFAULT_CATEGORIES: Category[] = [
 	'AI',
@@ -47,6 +52,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	name: 'iNav',
 	description: '轻量优雅的个人导航站，快速访问常用链接、书签管理与搜索',
 	logoUrl: '',
+	presentation: presentationSchema.parse({}),
 	defaultTheme: 'system',
 	features: {
 		bookmarkImport: true,

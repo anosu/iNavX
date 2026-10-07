@@ -88,11 +88,48 @@ export const engineSchema = z
 		enabled: z.boolean(),
 	})
 	.strict()
+export const presentationSchema = z
+	.object({
+		logoDarkUrl: imageUrl.default(''),
+		faviconUrl: imageUrl.default(''),
+		touchIconUrl: imageUrl.default(''),
+		shareImageUrl: imageUrl.default(''),
+		author: z.string().trim().max(100).default(''),
+		keywords: z.string().trim().max(500).default(''),
+		subtitle: z.string().trim().max(200).default(''),
+		searchPlaceholder: z.string().trim().min(1).max(100).default('搜索站点...'),
+		announcement: z.string().trim().max(2000).default(''),
+		infoText: z
+			.string()
+			.trim()
+			.max(2000)
+			.default('个人收藏保存在当前浏览器。公共目录由管理员维护。'),
+		aboutIntro: z.string().trim().max(10000).default(''),
+		footerText: z.string().trim().max(1000).default(''),
+		footerLinks: z
+			.array(
+				z
+					.object({
+						label: z.string().trim().min(1).max(60),
+						url: imageUrl.refine((value) => value !== '', '请填写链接地址'),
+					})
+					.strict(),
+			)
+			.max(8)
+			.default([]),
+		showInfoPanel: z.boolean().default(true),
+		showClock: z.boolean().default(true),
+		showStats: z.boolean().default(true),
+		showAboutGuide: z.boolean().default(true),
+	})
+	.strict()
+
 export const settingsSchema = z
 	.object({
 		name: z.string().trim().min(1).max(100),
 		description: z.string().trim().max(1000),
 		logoUrl: imageUrl,
+		presentation: presentationSchema.prefault({}),
 		defaultTheme: z.enum(['light', 'dark', 'system']),
 		features: z
 			.object({

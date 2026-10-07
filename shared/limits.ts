@@ -6,3 +6,5 @@ export const MAX_APPLICATION_HISTORY = 10000
 export const MAX_PENDING_APPLICATIONS = 500
 export const ADMIN_PAGE_SIZE = 25
 export const MAX_API_BODY_BYTES = 8 * 1024 * 1024
+export const MAX_MEDIA_BYTES = 2 * 1024 * 1024
+export const MAX_MEDIA_FILES = 200
