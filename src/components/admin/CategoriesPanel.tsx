@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { requestAdminApi } from '@/utils/adminApi'
 import type { Catalog, Category } from '../../../shared/catalog'
+import { getCategoryColor } from '../../../shared/categories'
 import {
 	buttonClass,
 	Dialog,
@@ -31,10 +32,12 @@ function CategoryEditor({
 	const formId = useId()
 	const [name, setName] = useState(category?.name || '')
 	const [sortOrder, setOrder] = useState(category?.sortOrder ?? order)
+	const [color, setColor] = useState(category?.color || '')
 	const [error, setError] = useState('')
 	const [discard, setDiscard] = useState(false)
 	const dirty =
 		name !== (category?.name || '') ||
+		color !== (category?.color || '') ||
 		sortOrder !== (category?.sortOrder ?? order)
 	useDirtyForm(dirty)
 	const cancel = () => {
@@ -44,7 +47,7 @@ function CategoryEditor({
 	return (
 		<Dialog
 			title={category ? `编辑分类：${category.name}` : '新增分类'}
-			description="分类名称与排序保存后立即生效，数字越小越靠前。"
+			description="分类名称、颜色与排序保存后生效，数字越小越靠前。"
 			onClose={cancel}
 			closeOnBackdrop={!dirty}
 			busy={busy}
@@ -118,7 +121,7 @@ function CategoryEditor({
 							await requestAdminApi(
 								`admin/categories${category ? `/${category.id}` : ''}`,
 								csrf,
-								{ name: name.trim(), sortOrder },
+								{ name: name.trim(), sortOrder, color },
 								category ? 'PUT' : 'POST',
 							)
 						} catch (error) {
@@ -139,6 +142,37 @@ function CategoryEditor({
 							value={name}
 							onChange={(event) => setName(event.target.value)}
 						/>
+					</Field>
+					<Field
+						label="分类颜色"
+						hint="留空按分类 ID 自动配色；改名或排序不会改变自动颜色。"
+					>
+						<div className="flex items-center gap-2">
+							<input
+								type="color"
+								aria-label="选择分类颜色"
+								className="h-10 w-12 shrink-0 cursor-pointer rounded border border-border bg-surface p-1"
+								value={getCategoryColor(category?.id || name, color)}
+								onChange={(event) => setColor(event.target.value)}
+							/>
+							<input
+								aria-label="分类颜色值"
+								className={inputClass}
+								value={color}
+								pattern="#[0-9a-fA-F]{6}"
+								maxLength={7}
+								placeholder="自动配色"
+								onChange={(event) => setColor(event.target.value)}
+							/>
+							<button
+								type="button"
+								className={buttonClass}
+								disabled={!color}
+								onClick={() => setColor('')}
+							>
+								自动
+							</button>
+						</div>
 					</Field>
 					<Field label="排序" hint="数字越小，分类显示越靠前。">
 						<input
@@ -296,7 +330,7 @@ export function CategoriesPanel({
 	return (
 		<Panel
 			title="公共分类"
-			description="管理公共目录的分类名称与顺序；编辑后立即生效。"
+			description="管理公共目录的分类名称、颜色与顺序；编辑后生效。"
 		>
 			<div className="flex items-center justify-between gap-3">
 				<p className="text-sm text-muted-foreground">
@@ -318,7 +352,19 @@ export function CategoriesPanel({
 						className="flex flex-wrap justify-between gap-3 items-center py-3"
 					>
 						<div className="min-w-0 flex-1 basis-40">
-							<p className="font-medium break-words">{category.name}</p>
+							<p className="font-medium break-words">
+								<span
+									aria-hidden="true"
+									className="mr-2 inline-block h-2 w-2 rounded-full"
+									style={{
+										backgroundColor: getCategoryColor(
+											category.id,
+											category.color,
+										),
+									}}
+								/>
+								{category.name}
+							</p>
 							<p className="mt-1 text-xs text-muted-foreground">
 								排序 {category.sortOrder} ·{' '}
 								{

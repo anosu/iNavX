@@ -9,9 +9,71 @@ import {
 	readStoredSites,
 	restorePersonalData,
 } from '../src/utils/personalData.js'
-import { migrationSchema, normalizeUrl, submissionSchema } from './catalog.js'
+import {
+	categorySchema,
+	migrationSchema,
+	normalizeUrl,
+	submissionSchema,
+} from './catalog.js'
+import { getCategoryColor } from './categories.js'
 import { DEFAULT_SETTINGS } from './defaults.js'
 import { createTagInput, readTagInput, tagsSchema } from './tags.js'
+
+test('category colors accept legacy data, reject CSS and round-trip in version 5', () => {
+	const category = categorySchema.parse({
+		id: 'stable-id',
+		name: 'Custom',
+		sortOrder: 0,
+	})
+	assert.equal(category.color, '')
+	const auto = getCategoryColor(category.id, category.color)
+	assert.match(auto, /^#[0-9a-f]{6}$/)
+	assert.equal(
+		getCategoryColor({ ...category, name: 'Renamed', sortOrder: 99 }.id),
+		auto,
+	)
+	assert.equal(getCategoryColor(category.id, '#12aBcF'), '#12aBcF')
+	for (const color of [
+		'red',
+		'#abc',
+		'#12345678',
+		'url(https://example.test)',
+		'#123456;display:none',
+		'#000000\n',
+	])
+		assert.equal(
+			categorySchema.safeParse({ ...category, color }).success,
+			false,
+		)
+	const pkg = {
+		format: 'inav-catalog',
+		formatVersion: 5,
+		appVersion: 'test',
+		exportedAt: new Date().toISOString(),
+		data: {
+			revision: '1',
+			categories: [{ ...category, color: '#123456' }],
+			sites: [],
+			engines: [],
+			settings: DEFAULT_SETTINGS,
+		},
+	}
+	assert.equal(migrationSchema.parse(pkg).data.categories[0].color, '#123456')
+	for (const version of [1, 2, 3, 4]) {
+		assert.equal(
+			migrationSchema.safeParse({ ...pkg, formatVersion: version }).success,
+			false,
+		)
+		assert.equal(
+			migrationSchema.parse({
+				...pkg,
+				formatVersion: version,
+				data: { ...pkg.data, categories: [category] },
+			}).data.categories[0].color,
+			'',
+		)
+	}
+})
 
 test('tag input includes unfinished text and preserves spaces while trimming and deduplicating', () => {
 	assert.deepEqual(

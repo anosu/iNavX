@@ -46,6 +46,218 @@ const { readRecentSites, recordSiteOpen, clearRecentSites } = await import(
 const { PublicCatalogProvider, usePublicCatalog, useCatalogStatus } =
 	await import('../hooks/usePublicCatalog')
 
+async function enterInput(input: HTMLInputElement, value: string) {
+	await act(() => {
+		const setter = Object.getOwnPropertyDescriptor(
+			browser.HTMLInputElement.prototype,
+			'value',
+		)?.set
+		assert.ok(setter)
+		setter.call(input, value)
+		input.dispatchEvent(new Event('input', { bubbles: true }))
+	})
+}
+
+test('category editor saves color and command results follow category ID after rename', async (t) => {
+	const { CategoriesPanel } = await import(
+		'../components/admin/CategoriesPanel'
+	)
+	const { staticCatalog } = await import('../data/staticCatalog')
+	const { getCategoryColor } = await import('../../shared/categories')
+	let catalog = {
+		...staticCatalog,
+		categories: [
+			{ id: 'custom-id', name: 'New name', sortOrder: 0, color: '#123456' },
+		],
+	}
+	const originalFetch = globalThis.fetch
+	const originalSettings = window.__INAV_SETTINGS__
+	t.after(() => {
+		globalThis.fetch = originalFetch
+		window.__INAV_SETTINGS__ = originalSettings
+		localStorage.clear()
+	})
+	globalThis.fetch = async (url, init) => {
+		if (String(url).includes('/api/admin/categories/')) {
+			assert.equal(init?.method, 'PUT')
+			const body = JSON.parse(String(init?.body))
+			catalog = {
+				...catalog,
+				categories: [{ ...catalog.categories[0], ...body }],
+			}
+			return Response.json(catalog.categories[0])
+		}
+		return Response.json(catalog)
+	}
+	const view = await mount(
+		<PublicCatalogProvider>
+			<CommandPalette
+				open
+				onClose={() => {}}
+				sites={[
+					{
+						id: 'site',
+						name: 'Site',
+						url: 'https://color.test',
+						description: '',
+						category: 'Old display name',
+						categoryId: 'custom-id',
+						source: 'builtin',
+						pinned: true,
+					},
+				]}
+				actions={[]}
+				engines={[]}
+				onCategorySelect={() => {}}
+				onTagSelect={() => {}}
+			/>
+		</PublicCatalogProvider>,
+	)
+	t.after(view.dispose)
+	const dot = () =>
+		view.container.querySelector<HTMLElement>('[role="option"] span[style]')
+	assert.equal(dot()?.style.backgroundColor, '#123456')
+	const editor = await mount(
+		<CategoriesPanel
+			data={catalog}
+			csrf="csrf"
+			busy={false}
+			runAction={async (action) => {
+				await action()
+				return true
+			}}
+		/>,
+	)
+	t.after(editor.dispose)
+	const edit = [...editor.container.querySelectorAll('button')].find(
+		(button) => button.textContent === '编辑',
+	)
+	assert.ok(edit)
+	await act(() => edit.click())
+	const input = editor.container.querySelector<HTMLInputElement>(
+		'input[aria-label="分类颜色值"]',
+	)
+	assert.ok(input)
+	await enterInput(input, '#abcdef')
+	await act(async () =>
+		editor.container
+			.querySelector('form')
+			?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+	)
+	assert.equal(catalog.categories[0].color, '#abcdef')
+	await act(async () => window.dispatchEvent(new Event('inav:catalog-changed')))
+	assert.equal(dot()?.style.backgroundColor, '#abcdef')
+	catalog = {
+		...catalog,
+		categories: [
+			{
+				...catalog.categories[0],
+				name: 'Renamed again',
+				sortOrder: 900,
+				color: '',
+			},
+		],
+	}
+	await act(async () => window.dispatchEvent(new Event('inav:catalog-changed')))
+	assert.equal(dot()?.style.backgroundColor, getCategoryColor('custom-id'))
+})
+
+test('personal automatic icons follow live templates without persisting generated URLs and exports use the site name', async (t) => {
+	localStorage.clear()
+	const { useBookmarks } = await import('../hooks/useBookmarks')
+	const { useSiteIconUrl } = await import('../hooks/useImageUrl')
+	const { staticCatalog } = await import('../data/staticCatalog')
+	let catalog = {
+		...staticCatalog,
+		settings: {
+			...staticCatalog.settings,
+			name: 'Custom <Title>',
+			faviconTemplate: '/first/{domain}.png',
+		},
+	}
+	const originalFetch = globalThis.fetch
+	const originalSettings = window.__INAV_SETTINGS__
+	const originalCreate = URL.createObjectURL
+	const originalRevoke = URL.revokeObjectURL
+	const originalClick = browser.HTMLAnchorElement.prototype.click
+	browser.HTMLAnchorElement.prototype.click = () => {}
+	let exported: Blob | undefined
+	URL.createObjectURL = (blob) => {
+		exported = blob as Blob
+		return 'blob:test'
+	}
+	URL.revokeObjectURL = () => {}
+	t.after(() => {
+		globalThis.fetch = originalFetch
+		window.__INAV_SETTINGS__ = originalSettings
+		URL.createObjectURL = originalCreate
+		URL.revokeObjectURL = originalRevoke
+		browser.HTMLAnchorElement.prototype.click = originalClick
+		localStorage.clear()
+	})
+	globalThis.fetch = async () => Response.json(catalog)
+	let manager: ReturnType<typeof useSiteManager> | undefined
+	let bookmarks: ReturnType<typeof useBookmarks> | undefined
+	function Icon({ site }: { site: import('../types').Site }) {
+		return <output>{useSiteIconUrl(site.iconUrl, site.url)}</output>
+	}
+	function Harness() {
+		manager = useSiteManager()
+		bookmarks = useBookmarks()
+		return (
+			<>
+				{[...manager.customSites, ...bookmarks.importedSites].map((site) => (
+					<Icon key={site.id} site={site} />
+				))}
+			</>
+		)
+	}
+	const view = await mount(
+		<PublicCatalogProvider>
+			<Harness />
+		</PublicCatalogProvider>,
+	)
+	t.after(view.dispose)
+	await act(() => {
+		manager?.addSite({
+			name: 'Automatic',
+			url: 'https://automatic.test',
+			description: 'Auto',
+			category: 'Custom',
+		})
+		manager?.addSite({
+			name: 'Explicit',
+			url: 'https://explicit.test',
+			description: 'Manual',
+			category: 'Custom',
+			iconUrl: '/manual.svg',
+		})
+		bookmarks?.importFromHtml(
+			'<DL><DT><A HREF="https://import.test">Imported</A></DL>',
+		)
+	})
+	assert.equal(
+		manager?.customSites.find((site) => site.name === 'Automatic')?.iconUrl,
+		undefined,
+	)
+	assert.equal(bookmarks?.importedSites[0].iconUrl, undefined)
+	assert.ok(view.container.textContent?.includes('/first/automatic.test.png'))
+	assert.ok(view.container.textContent?.includes('/first/import.test.png'))
+	catalog = {
+		...catalog,
+		settings: { ...catalog.settings, faviconTemplate: '/second/{domain}.png' },
+	}
+	await act(async () => window.dispatchEvent(new Event('inav:catalog-changed')))
+	assert.ok(view.container.textContent?.includes('/second/automatic.test.png'))
+	assert.ok(view.container.textContent?.includes('/second/import.test.png'))
+	assert.ok(view.container.textContent?.includes('/manual.svg'))
+	await act(() => bookmarks?.exportToHtml(manager?.customSites || []))
+	assert.ok(exported)
+	const html = await exported.text()
+	assert.ok(html.includes('<H1>Custom &lt;Title&gt; 导出书签</H1>'))
+	assert.ok(!html.includes('iNav 导出书签'))
+})
+
 test('full-stack catalog never renders bundled seed sites while its first request is pending', async (t) => {
 	localStorage.clear()
 	const originalFetch = globalThis.fetch
@@ -518,7 +730,7 @@ test('command groups support actions, filters, engines, history clearing and IME
 				{
 					id: 'search',
 					name: 'Search',
-					searchUrl: 'https://search.test/?q={q}',
+					searchUrl: 'https://search.test/?q={q}&copy={q}',
 					enabled: true,
 					iconUrl: '',
 				},
@@ -588,7 +800,10 @@ test('command groups support actions, filters, engines, history clearing and IME
 	assert.equal(selected, 'Long tag')
 	await type('hello & world')
 	await choose('用 Search 搜索')
-	assert.equal(opened, 'https://search.test/?q=hello%20%26%20world')
+	assert.equal(
+		opened,
+		'https://search.test/?q=hello%20%26%20world&copy=hello%20%26%20world',
+	)
 	await type('>添加')
 	assert.equal(view.container.querySelectorAll('[role="option"]').length, 1)
 	await act(() =>

@@ -29,16 +29,19 @@ export const staticCatalog: Catalog = {
 		},
 	},
 	engines: DEFAULT_ENGINES,
-	sites: sitesData.map(({ category, ...site }, index) => ({
-		...site,
-		categoryId:
-			DEFAULT_CATEGORIES.find((c) => c.name === category)?.id || 'category-10',
-		iconUrl: site.iconUrl || '',
-		pinned: site.pinned || false,
-		tags: 'tags' in site ? (site.tags as string[]) : [],
-		sortOrder: index,
-		createdAt: '2026-01-01T00:00:00.000Z',
-		updatedAt: '2026-01-01T00:00:00.000Z',
-		deletedAt: null,
-	})),
+	sites: sitesData.map(({ category, ...site }, index) => {
+		const match = DEFAULT_CATEGORIES.find((item) => item.name === category)
+		if (!match) throw new Error(`静态站点分类不存在：${category}`)
+		return {
+			...site,
+			categoryId: match.id,
+			iconUrl: site.iconUrl || '',
+			pinned: site.pinned || false,
+			tags: 'tags' in site ? (site.tags as string[]) : [],
+			sortOrder: index,
+			createdAt: '2026-01-01T00:00:00.000Z',
+			updatedAt: '2026-01-01T00:00:00.000Z',
+			deletedAt: null,
+		}
+	}),
 }

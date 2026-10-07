@@ -155,14 +155,14 @@ func (s *Store) saveCategory(q queryer, input CategoryInput, id string) (Categor
 	if count > 0 {
 		return Category{}, fail(409, "分类名称已存在")
 	}
-	value := Category{ID: id, Name: input.Name, SortOrder: input.SortOrder}
+	value := Category{ID: id, Name: input.Name, SortOrder: input.SortOrder, Color: input.Color}
 	if id == "" {
 		value.ID = uuid()
-		if _, err := q.Exec("INSERT INTO categories(id,name,sort_order) VALUES(?,?,?)", value.ID, value.Name, value.SortOrder); err != nil {
+		if _, err := q.Exec("INSERT INTO categories(id,name,sort_order,color) VALUES(?,?,?,?)", value.ID, value.Name, value.SortOrder, value.Color); err != nil {
 			return value, err
 		}
 	} else {
-		if _, err := q.Exec("UPDATE categories SET name=?,sort_order=? WHERE id=?", value.Name, value.SortOrder, id); err != nil {
+		if _, err := q.Exec("UPDATE categories SET name=?,sort_order=?,color=? WHERE id=?", value.Name, value.SortOrder, value.Color, id); err != nil {
 			return value, err
 		}
 	}

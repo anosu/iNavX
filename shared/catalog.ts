@@ -54,6 +54,15 @@ export const categorySchema = z
 		id,
 		name: z.string().trim().min(1).max(100),
 		sortOrder: z.number().int().min(0).max(1000000),
+		color: z
+			.union([
+				z.literal(''),
+				z
+					.string()
+					.length(7)
+					.regex(/^#[0-9a-fA-F]{6}$/, '请输入六位十六进制颜色或留空自动配色'),
+			])
+			.default(''),
 	})
 	.strict()
 export const siteInputSchema = z
@@ -248,6 +257,7 @@ export const migrationSchema = z
 			z.literal(2),
 			z.literal(3),
 			z.literal(4),
+			z.literal(5),
 		]),
 		appVersion: z.string().max(100),
 		exportedAt: z.iso.datetime(),
@@ -260,6 +270,11 @@ export const migrationSchema = z
 	.strict()
 	.superRefine((value, ctx) => {
 		const { categories, sites, engines } = value.data
+		if (
+			value.formatVersion < 5 &&
+			categories.some((category) => category.color)
+		)
+			ctx.addIssue({ code: 'custom', message: '旧版迁移包不支持分类颜色' })
 		if (value.formatVersion === 1 && value.applications.length)
 			ctx.addIssue({ code: 'custom', message: '版本 1 不支持申请记录' })
 		if (

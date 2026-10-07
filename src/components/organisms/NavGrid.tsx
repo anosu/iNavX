@@ -130,7 +130,8 @@ function SkeletonCard() {
 function EngineIcon({ engine }: { engine: Engine }) {
 	const { name } = engine
 	const iconUrl = useImageUrl(engine.iconUrl)
-	const [imgOk, setImgOk] = useState(false)
+	const [loadedUrl, setLoadedUrl] = useState<string>()
+	const imgOk = loadedUrl === iconUrl
 
 	const fallback = (
 		<span className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg bg-muted text-muted-foreground text-sm font-bold">
@@ -158,8 +159,8 @@ function EngineIcon({ engine }: { engine: Engine }) {
 					'transition-opacity duration-150',
 					imgOk ? 'opacity-100' : 'opacity-0',
 				].join(' ')}
-				onLoad={() => setImgOk(true)}
-				onError={() => setImgOk(false)}
+				onLoad={() => setLoadedUrl(iconUrl)}
+				onError={() => setLoadedUrl(undefined)}
 				loading="eager"
 				decoding="async"
 			/>
@@ -176,7 +177,7 @@ interface EngineCardProps {
 }
 
 function EngineCard({ engine, query, rank }: EngineCardProps) {
-	const searchUrl = engine.searchUrl.replace(
+	const searchUrl = engine.searchUrl.replaceAll(
 		'{q}',
 		encodeURIComponent(query.trim()),
 	)

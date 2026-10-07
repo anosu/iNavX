@@ -76,6 +76,7 @@ export function parseCatalogImport(
 				id: crypto.randomUUID(),
 				name: site.category,
 				sortOrder: categories.length,
+				color: '',
 			}
 			categories.push(category)
 			categoriesByName.set(category.name, category)
@@ -98,7 +99,7 @@ export function parseCatalogImport(
 	return {
 		package: migrationSchema.parse({
 			format: 'inav-catalog',
-			formatVersion: 1,
+			formatVersion: 5,
 			appVersion: 'bookmark-import',
 			exportedAt: now,
 			data: { ...currentCatalog, categories, sites },

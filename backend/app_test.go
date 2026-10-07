@@ -60,6 +60,9 @@ func TestLegacyNodeDatabaseAndURLCompatibility(t *testing.T) {
 	}
 	settings := s.Defaults.Settings
 	settings.Name = "Existing custom site"
+	if _, err = db.Exec("INSERT INTO categories(id,name,sort_order) VALUES('legacy-category','Renamed legacy category',12)"); err != nil {
+		t.Fatal(err)
+	}
 	if _, err = db.Exec("INSERT INTO configuration(id,settings,engines,revision) VALUES(1,?,?,42)", marshal(settings), "[]"); err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +80,7 @@ func TestLegacyNodeDatabaseAndURLCompatibility(t *testing.T) {
 		t.Fatal(err)
 	}
 	c, err := upgraded.snapshot(upgraded.DB, true)
-	if err != nil || c.Settings.Name != settings.Name || c.Revision != "42" || len(c.Sites) != 0 || len(c.Categories) != 0 {
+	if err != nil || c.Settings.Name != settings.Name || c.Revision != "42" || len(c.Sites) != 0 || len(c.Categories) != 1 || c.Categories[0].Color != "" || c.Categories[0].Name != "Renamed legacy category" {
 		t.Fatalf("legacy content changed: %+v %v", c, err)
 	}
 	backups, err := upgraded.listBackups()

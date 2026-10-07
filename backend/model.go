@@ -52,10 +52,12 @@ type Category struct {
 	ID        string `json:"id" required:"true"`
 	Name      string `json:"name" required:"true"`
 	SortOrder int    `json:"sortOrder" required:"true"`
+	Color     string `json:"color"`
 }
 type CategoryInput struct {
 	Name      string `json:"name" required:"true"`
 	SortOrder int    `json:"sortOrder" required:"true"`
+	Color     string `json:"color"`
 }
 type SiteInput struct {
 	Name        string   `json:"name" required:"true"`
@@ -267,9 +269,12 @@ func validateTags(tags *[]string) error {
 	*tags = values
 	return nil
 }
+
+var categoryColorPattern = regexp.MustCompile(`^(#[0-9a-fA-F]{6})?$`)
+
 func (v *CategoryInput) validate() error {
 	v.Name = trim(v.Name)
-	if !text(v.Name, 100, true) || v.SortOrder < 0 || v.SortOrder > 1000000 {
+	if !text(v.Name, 100, true) || v.SortOrder < 0 || v.SortOrder > 1000000 || !categoryColorPattern.MatchString(v.Color) {
 		return fail(400, "分类字段无效")
 	}
 	return nil
@@ -340,7 +345,7 @@ func (v *Application) validate() error {
 	return nil
 }
 func (v *Migration) validate(l Limits) error {
-	if v.Format != "inav-catalog" || v.FormatVersion < 1 || v.FormatVersion > 4 || !text(v.AppVersion, 100, false) || !validTime(v.ExportedAt) || v.FormatVersion == 1 && len(v.Applications) > 0 {
+	if v.Format != "inav-catalog" || v.FormatVersion < 1 || v.FormatVersion > 5 || !text(v.AppVersion, 100, false) || !validTime(v.ExportedAt) || v.FormatVersion == 1 && len(v.Applications) > 0 {
 		return fail(400, "迁移包版本或信息无效")
 	}
 	c := &v.Data
@@ -356,7 +361,10 @@ func (v *Migration) validate(l Limits) error {
 	cats, names, sites, urls, apps, pending := map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for i := range c.Categories {
 		item := &c.Categories[i]
-		input := CategoryInput{item.Name, item.SortOrder}
+		if v.FormatVersion < 5 && item.Color != "" {
+			return fail(400, "旧版迁移包不支持分类颜色")
+		}
+		input := CategoryInput{Name: item.Name, SortOrder: item.SortOrder, Color: item.Color}
 		if err := input.validate(); err != nil {
 			return err
 		}

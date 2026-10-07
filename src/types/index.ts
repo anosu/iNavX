@@ -1,9 +1,8 @@
 import type React from 'react'
-import type { SiteCategory } from '@/data/categories'
 
 // Personal categories keep display names, including legacy names.
 // Public records also carry a stable categoryId managed by the backend.
-export type { SiteCategory } from '@/data/categories'
+export type SiteCategory = string
 
 export interface Site {
 	id: string

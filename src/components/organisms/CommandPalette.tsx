@@ -8,11 +8,11 @@ import {
 } from '@/components/atoms/Icons'
 import { Input } from '@/components/atoms/Input'
 import { ResourceImage } from '@/components/atoms/ResourceImage'
-import { getCategoryColor } from '@/data/categories'
 import { useDialogBackdropClose } from '@/hooks/useDialogBackdropClose'
 import { useDialogLifecycle } from '@/hooks/useDialogLifecycle'
 import { useSiteIconUrl } from '@/hooks/useImageUrl'
-import type { Site, SiteCategory } from '@/types'
+import { usePublicCatalog } from '@/hooks/usePublicCatalog'
+import type { Site } from '@/types'
 import { searchCommandSites } from '@/utils/commandSearch'
 import {
 	clearRecentSites,
@@ -20,6 +20,7 @@ import {
 	recordSiteOpen,
 } from '@/utils/recentSites'
 import type { Engine } from '../../../shared/catalog'
+import { getCategoryColor } from '../../../shared/categories'
 
 /* ============================================================
    CommandPalette
@@ -55,11 +56,12 @@ function escapeRegex(str: string): string {
 
 // ---- 分类颜色 ----
 
-function CategoryDot({ category }: { category: SiteCategory }) {
-	const color = getCategoryColor(category)
+function CategoryDot({ color }: { color: string | undefined }) {
 	return (
 		<span
-			className={`inline-block w-1.5 h-1.5 rounded-full bg-current shrink-0 ${color}`}
+			aria-hidden="true"
+			className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
+			style={{ backgroundColor: color }}
 		/>
 	)
 }
@@ -97,6 +99,7 @@ function SiteAvatar({ site }: { site: Site }) {
 
 interface ResultItemProps {
 	entry: CommandEntry
+	categoryColor?: string
 	query: string
 	selected: boolean
 	onMouseEnter: () => void
@@ -105,6 +108,7 @@ interface ResultItemProps {
 
 function ResultItem({
 	entry,
+	categoryColor,
 	query,
 	selected,
 	onMouseEnter,
@@ -150,7 +154,7 @@ function ResultItem({
 							{highlightMatch(entry.commandId, query)}
 						</span>
 					)}
-					{entry.site && <CategoryDot category={entry.site.category} />}
+					{entry.site && <CategoryDot color={categoryColor} />}
 					<span
 						className="max-w-24 truncate text-[11px] text-muted-foreground"
 						title={entry.site?.category}
@@ -277,6 +281,21 @@ export function CommandPalette({
 	onCategorySelect,
 	onTagSelect,
 }: CommandPaletteProps) {
+	const catalog = usePublicCatalog()
+	const categoryColor = useMemo(() => {
+		const byId = new Map(catalog.categories.map((item) => [item.id, item]))
+		const byName = new Map(catalog.categories.map((item) => [item.name, item]))
+		return (site: Site) => {
+			const category =
+				site.source === 'builtin' && site.categoryId
+					? byId.get(site.categoryId)
+					: byName.get(site.category)
+			return getCategoryColor(
+				category?.id || site.categoryId || site.category,
+				category?.color,
+			)
+		}
+	}, [catalog.categories])
 	const dialogRef = useDialogLifecycle(open)
 	const [query, setQuery] = useState('')
 	const [selectedIndex, setSelectedIndex] = useState(0)
@@ -428,7 +447,7 @@ export function CommandPalette({
 					group: '搜索互联网',
 					run: () => {
 						window.open(
-							engine.searchUrl.replace('{q}', encodeURIComponent(search)),
+							engine.searchUrl.replaceAll('{q}', encodeURIComponent(search)),
 							'_blank',
 							'noopener,noreferrer',
 						)
@@ -640,6 +659,9 @@ export function CommandPalette({
 								)}
 								<ResultItem
 									entry={entry}
+									categoryColor={
+										entry.site ? categoryColor(entry.site) : undefined
+									}
 									query={siteAction ? siteQuery : search}
 									selected={index === activeIndex}
 									onMouseEnter={() => setSelectedIndex(index)}

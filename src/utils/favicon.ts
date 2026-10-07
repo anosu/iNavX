@@ -12,11 +12,7 @@ export function extractDomain(url: string): string {
 /** Only generate an icon from an explicitly configured source. */
 export function getFaviconUrl(
 	urlOrDomain: string,
-	settings:
-		| Pick<Settings, 'faviconTemplate' | 'remoteImagesEnabled'>
-		| undefined = typeof window !== 'undefined'
-		? window.__INAV_SETTINGS__
-		: undefined,
+	settings: Pick<Settings, 'faviconTemplate' | 'remoteImagesEnabled'>,
 ): string | undefined {
 	const domain = urlOrDomain.includes('://')
 		? extractDomain(urlOrDomain)

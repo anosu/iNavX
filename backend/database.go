@@ -217,7 +217,7 @@ func (s *Store) seed() error {
 	return transaction(s.DB, func(tx *sql.Tx) error {
 		names := map[string]string{}
 		for _, category := range s.Defaults.Categories {
-			if _, err := tx.Exec("INSERT INTO categories(id,name,sort_order) VALUES(?,?,?)", category.ID, category.Name, category.SortOrder); err != nil {
+			if _, err := tx.Exec("INSERT INTO categories(id,name,sort_order,color) VALUES(?,?,?,?)", category.ID, category.Name, category.SortOrder, category.Color); err != nil {
 				return err
 			}
 			names[category.Name] = category.ID
@@ -354,13 +354,13 @@ func (s *Store) snapshot(q queryer, includeDeleted bool) (Catalog, error) {
 	if err := json.Unmarshal([]byte(engines), &c.Engines); err != nil {
 		return c, err
 	}
-	rows, err := q.Query("SELECT id,name,sort_order FROM categories ORDER BY sort_order")
+	rows, err := q.Query("SELECT id,name,sort_order,color FROM categories ORDER BY sort_order")
 	if err != nil {
 		return c, err
 	}
 	for rows.Next() {
 		var v Category
-		if err = rows.Scan(&v.ID, &v.Name, &v.SortOrder); err != nil {
+		if err = rows.Scan(&v.ID, &v.Name, &v.SortOrder, &v.Color); err != nil {
 			break
 		}
 		c.Categories = append(c.Categories, v)

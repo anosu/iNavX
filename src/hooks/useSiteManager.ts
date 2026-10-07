@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import type { Site, SiteCategory } from '@/types'
-import { extractDomain, getFaviconUrl } from '@/utils/favicon'
+import { extractDomain } from '@/utils/favicon'
 import { readStoredSites } from '@/utils/personalData'
 import { httpUrl, normalizeUrl } from '../../shared/catalog'
 import { tagsSchema } from '../../shared/tags'
@@ -136,8 +136,7 @@ export function useSiteManager(): UseSiteManagerReturn {
 
 	const addSite = useCallback(
 		(payload: SitePayload): Site => {
-			const iconUrl =
-				payload.iconUrl?.trim() || getFaviconUrl(payload.url) || undefined
+			const iconUrl = payload.iconUrl?.trim() || undefined
 
 			const site: Site = {
 				id: '',
@@ -174,9 +173,7 @@ export function useSiteManager(): UseSiteManagerReturn {
 					const iconUrl =
 						payload.iconUrl !== undefined
 							? payload.iconUrl?.trim() || undefined
-							: newUrl !== site.url
-								? getFaviconUrl(newUrl) || site.iconUrl
-								: site.iconUrl
+							: site.iconUrl
 					return {
 						...site,
 						...payload,

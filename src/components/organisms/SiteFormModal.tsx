@@ -10,7 +10,6 @@ import { inputVariants } from '@/components/atoms/Input'
 import { ResourceImage } from '@/components/atoms/ResourceImage'
 import { Switch } from '@/components/atoms/Switch'
 import { TagInput } from '@/components/molecules/TagInput'
-import { SITE_CATEGORIES } from '@/data/categories'
 import { useDialogBackdropClose } from '@/hooks/useDialogBackdropClose'
 import { useDialogLifecycle } from '@/hooks/useDialogLifecycle'
 import { useImageUrl, useSiteIconUrl } from '@/hooks/useImageUrl'
@@ -357,7 +356,7 @@ export function SiteFormModal({
 	onSubmit,
 	isUrlDuplicate,
 	onDelete,
-	categories = SITE_CATEGORIES,
+	categories = [],
 }: SiteFormModalProps) {
 	const { settings } = usePublicCatalog()
 	const metadataTemplate = settings.metadataFetchEnabled

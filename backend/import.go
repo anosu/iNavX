@@ -17,7 +17,7 @@ func replaceCatalog(tx *sql.Tx, c Catalog) error {
 		}
 	}
 	for _, v := range c.Categories {
-		if _, err := tx.Exec("INSERT INTO categories(id,name,sort_order) VALUES(?,?,?)", v.ID, v.Name, v.SortOrder); err != nil {
+		if _, err := tx.Exec("INSERT INTO categories(id,name,sort_order,color) VALUES(?,?,?,?)", v.ID, v.Name, v.SortOrder, v.Color); err != nil {
 			return err
 		}
 	}
@@ -76,7 +76,7 @@ func (s *Store) importMigration(pkg Migration, mode string) (MergeReport, error)
 				if catIDs[v.ID] {
 					target.ID = uuid()
 				}
-				if _, err = tx.Exec("INSERT INTO categories(id,name,sort_order) VALUES(?,?,?)", target.ID, target.Name, target.SortOrder); err != nil {
+				if _, err = tx.Exec("INSERT INTO categories(id,name,sort_order,color) VALUES(?,?,?,?)", target.ID, target.Name, target.SortOrder, target.Color); err != nil {
 					return err
 				}
 				catsByName[target.Name] = target
@@ -159,7 +159,7 @@ func (s *Store) importMigration(pkg Migration, mode string) (MergeReport, error)
 		if err != nil {
 			return err
 		}
-		check := Migration{Format: "inav-catalog", FormatVersion: 4, AppVersion: "validate", ExportedAt: now(), Data: combined, Applications: all}
+		check := Migration{Format: "inav-catalog", FormatVersion: 5, AppVersion: "validate", ExportedAt: now(), Data: combined, Applications: all}
 		if err = check.validate(s.Defaults.Limits); err != nil {
 			return err
 		}

@@ -36,7 +36,7 @@ func TestApplicationTagsReviewAndRoundTrip(t *testing.T) {
 		t.Fatalf("review: %+v %+v %v", item, site, err)
 	}
 	pkg, err := s.export()
-	if err != nil || pkg.FormatVersion != 4 {
+	if err != nil || pkg.FormatVersion != 5 {
 		t.Fatalf("export: %+v %v", pkg, err)
 	}
 	if _, err = s.importMigration(pkg, "replace"); err != nil {

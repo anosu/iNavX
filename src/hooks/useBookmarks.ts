@@ -1,13 +1,14 @@
 import { useCallback } from 'react'
 import { z } from 'zod'
 import type { BookmarkImportResult, Site } from '@/types'
-import { extractDomain, getFaviconUrl } from '@/utils/favicon'
+import { extractDomain } from '@/utils/favicon'
 import {
 	localSiteSchema,
 	readStoredSites,
 	restorePersonalData,
 } from '@/utils/personalData'
 import { normalizeUrl } from '../../shared/catalog'
+import { usePublicCatalog } from './usePublicCatalog'
 import { useStoredState } from './useStoredState'
 
 const STORAGE_KEY = 'inav-imported-sites'
@@ -76,7 +77,6 @@ function parseBookmarkHtml(
 				name: name || domain,
 				url,
 				description: `从书签导入 — ${domain}`,
-				iconUrl: domain ? getFaviconUrl(domain) : undefined,
 				category: '其他',
 				source: 'imported',
 				addedAt: new Date().toISOString(),
@@ -103,6 +103,7 @@ export interface UseBookmarksReturn {
 }
 
 export function useBookmarks(): UseBookmarksReturn {
+	const { settings } = usePublicCatalog()
 	const [importedSites, setImportedSites] = useStoredState(
 		STORAGE_KEY,
 		loadFromStorage,
@@ -181,38 +182,41 @@ export function useBookmarks(): UseBookmarksReturn {
 		triggerDownload(blob, 'inav-sites.json')
 	}, [])
 
-	const exportToHtml = useCallback((visibleSites: Site[]) => {
-		const grouped = new Map<string, Site[]>()
-		for (const site of visibleSites) {
-			const cat = site.category
-			if (!grouped.has(cat)) grouped.set(cat, [])
-			grouped.get(cat)?.push(site)
-		}
+	const exportToHtml = useCallback(
+		(visibleSites: Site[]) => {
+			const grouped = new Map<string, Site[]>()
+			for (const site of visibleSites) {
+				const cat = site.category
+				if (!grouped.has(cat)) grouped.set(cat, [])
+				grouped.get(cat)?.push(site)
+			}
 
-		const folderHtml = Array.from(grouped.entries())
-			.map(([cat, sites]) => {
-				const items = sites
-					.map(
-						(s) =>
-							`    <DT><A HREF="${escapeHtml(s.url)}">${escapeHtml(s.name)}</A>`,
-					)
-					.join('\n')
-				return `  <DT><H3>${escapeHtml(cat)}</H3>\n  <DL><p>\n${items}\n  </DL><p>`
-			})
-			.join('\n')
+			const folderHtml = Array.from(grouped.entries())
+				.map(([cat, sites]) => {
+					const items = sites
+						.map(
+							(s) =>
+								`    <DT><A HREF="${escapeHtml(s.url)}">${escapeHtml(s.name)}</A>`,
+						)
+						.join('\n')
+					return `  <DT><H3>${escapeHtml(cat)}</H3>\n  <DL><p>\n${items}\n  </DL><p>`
+				})
+				.join('\n')
 
-		const html = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+			const html = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
 <!-- This is an automatically generated file. -->
 <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
-<TITLE>Bookmarks</TITLE>
-<H1>iNav 导出书签</H1>
+<TITLE>${escapeHtml(settings.name)} 导出书签</TITLE>
+<H1>${escapeHtml(settings.name)} 导出书签</H1>
 <DL><p>
 ${folderHtml}
 </DL><p>`
 
-		const blob = new Blob([html], { type: 'text/html' })
-		triggerDownload(blob, 'inav-bookmarks.html')
-	}, [])
+			const blob = new Blob([html], { type: 'text/html' })
+			triggerDownload(blob, 'inav-bookmarks.html')
+		},
+		[settings.name],
+	)
 
 	return {
 		importedSites,

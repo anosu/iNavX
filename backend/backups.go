@@ -19,7 +19,7 @@ type DatabaseBackup struct {
 }
 
 func (s *Store) export() (Migration, error) {
-	value := Migration{Format: "inav-catalog", FormatVersion: 4, ExportedAt: now()}
+	value := Migration{Format: "inav-catalog", FormatVersion: 5, ExportedAt: now()}
 	var pkg struct {
 		Version string `json:"version"`
 	}

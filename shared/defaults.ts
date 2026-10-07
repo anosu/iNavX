@@ -17,7 +17,12 @@ export const DEFAULT_CATEGORIES: Category[] = [
 	'效率',
 	'娱乐',
 	'其他',
-].map((name, index) => ({ id: `category-${index}`, name, sortOrder: index }))
+].map((name, index) => ({
+	id: `category-${index}`,
+	name,
+	sortOrder: index,
+	color: '',
+}))
 export const DEFAULT_ENGINES: Engine[] = [
 	{
 		id: 'bing',

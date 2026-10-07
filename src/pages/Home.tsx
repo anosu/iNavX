@@ -309,7 +309,7 @@ export default function Home() {
 		if (trimmed) {
 			for (const engine of enabledEnginesRef.current) {
 				result.push({
-					url: engine.searchUrl.replace('{q}', encodeURIComponent(trimmed)),
+					url: engine.searchUrl.replaceAll('{q}', encodeURIComponent(trimmed)),
 					label: engine.name,
 				})
 			}
