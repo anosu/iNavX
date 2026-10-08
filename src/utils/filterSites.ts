@@ -4,13 +4,13 @@ export function filterSites(
 	sites: Site[],
 	query: string,
 	category: SiteCategory | null,
-	tag: string | null,
+	tags: readonly string[],
 ): Site[] {
 	const q = query.trim().toLowerCase()
 	return sites.filter(
 		(site) =>
 			(!category || site.category === category) &&
-			(!tag || site.tags?.includes(tag)) &&
+			tags.every((tag) => site.tags?.includes(tag)) &&
 			(!q ||
 				site.name.toLowerCase().includes(q) ||
 				site.description.toLowerCase().includes(q) ||

@@ -171,7 +171,7 @@ export default function Home() {
 	)
 	// ---- 搜索 & 分类状态 ----
 	const [query, setQuery] = useState('')
-	const [activeTag, setActiveTag] = useState<string | null>(null)
+	const [activeTags, setActiveTags] = useState<string[]>([])
 	const [activeCategory, setActiveCategory] = useState<SiteCategory | null>(
 		null,
 	)
@@ -260,13 +260,13 @@ export default function Home() {
 
 	// ---- 过滤 ----
 	const filteredSites = useMemo(
-		() => filterSites(allSites, deferredQuery, activeCategory, activeTag),
-		[allSites, deferredQuery, activeCategory, activeTag],
+		() => filterSites(allSites, deferredQuery, activeCategory, activeTags),
+		[allSites, deferredQuery, activeCategory, activeTags],
 	)
 
 	const isStale = query !== deferredQuery
 	const hasFilter =
-		query.trim() !== '' || activeCategory !== null || activeTag !== null
+		query.trim() !== '' || activeCategory !== null || activeTags.length > 0
 
 	// ---- 事件处理 ----
 	const handleSearchChange = useCallback((value: string) => {
@@ -275,6 +275,13 @@ export default function Home() {
 
 	const handleCategoryChange = useCallback((cat: SiteCategory | null) => {
 		setActiveCategory(cat)
+	}, [])
+	const handleTagToggle = useCallback((tag: string) => {
+		setActiveTags((previous) =>
+			previous.includes(tag)
+				? previous.filter((value) => value !== tag)
+				: [...previous, tag],
+		)
 	}, [])
 
 	// filteredSites ref：供键盘快捷键读取最新值，避免 closure 陈旧引用
@@ -506,7 +513,7 @@ export default function Home() {
 			run: () => {
 				setQuery('')
 				setActiveCategory(null)
-				setActiveTag(null)
+				setActiveTags([])
 			},
 		})
 	if (import.meta.env.VITE_STATIC_MODE !== 'true') {
@@ -546,7 +553,7 @@ export default function Home() {
 				onReset={() => {
 					setQuery('')
 					setActiveCategory(null)
-					setActiveTag(null)
+					setActiveTags([])
 					requestAnimationFrame(() => searchInputRef.current?.blur())
 				}}
 			/>
@@ -632,18 +639,28 @@ export default function Home() {
 				</div>
 
 				{/* 搜索结果信息 */}
-				{activeTag && (
-					<div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-						<span className="shrink-0">标签筛选</span>
+				{activeTags.length > 0 && (
+					<div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
+						<span className="shrink-0">同时包含标签</span>
+						{activeTags.map((tag) => (
+							<button
+								key={tag}
+								type="button"
+								onClick={() => handleTagToggle(tag)}
+								className="badge badge-primary min-w-0 max-w-full gap-1.5 py-1.5 hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+								title={`取消标签筛选：${tag}`}
+								aria-label={`取消标签筛选：${tag}`}
+							>
+								<span className="truncate">{tag}</span>
+								<XIcon size={12} className="shrink-0" />
+							</button>
+						))}
 						<button
 							type="button"
-							onClick={() => setActiveTag(null)}
-							className="badge badge-primary min-w-0 gap-1.5 py-1.5 hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-							title={`取消标签筛选：${activeTag}`}
-							aria-label={`取消标签筛选：${activeTag}`}
+							onClick={() => setActiveTags([])}
+							className="shrink-0 rounded px-2 py-1.5 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 						>
-							<span className="truncate">{activeTag}</span>
-							<XIcon size={12} className="shrink-0" />
+							清空标签筛选
 						</button>
 					</div>
 				)}
@@ -696,8 +713,8 @@ export default function Home() {
 						<NavGrid
 							sites={filteredSites}
 							searchQuery={deferredQuery}
-							activeTag={activeTag}
-							onTagSelect={setActiveTag}
+							activeTags={activeTags}
+							onTagToggle={handleTagToggle}
 							enabledEngines={engineOrder.enabledEngines}
 							engineSettings={<EngineSettings engineOrder={engineOrder} />}
 							isStale={isStale}
@@ -798,16 +815,9 @@ export default function Home() {
 					actions={commandActions}
 					siteActions={siteCommands}
 					engines={engineOrder.enabledEngines}
-					onCategorySelect={(category) => {
-						setQuery('')
-						setActiveTag(null)
-						setActiveCategory(category)
-					}}
-					onTagSelect={(tag) => {
-						setQuery('')
-						setActiveCategory(null)
-						setActiveTag(tag)
-					}}
+					onCategorySelect={handleCategoryChange}
+					activeTags={activeTags}
+					onTagToggle={handleTagToggle}
 				/>
 			</Suspense>
 

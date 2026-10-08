@@ -78,8 +78,8 @@ export interface CategoryFilterProps {
 
 export interface NavGridProps {
 	sites: Site[]
-	activeTag?: string | null
-	onTagSelect?: (tag: string) => void
+	activeTags?: readonly string[]
+	onTagToggle?: (tag: string) => void
 	searchQuery?: string
 	onEdit?: (site: Site) => void
 	onDelete?: (site: Site) => void
@@ -88,8 +88,8 @@ export interface NavGridProps {
 
 export interface SiteCardProps {
 	site: Site
-	activeTag?: string | null
-	onTagSelect?: (tag: string) => void
+	activeTags?: readonly string[]
+	onTagToggle?: (tag: string) => void
 	className?: string
 	searchQuery?: string
 	/** 搜索时显示的快捷键编号（1-9） */

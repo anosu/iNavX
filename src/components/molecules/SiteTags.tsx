@@ -5,15 +5,15 @@ import { XIcon } from '@/components/atoms/Icons'
 interface SiteTagsProps {
 	name: string
 	tags: string[]
-	activeTag?: string | null
-	onTagSelect?: (tag: string) => void
+	activeTags?: readonly string[]
+	onTagToggle?: (tag: string) => void
 }
 
 export function SiteTags({
 	name,
 	tags,
-	activeTag,
-	onTagSelect,
+	activeTags = [],
+	onTagToggle,
 }: SiteTagsProps) {
 	const panelId = useId()
 	const tagsRef = useRef<HTMLFieldSetElement>(null)
@@ -22,10 +22,10 @@ export function SiteTags({
 	const [open, setOpen] = useState(false)
 	const [truncated, setTruncated] = useState(false)
 	const [position, setPosition] = useState<React.CSSProperties>({})
-	const preview =
-		activeTag && tags.includes(activeTag)
-			? [activeTag, ...tags.filter((tag) => tag !== activeTag)].slice(0, 2)
-			: tags.slice(0, 2)
+	const preview = [
+		...tags.filter((tag) => activeTags.includes(tag)),
+		...tags.filter((tag) => !activeTags.includes(tag)),
+	].slice(0, 2)
 	const closePanel = useCallback(() => setOpen(false), [])
 
 	useEffect(() => {
@@ -110,14 +110,10 @@ export function SiteTags({
 		<button
 			key={tag}
 			type="button"
-			onClick={() => {
-				closePanel()
-				if (expanded) triggerRef.current?.focus()
-				onTagSelect?.(tag)
-			}}
+			onClick={() => onTagToggle?.(tag)}
 			className={[
 				'badge site-tag min-w-0 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-				activeTag === tag ? 'badge-active' : 'badge-default',
+				activeTags.includes(tag) ? 'badge-active' : 'badge-default',
 				expanded
 					? 'max-w-full whitespace-normal rounded-md text-left leading-relaxed'
 					: preview.length > 1
@@ -126,8 +122,8 @@ export function SiteTags({
 			].join(' ')}
 			title={tag}
 			aria-label={`筛选标签：${tag}`}
-			aria-pressed={activeTag === tag}
-			disabled={!onTagSelect}
+			aria-pressed={activeTags.includes(tag)}
+			disabled={!onTagToggle}
 		>
 			<span className={expanded ? 'break-all' : 'truncate'}>{tag}</span>
 		</button>

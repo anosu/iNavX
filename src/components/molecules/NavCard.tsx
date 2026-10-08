@@ -232,8 +232,8 @@ export function NavCard({
 	onEdit,
 	onDelete,
 	onTogglePin,
-	activeTag,
-	onTagSelect,
+	activeTags,
+	onTagToggle,
 }: SiteCardProps) {
 	const { features } = usePublicCatalog().settings
 	const ALLOW_HIDE_BUILTIN = features.hideBuiltin
@@ -555,8 +555,8 @@ export function NavCard({
 					<SiteTags
 						name={name}
 						tags={tags}
-						activeTag={activeTag}
-						onTagSelect={onTagSelect}
+						activeTags={activeTags}
+						onTagToggle={onTagToggle}
 					/>
 					{rank !== undefined && (
 						<span

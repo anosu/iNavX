@@ -131,13 +131,23 @@ test('tag filters match complete values and combine with category and search', (
 		{ ...base, id: 'name', name: 'Go', tags: [] },
 	]
 	assert.deepEqual(
-		filterSites(sites, '', null, 'Go').map((s) => s.id),
+		filterSites(sites, '', null, ['Go']).map((s) => s.id),
 		['tagged'],
 	)
-	assert.deepEqual(filterSites(sites, 'editor', '开发', 'Go'), [base])
-	assert.deepEqual(filterSites(sites, '', '其他', 'Go'), [])
-	assert.deepEqual(filterSites(sites, '', null, 'go'), [])
-	assert.equal(filterSites(sites, 'go', null, null).length, 3)
+	assert.deepEqual(filterSites(sites, 'editor', '开发', ['Go']), [base])
+	assert.deepEqual(filterSites(sites, '', '其他', ['Go']), [])
+	assert.deepEqual(filterSites(sites, '', null, ['go']), [])
+	assert.equal(filterSites(sites, 'go', null, []).length, 3)
+	const multiple = { ...base, id: 'multiple', tags: ['Go', '开源', 'C, C++'] }
+	const untagged = { ...base, id: 'untagged', tags: undefined }
+	const all = [...sites, multiple, untagged]
+	assert.deepEqual(filterSites(all, '', null, ['Go', '开源']), [multiple])
+	assert.deepEqual(filterSites(all, '', null, ['Go', 'Golang']), [])
+	assert.deepEqual(filterSites(all, 'editor', '开发', ['Go', 'C, C++']), [
+		multiple,
+	])
+	assert.deepEqual(filterSites(all, '', null, ['C', 'C++']), [])
+	assert.deepEqual(filterSites(all, '', null, []), all)
 })
 
 test('version 4 carries application tags and old packages supply an empty list', () => {

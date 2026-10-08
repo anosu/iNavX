@@ -113,7 +113,7 @@ test('category editor saves color and command results follow category ID after r
 				actions={[]}
 				engines={[]}
 				onCategorySelect={() => {}}
-				onTagSelect={() => {}}
+				onTagToggle={() => {}}
 			/>
 		</PublicCatalogProvider>,
 	)
@@ -624,7 +624,7 @@ test('command shortcut toggles from its input, ignores repeats and protects othe
 					actions={[]}
 					engines={[]}
 					onCategorySelect={() => {}}
-					onTagSelect={() => {}}
+					onTagToggle={() => {}}
 				/>
 			</>
 		)
@@ -745,7 +745,7 @@ test('command groups support actions, filters, engines, history clearing and IME
 			onCategorySelect={(category) => {
 				selected = category
 			}}
-			onTagSelect={(tag) => {
+			onTagToggle={(tag) => {
 				selected = tag
 			}}
 		/>,
@@ -803,7 +803,7 @@ test('command groups support actions, filters, engines, history clearing and IME
 	await type('Long')
 	await choose('查看此分类的站点')
 	assert.equal(selected, 'Long category')
-	await choose('按此标签筛选站点')
+	await choose('添加此标签筛选')
 	assert.equal(selected, 'Long tag')
 	await type('hello & world')
 	await choose('用 Search 搜索')
@@ -973,7 +973,7 @@ test('command results load in batches while queries search every eligible site',
 				},
 			]}
 			onCategorySelect={() => {}}
-			onTagSelect={() => {}}
+			onTagToggle={() => {}}
 		/>,
 	)
 	t.after(view.dispose)
@@ -1332,7 +1332,7 @@ test('tag lists work without native Popover, close on Escape and resize, and ret
 		<SiteTags
 			name="Example"
 			tags={['one', 'two', 'with,comma']}
-			onTagSelect={(tag) => {
+			onTagToggle={(tag) => {
 				selected = tag
 			}}
 		/>,
@@ -1367,7 +1367,13 @@ test('tag lists work without native Popover, close on Escape and resize, and ret
 	assert.ok(commaTag)
 	await act(() => commaTag.click())
 	assert.equal(selected, 'with,comma')
-	assert.equal(document.querySelector('[role="dialog"]'), null)
+	assert.ok(document.querySelector('[role="dialog"]'))
+	await act(() =>
+		document.dispatchEvent(
+			new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+		),
+	)
+	assert.equal(document.activeElement, trigger)
 })
 
 test('one or two truncated tags expose the full list and respond to available width', async (t) => {
@@ -1389,7 +1395,7 @@ test('one or two truncated tags expose the full list and respond to available wi
 		['ArtificialIntelligenceDeveloperTools', 'ContinuousIntegrationAutomation'],
 	]) {
 		const view = await mount(
-			<SiteTags name="Long tags" tags={tags} onTagSelect={() => {}} />,
+			<SiteTags name="Long tags" tags={tags} onTagToggle={() => {}} />,
 		)
 		try {
 			assert.equal(

@@ -288,8 +288,8 @@ export function NavGrid({
 	onEdit,
 	onDelete,
 	onTogglePin,
-	activeTag,
-	onTagSelect,
+	activeTags,
+	onTagToggle,
 }: NavGridProps & {
 	enabledEngines?: Engine[]
 	engineSettings?: React.ReactNode
@@ -344,8 +344,8 @@ export function NavGrid({
 					key={`${site.source}:${site.id}`}
 					site={site}
 					searchQuery={searchQuery}
-					activeTag={activeTag}
-					onTagSelect={onTagSelect}
+					activeTags={activeTags}
+					onTagToggle={onTagToggle}
 					rank={trimmedQuery && i < 9 ? i + 1 : undefined}
 					onEdit={onEdit}
 					onDelete={onDelete}

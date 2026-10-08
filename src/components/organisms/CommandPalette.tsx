@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react'
 import { buttonVariants } from '@/components/atoms/Button'
 import {
 	CommandIcon,
@@ -246,7 +253,8 @@ export interface CommandPaletteProps {
 	siteActions?: SiteCommandAction[]
 	engines: Engine[]
 	onCategorySelect: (category: string) => void
-	onTagSelect: (tag: string) => void
+	activeTags?: readonly string[]
+	onTagToggle: (tag: string) => void
 }
 
 export interface CommandAction {
@@ -262,6 +270,7 @@ export interface SiteCommandAction extends Omit<CommandAction, 'run'> {
 }
 
 const NO_SITE_ACTIONS: SiteCommandAction[] = []
+const NO_ACTIVE_TAGS: readonly string[] = []
 const RESULT_BATCH_SIZE = 30
 
 interface CommandEntry extends CommandAction {
@@ -279,7 +288,8 @@ export function CommandPalette({
 	siteActions = NO_SITE_ACTIONS,
 	engines,
 	onCategorySelect,
-	onTagSelect,
+	activeTags = NO_ACTIVE_TAGS,
+	onTagToggle,
 }: CommandPaletteProps) {
 	const catalog = usePublicCatalog()
 	const categoryColor = useMemo(() => {
@@ -434,9 +444,11 @@ export function CommandPalette({
 				entries.push({
 					id: `tag-${tag}`,
 					label: tag,
-					detail: '按此标签筛选站点',
+					detail: activeTags.includes(tag)
+						? '取消此标签筛选'
+						: '添加此标签筛选',
 					group: '标签',
-					run: () => onTagSelect(tag),
+					run: () => onTagToggle(tag),
 				})
 			}
 			for (const engine of engines.filter((engine) => engine.enabled))
@@ -474,7 +486,8 @@ export function CommandPalette({
 		actions,
 		engines,
 		onCategorySelect,
-		onTagSelect,
+		activeTags,
+		onTagToggle,
 	])
 	const visibleResults = results.slice(0, visibleLimit)
 	const activeIndex = Math.min(
@@ -482,8 +495,8 @@ export function CommandPalette({
 		Math.max(0, visibleResults.length - 1),
 	)
 
-	// 焦点由共享的原生弹窗生命周期管理。
-	useEffect(() => {
+	// Reset before the dialog becomes interactive so fast input cannot be erased.
+	useLayoutEffect(() => {
 		if (open) {
 			setRecentUrls(readRecentSites())
 			setHistoryError('')
